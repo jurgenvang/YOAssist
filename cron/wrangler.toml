@@ -1,0 +1,14 @@
+name = "yoassist-cron"
+main = "index.js"
+compatibility_date = "2026-08-01"
+
+# Dezelfde databank als het Pages-project: database_id moet identiek zijn.
+[[d1_databases]]
+binding = "DB"
+database_name = "yoassist"
+database_id = "VUL-IN-NA-WRANGLER-D1-CREATE"
+
+# Alle kandidaat-uren in UTC. De Worker beslist zelf of het in Brussel
+# werkelijk 0, 6, 12 of 18 uur is, zodat zomer- en wintertijd allebei kloppen.
+[triggers]
+crons = ["0 22,23,4,5,10,11,16,17 * * *"]

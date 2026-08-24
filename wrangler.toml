@@ -1,0 +1,12 @@
+name = "yoassist"
+compatibility_date = "2026-08-01"
+pages_build_output_dir = "public"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "yoassist"
+database_id = "VUL-IN-NA-WRANGLER-D1-CREATE"
+
+[vars]
+CF_ACCESS_TEAM_DOMAIN = "jouwteam.cloudflareaccess.com"
+CF_ACCESS_AUD = "VUL-IN-VANUIT-ACCESS-APPLICATIE"
