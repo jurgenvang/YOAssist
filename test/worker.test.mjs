@@ -210,5 +210,91 @@ console.log('\n9. Cron draait alleen op de juiste Brusselse uren');
   await Promise.allSettled(gedraaid);
 }
 
+console.log('\n10. Versienummer');
+{
+  const env = nieuweEnv();
+  const r = await vraag(env, '/api/me', { alsWie: 'baas@club.be' });
+  check('versie meegestuurd', /^\d+\.\d+\.\d+$/.test(r.json.versie), true);
+}
+
+console.log('\n11. Clubkoppeling');
+{
+  // Eén club geconfigureerd: stilzwijgend koppelen, geen keuze tonen.
+  const env = nieuweEnv();
+  env.DB.exec("UPDATE users SET club_guid = NULL WHERE email = 'yo@club.be'");
+
+  const r = await vraag(env, '/api/me', { alsWie: 'yo@club.be' });
+  check('bij één club automatisch gekoppeld', r.json.clubGuid, CLUB);
+  check('als automatisch gemarkeerd', r.json.clubAutomatisch, true);
+  check('geen keuze nodig', r.json.clubKeuze, null);
+
+  const bewaard = await env.DB.prepare('SELECT club_guid FROM users WHERE email = ?')
+    .bind('yo@club.be').first();
+  check('ook echt bewaard', bewaard.club_guid, CLUB);
+}
+
+{
+  // Twee clubs: de gebruiker moet kiezen, met de namen erbij.
+  const env = nieuweEnv();
+  env.DB.exec(`
+    INSERT INTO clubs (guid, naam) VALUES ('BVBL2000', 'BC Beta');
+    UPDATE users SET club_guid = NULL WHERE email = 'yo@club.be';
+  `);
+
+  const r = await vraag(env, '/api/me', { alsWie: 'yo@club.be' });
+  check('niet automatisch gekoppeld', r.json.clubGuid, null);
+  check('keuze aangeboden', r.json.clubKeuze.reden, 'meerdere-clubs');
+  check('namen meegestuurd', r.json.clubKeuze.clubs.map((c) => c.naam), ['BC Alpha', 'BC Beta']);
+
+  const m = await vraag(env, '/api/matches', { alsWie: 'yo@club.be' });
+  check('matches geeft dezelfde keuze', m.json.clubKeuze.reden, 'meerdere-clubs');
+  check('en geen wedstrijden', m.json.matches.length, 0);
+
+  const gekozen = await vraag(env, '/api/club',
+    { methode: 'POST', alsWie: 'yo@club.be', body: { guid: 'BVBL2000' } });
+  check('keuze aanvaard', gekozen.json.clubNaam, 'BC Beta');
+  check('daarna geen keuze meer',
+    (await vraag(env, '/api/me', { alsWie: 'yo@club.be' })).json.clubKeuze, null);
+}
+
+{
+  // Geen enkele club geconfigureerd.
+  const env = nieuweEnv();
+  env.DB.exec("UPDATE users SET club_guid = NULL; DELETE FROM clubs;");
+  const r = await vraag(env, '/api/me', { alsWie: 'yo@club.be' });
+  check('meldt dat er geen clubs zijn', r.json.clubKeuze.reden, 'geen-clubs');
+}
+
+{
+  // Een club die niet geconfigureerd of niet actief is, mag niet gekozen worden.
+  const env = nieuweEnv();
+  env.DB.exec("INSERT INTO clubs (guid, naam, actief) VALUES ('BVBL3000', 'BC Inactief', 0)");
+
+  check('onbekende club geweigerd',
+    (await vraag(env, '/api/club',
+      { methode: 'POST', alsWie: 'yo@club.be', body: { guid: 'BVBL9999' } })).status, 404);
+  check('inactieve club geweigerd',
+    (await vraag(env, '/api/club',
+      { methode: 'POST', alsWie: 'yo@club.be', body: { guid: 'BVBL3000' } })).status, 404);
+  check('lege guid geweigerd',
+    (await vraag(env, '/api/club',
+      { methode: 'POST', alsWie: 'yo@club.be', body: { guid: '' } })).status, 400);
+
+  const nog = await env.DB.prepare('SELECT club_guid FROM users WHERE email = ?')
+    .bind('yo@club.be').first();
+  check('club ongewijzigd na weigering', nog.club_guid, CLUB);
+}
+
+{
+  // /api/clubs geeft alleen actieve clubs.
+  const env = nieuweEnv();
+  env.DB.exec(`
+    INSERT INTO clubs (guid, naam, actief) VALUES
+      ('BVBL2000', 'BC Beta', 1), ('BVBL3000', 'BC Inactief', 0);
+  `);
+  const r = await vraag(env, '/api/clubs', { alsWie: 'yo@club.be' });
+  check('inactieve club niet in de lijst', r.json.clubs.map((c) => c.naam), ['BC Alpha', 'BC Beta']);
+}
+
 console.log(mislukt === 0 ? '\n=== ALLE WORKERTESTS GESLAAGD ===' : `\n=== ${mislukt} TESTS GEFAALD ===`);
 process.exit(mislukt ? 1 : 0);

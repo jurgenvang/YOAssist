@@ -8,6 +8,16 @@ geplande synchronisatie zitten in hetzelfde project.
 
 ## Wat er werkt
 
+**Clubkoppeling.** Is er precies één club geconfigureerd, dan wordt een
+gebruiker daar stilzwijgend aan gekoppeld. Zijn er meerdere, dan kiest hij zelf
+uit een lijst met de clubnamen erbij. Alleen actieve, geconfigureerde clubs zijn
+kiesbaar — anders zou iemand zich aan een willekeurige GUID kunnen hangen.
+
+**Versienummer.** Staat in `src/versie.js` en komt via `/api/me` in de balk
+naast de naam YOAssist. Beheerders zien het ook onder hun eigen naam, want dat
+is de plek waar je kijkt als iemand een probleem meldt. Verhoog het bij elke
+deploy die het gedrag verandert.
+
 **Voor een Youth Official.** De thuiswedstrijden van de ploegen waarvoor hij is
 aangeduid, gegroepeerd per maand en gesorteerd op datum, uur en ploeg. Per
 wedstrijd twee knoppen: beschikbaar of niet beschikbaar. Nog niet geantwoord is
@@ -33,15 +43,17 @@ gebeuren is nog niet ingevuld.
 
 ```
 src/index.js               entrypoint: routetabel, authenticatie, cron
+src/versie.js              het versienummer, één plaats
 src/lib/access.js          identiteit uit Access (ctx.access of JWT)
 src/lib/http.js            json-, fout- en leeshulpjes
 src/lib/vbl.js             client en parsers voor Basketbal Vlaanderen
 src/lib/sync.js            synchronisatielogica
-src/routes/gebruiker.js    /api/me, /api/matches, /api/availability
+src/routes/gebruiker.js    /api/me, /api/clubs, /api/club, /api/matches,
+                           /api/availability
 src/routes/admin/index.js  alles onder /api/admin/
 public/index.html          de app, geen buildstap
 schema.sql / seed.sql      D1
-test/                      97 tests, draaien zonder netwerk
+test/                      125 tests, draaien zonder netwerk
 ```
 
 Er staat bewust **geen `package.json` in de hoofdmap**. De build zou er anders

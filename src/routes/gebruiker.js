@@ -1,32 +1,112 @@
 import { json, fout, leesJson, instelling } from '../lib/http.js';
 import { seizoenLabel, seizoenscode } from '../lib/vbl.js';
+import { VERSIE } from '../versie.js';
 
-/** GET /api/me — wie ben ik, en wat mag ik zien. */
+/**
+ * Zorgt dat de gebruiker aan een club hangt.
+ *
+ * Is er precies één actieve club geconfigureerd, dan valt er niets te kiezen en
+ * koppelen we stilzwijgend. Zijn er meerdere, dan moet de gebruiker zelf
+ * kiezen — de app kan niet raden bij welke club iemand aan de tafel staat.
+ *
+ * Geeft de eventueel bijgewerkte gebruiker terug, plus de clubs waaruit gekozen
+ * moet worden zolang er geen keuze is.
+ */
+export async function zorgVoorClub(env, user) {
+  if (user.clubGuid) return { user, keuze: null };
+
+  const { results: clubs } = await env.DB.prepare(
+    'SELECT guid, naam FROM clubs WHERE actief = 1 ORDER BY naam COLLATE NOCASE, guid',
+  ).all();
+
+  if (clubs.length === 0) {
+    return { user, keuze: { clubs: [], reden: 'geen-clubs' } };
+  }
+
+  if (clubs.length === 1) {
+    const club = clubs[0];
+    await env.DB.prepare('UPDATE users SET club_guid = ? WHERE email = ?')
+      .bind(club.guid, user.email)
+      .run();
+    return {
+      user: { ...user, clubGuid: club.guid, clubNaam: club.naam, clubAutomatisch: true },
+      keuze: null,
+    };
+  }
+
+  return {
+    user,
+    keuze: {
+      reden: 'meerdere-clubs',
+      clubs: clubs.map((c) => ({ guid: c.guid, naam: c.naam ?? c.guid })),
+    },
+  };
+}
+
+/** GET /api/me — wie ben ik, wat mag ik zien, en welke versie draait er. */
 export async function me({ env, user }) {
   const startJaar = Number(await instelling(env.DB, 'seizoen_start_jaar', '2026'));
-  return json({ ...user, seizoen: seizoenLabel(startJaar) });
+  const { user: bijgewerkt, keuze } = await zorgVoorClub(env, user);
+
+  return json({
+    ...bijgewerkt,
+    versie: VERSIE,
+    seizoen: seizoenLabel(startJaar),
+    clubKeuze: keuze,
+  });
+}
+
+/** GET /api/clubs — de clubs waaruit een gebruiker kan kiezen. */
+export async function clubs({ env }) {
+  const { results } = await env.DB.prepare(
+    'SELECT guid, naam FROM clubs WHERE actief = 1 ORDER BY naam COLLATE NOCASE, guid',
+  ).all();
+
+  return json({ clubs: results.map((c) => ({ guid: c.guid, naam: c.naam ?? c.guid })) });
+}
+
+/**
+ * POST /api/club   { guid }
+ *
+ * De gebruiker koppelt zichzelf aan een club. Alleen aan clubs die de beheerder
+ * heeft geconfigureerd en die actief zijn — anders zou iemand zich aan een
+ * willekeurige GUID kunnen hangen en wedstrijden zien die hem niet aangaan.
+ */
+export async function kiesClub({ request, env, user }) {
+  const body = await leesJson(request);
+  const guid = typeof body.guid === 'string' ? body.guid.trim().toUpperCase() : '';
+
+  if (!guid) return fout(400, 'Ongeldige aanvraag', 'guid ontbreekt.');
+
+  const club = await env.DB.prepare('SELECT guid, naam FROM clubs WHERE guid = ? AND actief = 1')
+    .bind(guid)
+    .first();
+
+  if (!club) {
+    return fout(404, 'Onbekende club', 'Deze club is niet geconfigureerd of staat op inactief.');
+  }
+
+  await env.DB.prepare('UPDATE users SET club_guid = ? WHERE email = ?')
+    .bind(club.guid, user.email)
+    .run();
+
+  return json({ clubGuid: club.guid, clubNaam: club.naam });
 }
 
 /**
  * GET /api/matches — thuiswedstrijden voor de aangemelde Youth Official.
  *
- * Filtering: actief seizoen, eigen club, teams die voor zijn profiel
- * aangevinkt staan (YO ziet teams.yo, YO+ ziet teams.yo_plus), niet verdwenen,
- * en vanaf vandaag. Sortering op datum, uur, ploeg; de frontend groepeert per
- * maand.
+ * Filtering: actief seizoen, eigen club, teams die voor zijn profiel aangevinkt
+ * staan (YO ziet teams.yo, YO+ ziet teams.yo_plus), niet verdwenen, en vanaf
+ * vandaag. Sortering op datum, uur, ploeg; de frontend groepeert per maand.
  */
 export async function matches({ env, user }) {
-  const { email, profiel, clubGuid } = user;
   const seizoen = seizoenscode(Number(await instelling(env.DB, 'seizoen_start_jaar', '2026')));
+  const { user: bijgewerkt, keuze } = await zorgVoorClub(env, user);
 
-  if (!clubGuid) {
-    return json({
-      seizoen,
-      matches: [],
-      waarschuwing: 'Je account is nog aan geen club gekoppeld.',
-    });
-  }
+  if (keuze) return json({ seizoen, matches: [], clubKeuze: keuze });
 
+  const { email, profiel, clubGuid } = bijgewerkt;
   const vlagKolom = profiel === 'YO+' ? 't.yo_plus' : 't.yo';
   const vandaag = new Date().toISOString().slice(0, 10);
 
@@ -49,6 +129,7 @@ export async function matches({ env, user }) {
 
   return json({
     seizoen,
+    clubNaam: bijgewerkt.clubNaam,
     matches: results.map((r) => ({
       guid: r.guid,
       datum: r.datum,

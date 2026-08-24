@@ -10,7 +10,7 @@
 import { identify, AuthError } from './lib/access.js';
 import { json, fout } from './lib/http.js';
 import { synchroniseer } from './lib/sync.js';
-import { me, matches, zetBeschikbaarheid } from './routes/gebruiker.js';
+import { me, clubs, kiesClub, matches, zetBeschikbaarheid } from './routes/gebruiker.js';
 import * as admin from './routes/admin/index.js';
 
 // ---------------------------------------------------------------------------
@@ -21,6 +21,8 @@ const ROUTES = [
   { methode: 'GET',    pad: '/api/me',                 handler: me },
   { methode: 'GET',    pad: '/api/matches',            handler: matches },
   { methode: 'POST',   pad: '/api/availability',       handler: zetBeschikbaarheid },
+  { methode: 'GET',    pad: '/api/clubs',              handler: clubs },
+  { methode: 'POST',   pad: '/api/club',               handler: kiesClub },
 
   { methode: 'GET',    pad: '/api/admin/config',       handler: admin.config,          beheer: true },
   { methode: 'POST',   pad: '/api/admin/season',       handler: admin.season,          beheer: true },

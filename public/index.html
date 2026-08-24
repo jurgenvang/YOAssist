@@ -51,10 +51,19 @@ button { font: inherit; cursor: pointer; }
   position: sticky; top: 0; z-index: 40;
 }
 .balk-rij { display: flex; align-items: center; gap: .75rem; max-width: 46rem; margin: 0 auto; }
-.merk { font-size: 1.15rem; font-weight: 700; letter-spacing: -.02em; }
-.merk span { color: var(--amber); }
+.merk { font-size: 1.15rem; font-weight: 700; letter-spacing: -.02em;
+         display: flex; align-items: baseline; gap: .4rem; }
+.merk span.accent { color: var(--amber); }
+.versie {
+  font-size: .62rem; font-weight: 600; letter-spacing: .04em;
+  color: #7d8794; border: 1px solid #333b46; border-radius: 999px;
+  padding: .08rem .38rem; font-variant-numeric: tabular-nums;
+  position: relative; top: -.1rem;
+}
 .balk-info { margin-left: auto; text-align: right; font-size: .78rem; line-height: 1.3; color: #a8b0bb; }
 .balk-info strong { display: block; color: #fff; font-weight: 600; font-size: .85rem; }
+.balk-info .beheer { display: block; color: var(--amber); font-size: .7rem;
+                     letter-spacing: .04em; font-weight: 600; }
 
 .menu-knop {
   background: transparent; border: 0; color: #fff;
@@ -230,6 +239,24 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
 .vink input:disabled { opacity: .45; }
 
 .leeg { text-align: center; color: var(--grijs); padding: 2.5rem 1rem; font-size: .92rem; }
+
+/* ---- Clubkeuze ---------------------------------------------------------- */
+.keuze-kaart {
+  background: var(--kaart); border: 1px solid var(--lijn); border-radius: var(--r);
+  padding: 1.2rem; box-shadow: var(--schaduw); margin-top: 1rem;
+}
+.keuze-kaart h2 { margin: 0 0 .3rem; font-size: 1.05rem; }
+.keuze-kaart p { margin: 0 0 1rem; color: var(--grijs); font-size: .9rem; }
+.club-knop {
+  display: flex; align-items: center; gap: .8rem; width: 100%; text-align: left;
+  padding: .85rem 1rem; margin-bottom: .5rem; border-radius: 10px;
+  border: 1.5px solid var(--lijn); background: var(--kaart); color: var(--inkt);
+  font-size: .97rem; font-weight: 600; transition: border-color .12s ease;
+}
+.club-knop:hover:not(:disabled) { border-color: var(--inkt); }
+.club-knop:disabled { opacity: .5; cursor: wait; }
+.club-knop .guid { margin-left: auto; font-size: .74rem; font-weight: 400;
+                   color: var(--grijs); font-variant-numeric: tabular-nums; }
 .spinner { display: inline-block; width: .85rem; height: .85rem; border: 2px solid currentColor;
            border-right-color: transparent; border-radius: 50%; animation: draai .7s linear infinite;
            vertical-align: -1px; margin-right: .4rem; }
@@ -253,7 +280,7 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
 
 <header class="balk">
   <div class="balk-rij">
-    <div class="merk">YO<span>Assist</span></div>
+    <div class="merk">YO<span class="accent">Assist</span><span class="versie" id="versie"></span></div>
     <div class="balk-info" id="balk-info"></div>
     <button class="menu-knop" id="menu-knop" hidden aria-label="Beheer" title="Beheer">&#8942;</button>
   </div>
@@ -337,9 +364,23 @@ async function laadHoofd() {
     staat.ik = ik;
     staat.matches = data.matches;
 
+    $('versie').textContent = 'v' + ik.versie;
+
+    // Beheerders krijgen de versie ook onder hun naam: dat is de plek waar je
+    // kijkt als je iemand aan de telefoon hebt die een probleem meldt.
+    const beheerRegel = ik.isAdmin
+      ? `<span class="beheer">Beheerder &middot; v${tekst(ik.versie)}</span>`
+      : '';
+
     $('balk-info').innerHTML =
-      `<strong>${tekst(ik.naam)}</strong>${tekst(ik.profiel)}${ik.clubNaam ? ' &middot; ' + tekst(ik.clubNaam) : ''}`;
+      `<strong>${tekst(ik.naam)}</strong>${tekst(ik.profiel)}` +
+      `${ik.clubNaam ? ' &middot; ' + tekst(ik.clubNaam) : ''}${beheerRegel}`;
     $('menu-knop').hidden = !ik.isAdmin;
+
+    if (data.clubKeuze) {
+      toonClubKeuze(data.clubKeuze, ik.isAdmin);
+      return;
+    }
 
     toonMatches(data);
   } catch (err) {
@@ -347,6 +388,36 @@ async function laadHoofd() {
       `<div class="status"><h2>${tekst(err.titel || 'Er ging iets mis')}</h2>
        <p>${tekst(err.message)}</p></div>`;
   }
+}
+
+/**
+ * Getoond zolang de gebruiker aan geen club hangt en er meer dan één club
+ * geconfigureerd is. Bij precies één club koppelt de server stilzwijgend en
+ * komt dit scherm nooit in beeld.
+ */
+function toonClubKeuze(keuze, isAdmin) {
+  const doel = $('hoofd');
+
+  if (keuze.reden === 'geen-clubs') {
+    doel.innerHTML = `
+      <div class="keuze-kaart">
+        <h2>Nog geen clubs ingesteld</h2>
+        <p>${isAdmin
+          ? 'Voeg via het beheermenu rechtsboven een club toe. Daarna verschijnen hier de wedstrijden.'
+          : 'Een beheerder moet eerst een club instellen. Probeer het later opnieuw.'}</p>
+      </div>`;
+    return;
+  }
+
+  doel.innerHTML = `
+    <div class="keuze-kaart">
+      <h2>Voor welke club sta je aan de tafel?</h2>
+      <p>Je ziet daarna de thuiswedstrijden van die club. Een beheerder kan dit later aanpassen.</p>
+      ${keuze.clubs.map((c) => `
+        <button class="club-knop" data-club="${tekst(c.guid)}">
+          ${tekst(c.naam)}<span class="guid">${tekst(c.guid)}</span>
+        </button>`).join('')}
+    </div>`;
 }
 
 function toonMatches(data) {
@@ -412,6 +483,22 @@ function kaart(m) {
 /* Klik op een keuzeknop. Tweede klik op dezelfde knop wist het antwoord,
    zodat een vergissing terug naar 'nog niet geantwoord' kan. */
 $('hoofd').addEventListener('click', async (e) => {
+  const clubKnop = e.target.closest('.club-knop');
+  if (clubKnop) {
+    document.querySelectorAll('.club-knop').forEach((k) => (k.disabled = true));
+    try {
+      await api('/api/club', {
+        method: 'POST',
+        body: JSON.stringify({ guid: clubKnop.dataset.club }),
+      });
+      await laadHoofd();
+    } catch (err) {
+      toast(err.message);
+      document.querySelectorAll('.club-knop').forEach((k) => (k.disabled = false));
+    }
+    return;
+  }
+
   const knop = e.target.closest('.keuze');
   if (!knop) return;
 
