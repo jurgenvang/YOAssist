@@ -15,6 +15,14 @@ CREATE TABLE IF NOT EXISTS settings (
 -- seizoen_start_jaar = 2026 betekent seizoen 2026-2027, dus juli 2026 t/m juni 2027.
 INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('seizoen_start_jaar', '2026');
 
+-- Mailconfiguratie. Het afzenderadres is hier instelbaar, niet in code, zodat
+-- een clubwissel van domeinnaam geen deploy vereist. De API-sleutel van de
+-- maildienst hoort hier NIET: die staat als secret bij de Worker.
+-- Leeg totdat een beheerder het invult; de communicatiemodule blijft uit tot
+-- dan.
+INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('mail_afzender', '');
+INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('mail_afzender_naam', 'YOAssist');
+
 
 -- ---------------------------------------------------------------------------
 -- categorieen: de drieletterige code uit de ploeg-GUID (BVBL1125J16  1 -> J16)
@@ -94,9 +102,11 @@ CREATE INDEX IF NOT EXISTS idx_users_naam
 
 -- ---------------------------------------------------------------------------
 -- teams: opgehaald bij Basketbal Vlaanderen per club.
---   yo / yo_plus : voor welk profiel moeten hier aanduidingen gebeuren.
---                  yo = 1 impliceert yo_plus = 1 (afgedwongen in de code én hier).
---   actief       : stond dit team in de laatste opgehaalde teamlijst
+--   volgen : haal de wedstrijden van deze ploeg op. Standaard ja. Uitzetten is
+--            bedoeld voor ploegen die buiten de werking vallen.
+--            Of een wedstrijd in de aanduidingslijst komt, wordt NIET meer hier
+--            beslist maar per wedstrijd — zie matches.scope.
+--   actief : stond dit team in de laatste opgehaalde teamlijst
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS teams (
   guid          TEXT PRIMARY KEY,
@@ -104,11 +114,9 @@ CREATE TABLE IF NOT EXISTS teams (
   naam          TEXT NOT NULL,
   cat_code      TEXT,                       -- 'J16', afgeleid uit de GUID
   cat_label     TEXT,                       -- 'Heren Senioren', zoals de API het noemt
-  yo            INTEGER NOT NULL DEFAULT 0,
-  yo_plus       INTEGER NOT NULL DEFAULT 0,
+  volgen        INTEGER NOT NULL DEFAULT 1,
   actief        INTEGER NOT NULL DEFAULT 1,
-  laatst_gezien TEXT NOT NULL DEFAULT (datetime('now')),
-  CHECK (yo = 0 OR yo_plus = 1)
+  laatst_gezien TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_teams_club ON teams (club_guid, naam);
@@ -144,6 +152,17 @@ CREATE TABLE IF NOT EXISTS matches (
   off_namen     TEXT,                       -- JSON-array, of NULL na opkuis
   off_aantal    INTEGER NOT NULL DEFAULT 0,
   off_gewist    INTEGER NOT NULL DEFAULT 0,
+  -- Staat deze wedstrijd in de aanduidingslijst, en waarom.
+  --   'auto'     : categorie met auto_scope (U10/U12)
+  --   'admin'    : een beheerder heeft ze aangeduid
+  --   'woensdag' : de woensdagregel stelde vast dat Basketbal Vlaanderen er
+  --                minder dan twee scheidsrechters op had staan
+  -- scope_uit = 1 betekent: een beheerder heeft ze bewust weer uitgezet, en de
+  -- automatische regels mogen ze niet opnieuw binnenhalen.
+  scope         INTEGER NOT NULL DEFAULT 0,
+  scope_reden   TEXT CHECK (scope_reden IN ('auto', 'admin', 'woensdag')),
+  scope_op      TEXT,
+  scope_uit     INTEGER NOT NULL DEFAULT 0,
   hash          TEXT NOT NULL,
   status        TEXT NOT NULL DEFAULT 'actief' CHECK (status IN ('actief', 'verdwenen')),
   laatst_gezien TEXT NOT NULL DEFAULT (datetime('now')),
@@ -154,6 +173,46 @@ CREATE INDEX IF NOT EXISTS idx_matches_datum ON matches (datum, uur);
 CREATE INDEX IF NOT EXISTS idx_matches_team ON matches (thuis_guid, status);
 CREATE INDEX IF NOT EXISTS idx_matches_club ON matches (club_guid, seizoen, status);
 CREATE INDEX IF NOT EXISTS idx_matches_opkuis ON matches (off_gewist, datum);
+CREATE INDEX IF NOT EXISTS idx_matches_scope ON matches (scope, datum, uur);
+
+
+-- ---------------------------------------------------------------------------
+-- assignments: de eigen aanduidingen. Een basketbalwedstrijd heeft in principe
+-- twee scheidsrechters; hoeveel er nog gezocht worden is 2 min het aantal dat
+-- Basketbal Vlaanderen al heeft aangeduid.
+--
+-- Vrijgeven verwijdert de rij niet meteen maar zet ze op 'vrijgegeven', zodat
+-- zichtbaar blijft dat er iets veranderd is en de betrokkene verwittigd kan
+-- worden. Bij een nieuwe toewijzing aan dezelfde persoon wordt de rij hergebruikt.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS assignments (
+  match_guid      TEXT NOT NULL REFERENCES matches (guid) ON DELETE CASCADE,
+  user_email      TEXT NOT NULL REFERENCES users (email) ON DELETE CASCADE,
+  status          TEXT NOT NULL DEFAULT 'toegewezen'
+                    CHECK (status IN ('toegewezen', 'vrijgegeven')),
+  toegewezen_door TEXT NOT NULL,
+  toegewezen_op   TEXT NOT NULL DEFAULT (datetime('now')),
+  gewijzigd_op    TEXT,
+  PRIMARY KEY (match_guid, user_email)
+);
+
+CREATE INDEX IF NOT EXISTS idx_assignments_user ON assignments (user_email, status);
+CREATE INDEX IF NOT EXISTS idx_assignments_match ON assignments (match_guid, status);
+
+-- ---------------------------------------------------------------------------
+-- problemen: een Youth Official kan een toewijzing niet zelf ongedaan maken,
+-- maar wel melden dat er iets mis is. De beheerder beslist.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS problemen (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  match_guid   TEXT NOT NULL REFERENCES matches (guid) ON DELETE CASCADE,
+  user_email   TEXT NOT NULL REFERENCES users (email) ON DELETE CASCADE,
+  bericht      TEXT NOT NULL,
+  gemeld_op    TEXT NOT NULL DEFAULT (datetime('now')),
+  afgehandeld  INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_problemen_open ON problemen (afgehandeld, gemeld_op);
 
 -- ---------------------------------------------------------------------------
 -- match_changes: audittrail van wat de synchronisatie vaststelde. Wat er met

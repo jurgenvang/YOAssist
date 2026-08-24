@@ -27,11 +27,11 @@ function nieuweEnv() {
   db.exec(readFileSync(new URL('../schema.sql', import.meta.url), 'utf8'));
   db.exec(`
     INSERT INTO clubs (guid, naam) VALUES ('${CLUB}', 'BC Alpha');
-    INSERT INTO teams (guid, club_guid, naam, cat_code, yo, yo_plus)
-      VALUES ('${CLUB}J16  1', '${CLUB}', 'U16 A', 'J16', 1, 1);
+    INSERT INTO teams (guid, club_guid, naam, cat_code, volgen)
+      VALUES ('${CLUB}J16  1', '${CLUB}', 'U16 A', 'J16', 1);
     INSERT INTO users (email, voornaam, achternaam, is_admin, profiel, club_guid) VALUES
       ('baas@club.be',  'Jurgen', 'van Geijstelen', 1, 'YO+', '${CLUB}'),
-      ('yo@club.be',    'Fluppe', 'Van Meerbeeck',  0, 'YO',  '${CLUB}'),
+      ('yo@club.be',    'Fluppe', 'Van Meerbeeck',  0, 'YO+', '${CLUB}'),
       ('los@club.be',   'Zonder', 'Club',           0, 'YO',  NULL),
       ('weg@club.be',   'Niet',   'Actief',         0, 'YO',  '${CLUB}');
     UPDATE users SET actief = 0 WHERE email = 'weg@club.be';
@@ -39,6 +39,7 @@ function nieuweEnv() {
                          datum, uur, locatie, hash)
       VALUES ('M1', '2627', '${CLUB}', '${CLUB}J16  1', 'U16 A', 'BC Gamma',
               '2099-09-12', '20:30', 'Sporthal Noord', 'h1');
+    UPDATE matches SET scope = 1, scope_reden = 'admin' WHERE guid = 'M1';
   `);
   return { DB: db, ENVIRONMENT: 'development', DEV_EMAIL: null };
 }

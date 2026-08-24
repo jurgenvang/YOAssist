@@ -34,10 +34,61 @@ voor wie `is_admin = 1` heeft, en alleen bereikbaar voor wie dat ook echt is:
 - De teams per club laden, gegroepeerd per club en op naam gesorteerd, met per
   ploeg een vinkje YO en YO+. YO aanvinken zet YO+ automatisch mee aan.
 - Handmatig synchroniseren, met het resultaat van de laatste run.
+- Gebruikersbeheer: toevoegen, activeren, deactiveren, met een kopieerklare
+  adressenlijst voor de Access-policy. Een beheerder kan zichzelf niet
+  degraderen of deactiveren, en de laatste actieve beheerder blijft beschermd.
+- Cluboverzicht van de komende veertien dagen, met per wedstrijd de categorie,
+  de scheidsrechters van Basketbal Vlaanderen, wie zich beschikbaar of niet
+  beschikbaar zette, en een link naar het wedstrijdblad.
 
-**Automatisch.** De cron draait om 6, 12, 18 en 24 uur Belgische tijd. Nieuwe,
-gewijzigde en verdwenen wedstrijden komen in `match_changes`; wat daarmee moet
-gebeuren is nog niet ingevuld.
+**De aanduidingslijst.** Of een wedstrijd erin staat, wordt per wedstrijd
+beslist, niet per ploeg. Drie wegen: U10/U12 komt er automatisch in, een
+beheerder kan er een in zetten, en de woensdagregel zet er de wedstrijden van
+het komende weekend in waar Basketbal Vlaanderen minder dan twee scheidsrechters
+op heeft staan. Zet een beheerder er een uit, dan haalt de woensdagregel ze niet
+opnieuw binnen.
+
+**Toewijzen.** Twee officials per wedstrijd, min wat de bond al heeft aangeduid.
+De beheerder wijst toe vanuit het cluboverzicht: klik op een beschikbare naam.
+Botsingen worden gemeld met vermelding van de andere wedstrijd — twee uur tussen
+aanvangsuren in dezelfde zaal, tweeënhalf bij een verplaatsing — en kunnen
+overruled worden. Vrijgeven dekt zowel intrekken als weigeren.
+
+Een official die is aangeduid kan zijn beschikbaarheid niet meer wijzigen, maar
+wel een probleem melden. Dat komt bij de beheerder terecht.
+
+**Automatisch aanvullen.** Een knop in het cluboverzicht berekent een voorstel
+en toont het eerst; pas na bevestiging wordt er iets weggeschreven. Het
+algoritme verdeelt zo gelijk mogelijk over het seizoen, behandelt schaarse
+wedstrijden eerst, vermijdt botsingen, en laat bestaande aanduidingen ongemoeid.
+Wat niet ingevuld raakt, wordt met reden gemeld.
+
+Het planningsalgoritme is een zuivere functie: geen databank, geen klok, geen
+toeval. Dezelfde invoer geeft altijd hetzelfde resultaat, en daarom toont de
+droogloop exact wat er zal gebeuren.
+
+**Mail.** Afzenderadres instelbaar in het beheerscherm, API-sleutel als secret
+bij de Worker. De testmodus van Resend (`onboarding@resend.dev`) werkt zonder
+eigen domein maar levert enkel af bij het adres van het Resend-account; `verstuur()`
+in `mailer.js` dwingt die grens op één plaats af, zodat geen enkele toekomstige
+aanroeper ze kan vergeten.
+
+Zodra afzender en sleutel allebei ingesteld zijn:
+- een official krijgt mail bij een aanduiding of een vrijgave
+- YO+'ers krijgen mail wanneer de woensdagregel wedstrijden toevoegt
+- beheerders krijgen mail bij een gemeld probleem, bij de avondcontrole (als
+  een wedstrijd via de woensdagregel toch een VBL-scheidsrechter kreeg), en
+  op maandagochtend een overzicht van de open wedstrijden voor het weekend,
+  gesplitst in U10/U12 en de rest
+
+Mail versturen kan de eigenlijke actie (toewijzen, vrijgeven, een probleem
+melden) nooit laten mislukken — lukt het versturen niet, dan gaat de actie
+gewoon door en meldt de respons dat er geen mail is gegaan.
+
+**Automatisch.** Eén cron per uur, met een planner die beslist wat er in Brussel
+op dat moment moet gebeuren: synchroniseren om 0, 6, 12 en 18 uur, de
+woensdagregel op woensdag om 14 uur, en een controle elke avond om 20 uur.
+Zomer- en wintertijd komen zo vanzelf goed.
 
 ## Structuur
 
@@ -48,12 +99,22 @@ src/lib/access.js          identiteit uit Access (ctx.access of JWT)
 src/lib/http.js            json-, fout- en leeshulpjes
 src/lib/vbl.js             client en parsers voor Basketbal Vlaanderen
 src/lib/sync.js            synchronisatielogica
+src/lib/aanduiding.js      rekenregels: hoeveel nodig, botsingen, opkomsttijd
+src/lib/woensdag.js        de woensdagregel en de avondcontrole
+src/lib/autotoewijzing.js  het planningsalgoritme, zuivere functie
+src/lib/mailer.js          versturen, templates, de zandbakgrens
 src/routes/gebruiker.js    /api/me, /api/clubs, /api/club, /api/matches,
                            /api/availability
-src/routes/admin/index.js  alles onder /api/admin/
+src/routes/admin/index.js       seizoen, clubs, teams, sync
+src/routes/admin/gebruikers.js  gebruikersbeheer
+src/routes/admin/overzicht.js   cluboverzicht komende dagen
+src/routes/admin/aanduiding.js  scope, toewijzen, vrijgeven, problemen
+src/routes/admin/auto.js        automatische toewijzing
+src/routes/admin/mail.js        mailconfiguratie en testmail
+src/routes/admin/diagnose.js    ruwe API-respons bekijken
 public/index.html          de app, geen buildstap
 schema.sql / seed.sql      D1
-test/                      125 tests, draaien zonder netwerk
+test/                      411 tests, draaien zonder netwerk
 ```
 
 Er staat bewust **geen `package.json` in de hoofdmap**. De build zou er anders

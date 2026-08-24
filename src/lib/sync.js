@@ -76,12 +76,19 @@ export async function synchroniseer(db, bron) {
     // Alleen teams waarvoor aanduidingen moeten gebeuren.
     const teams = (
       await db
-        .prepare('SELECT guid, club_guid, cat_code FROM teams WHERE actief = 1 AND (yo = 1 OR yo_plus = 1)')
+        .prepare('SELECT guid, club_guid, cat_code FROM teams WHERE actief = 1 AND volgen = 1')
         .all()
     ).results;
     if (teams.length === 0) {
-      return await sluitAf(db, runId, rapport, 'mislukt', 'Geen teams aangevinkt voor aanduidingen.');
+      return await sluitAf(db, runId, rapport, 'mislukt', 'Geen ploegen om te volgen.');
     }
+
+    // Categorieën met automatische scope: hun wedstrijden komen vanzelf in de
+    // aanduidingslijst. Voor de rest beslist een beheerder of de woensdagregel.
+    const autoScope = new Set(
+      (await db.prepare('SELECT code FROM categorieen WHERE auto_scope = 1').all())
+        .results.map((c) => c.code),
+    );
     const gevolgdeTeams = new Map(teams.map((t) => [t.guid, t]));
 
     // ---- Ophalen ----------------------------------------------------------
@@ -110,6 +117,7 @@ export async function synchroniseer(db, bron) {
         const team = gevolgdeTeams.get(w.thuisGuid);
         w.clubGuid = team.club_guid;
         w.catCode = team.cat_code;
+        w.autoScope = autoScope.has(team.cat_code);
         w.hash = await wedstrijdHash(w);
         gevonden.set(w.guid, w);
       }
@@ -166,14 +174,20 @@ export async function synchroniseer(db, bron) {
             .prepare(
               `INSERT INTO matches (guid, wed_id, seizoen, club_guid, thuis_guid, thuis_naam,
                                     uit_guid, uit_naam, datum, uur, locatie, acc_guid, poule_naam,
-                                    cat_code, off_namen, off_aantal, off_gewist, hash,
+                                    cat_code, off_namen, off_aantal, off_gewist,
+                                    scope, scope_reden, scope_op, hash,
                                     status, laatst_gezien)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 'actief', datetime('now'))`,
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0,
+                       ?, ?, ?, ?, 'actief', datetime('now'))`,
             )
             .bind(
               w.guid, w.wedId, w.seizoen, w.clubGuid, w.thuisGuid, w.thuisNaam,
               w.uitGuid, w.uitNaam, w.datum, w.uur, w.locatie, w.accGuid, w.pouleNaam,
-              w.catCode, JSON.stringify(w.offNamen), w.offAantal, w.hash,
+              w.catCode, JSON.stringify(w.offNamen), w.offAantal,
+              w.autoScope ? 1 : 0,
+              w.autoScope ? 'auto' : null,
+              w.autoScope ? new Date().toISOString() : null,
+              w.hash,
             ),
         );
         wijzigingen.push([guid, 'nieuw', null, null, `${w.datum} ${w.uur} ${w.thuisNaam} - ${w.uitNaam}`]);

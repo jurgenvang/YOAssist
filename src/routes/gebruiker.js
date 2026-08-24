@@ -1,5 +1,7 @@
 import { json, fout, leesJson, instelling } from '../lib/http.js';
 import { seizoenLabel, seizoenscode, wedstrijdbladUrl } from '../lib/vbl.js';
+import { aantalNodig, opkomstUur } from '../lib/aanduiding.js';
+import { verstuur, templateProbleem } from '../lib/mailer.js';
 import { VERSIE } from '../versie.js';
 
 /**
@@ -107,24 +109,35 @@ export async function matches({ env, user }) {
   if (keuze) return json({ seizoen, matches: [], clubKeuze: keuze });
 
   const { email, profiel, clubGuid } = bijgewerkt;
-  const vlagKolom = profiel === 'YO+' ? 't.yo_plus' : 't.yo';
   const vandaag = new Date().toISOString().slice(0, 10);
+
+  // Een YO ziet alleen U10/U12. Een YO+ ziet alles wat in de aanduidingslijst
+  // staat: dus ook wat een beheerder of de woensdagregel erbij heeft gezet.
+  const profielFilter = profiel === 'YO+' ? '' : "AND cat.groep = 'U10U12'";
 
   const { results } = await env.DB.prepare(
     `SELECT m.guid, m.datum, m.uur, m.thuis_naam, m.uit_naam, m.locatie, m.poule_naam,
-            a.status AS beschikbaarheid
+            m.cat_code, m.off_aantal, m.scope_reden,
+            cat.label AS cat_label, cat.groep AS cat_groep,
+            a.status AS beschikbaarheid,
+            eigen.status AS aanduiding,
+            (SELECT COUNT(*) FROM assignments x
+              WHERE x.match_guid = m.guid AND x.status = 'toegewezen') AS bezet
        FROM matches m
        JOIN teams t ON t.guid = m.thuis_guid
+       LEFT JOIN categorieen cat ON cat.code = m.cat_code
        LEFT JOIN availability a ON a.match_guid = m.guid AND a.user_email = ?
+       LEFT JOIN assignments eigen ON eigen.match_guid = m.guid AND eigen.user_email = ?
       WHERE m.seizoen = ?
         AND m.status = 'actief'
+        AND m.scope = 1
         AND m.club_guid = ?
-        AND ${vlagKolom} = 1
         AND t.actief = 1
         AND m.datum >= ?
-      ORDER BY m.datum, m.uur, m.thuis_naam`,
+        ${profielFilter}
+      ORDER BY m.datum, m.uur, m.thuis_naam COLLATE NOCASE`,
   )
-    .bind(email, seizoen, clubGuid, vandaag)
+    .bind(email, email, seizoen, clubGuid, vandaag)
     .all();
 
   return json({
@@ -138,8 +151,16 @@ export async function matches({ env, user }) {
       uit: r.uit_naam,
       locatie: r.locatie,
       poule: r.poule_naam,
+      catCode: r.cat_code,
+      catLabel: r.cat_label,
       wedstrijdblad: wedstrijdbladUrl(r.guid),
       beschikbaarheid: r.beschikbaarheid ?? null,
+      // Toegewezen aan mij: dan is de beschikbaarheid vergrendeld en kan er
+      // alleen nog een probleem gemeld worden.
+      toegewezen: r.aanduiding === 'toegewezen',
+      nodig: aantalNodig(r.off_aantal),
+      bezet: r.bezet,
+      opkomst: opkomstUur(r.uur),
     })),
   });
 }
@@ -168,20 +189,38 @@ export async function zetBeschikbaarheid({ request, env, user }) {
   if (!clubGuid) return fout(403, 'Geen club', 'Je account is nog aan geen club gekoppeld.');
 
   const seizoen = seizoenscode(Number(await instelling(env.DB, 'seizoen_start_jaar', '2026')));
-  const vlagKolom = profiel === 'YO+' ? 't.yo_plus' : 't.yo';
+  const profielFilter = profiel === 'YO+' ? '' : "AND cat.groep = 'U10U12'";
 
   const toegestaan = await env.DB.prepare(
     `SELECT m.guid
        FROM matches m
        JOIN teams t ON t.guid = m.thuis_guid
-      WHERE m.guid = ? AND m.seizoen = ? AND m.status = 'actief'
-        AND m.club_guid = ? AND ${vlagKolom} = 1 AND t.actief = 1`,
+       LEFT JOIN categorieen cat ON cat.code = m.cat_code
+      WHERE m.guid = ? AND m.seizoen = ? AND m.status = 'actief' AND m.scope = 1
+        AND m.club_guid = ? AND t.actief = 1
+        ${profielFilter}`,
   )
     .bind(matchGuid, seizoen, clubGuid)
     .first();
 
   if (!toegestaan) {
     return fout(404, 'Wedstrijd niet gevonden', 'Deze wedstrijd staat niet in jouw lijst.');
+  }
+
+  // Eens aangeduid kan een official zijn beschikbaarheid niet meer wijzigen.
+  // Wie een probleem heeft, meldt dat; de beheerder beslist.
+  const aanduiding = await env.DB.prepare(
+    `SELECT status FROM assignments WHERE match_guid = ? AND user_email = ? AND status = 'toegewezen'`,
+  )
+    .bind(matchGuid, email)
+    .first();
+
+  if (aanduiding) {
+    return fout(
+      409,
+      'Je bent aangeduid',
+      'Voor deze wedstrijd ben je aangeduid. Meld een probleem als het niet lukt.',
+    );
   }
 
   if (status === null) {
@@ -200,4 +239,63 @@ export async function zetBeschikbaarheid({ request, env, user }) {
   }
 
   return json({ ok: true, matchGuid, status });
+}
+
+/**
+ * POST /api/probleem   { matchGuid, bericht }
+ *
+ * De uitweg voor een official die is aangeduid maar niet kan. Hij kan de
+ * aanduiding niet zelf ongedaan maken — dat zou de beheerder voor verrassingen
+ * zetten — maar hij kan wel melden dat er iets is.
+ */
+export async function meldProbleem({ request, env, user }) {
+  const body = await leesJson(request);
+  const guid = typeof body.matchGuid === 'string' ? body.matchGuid.trim() : '';
+  const bericht = String(body.bericht ?? '').trim();
+
+  if (!guid) return fout(400, 'Ongeldige aanvraag', 'matchGuid ontbreekt.');
+  if (bericht.length < 3) {
+    return fout(400, 'Bericht te kort', 'Schrijf kort waarom het niet lukt.');
+  }
+  if (bericht.length > 1000) {
+    return fout(400, 'Bericht te lang', 'Hou het bij duizend tekens.');
+  }
+
+  const aanduiding = await env.DB.prepare(
+    `SELECT status FROM assignments WHERE match_guid = ? AND user_email = ?`,
+  )
+    .bind(guid, user.email)
+    .first();
+
+  if (!aanduiding) {
+    return fout(404, 'Geen aanduiding', 'Je bent niet aangeduid voor deze wedstrijd.');
+  }
+
+  await env.DB.prepare(
+    'INSERT INTO problemen (match_guid, user_email, bericht) VALUES (?, ?, ?)',
+  )
+    .bind(guid, user.email, bericht)
+    .run();
+
+  // Naar alle actieve beheerders, niet naar één vast adres: wie er dat
+  // seizoen ook beheert, moet dit kunnen zien.
+  const [wedstrijd, beheerders] = await Promise.all([
+    env.DB.prepare('SELECT thuis_naam, uit_naam FROM matches WHERE guid = ?').bind(guid).first(),
+    env.DB.prepare('SELECT email FROM users WHERE is_admin = 1 AND actief = 1').all(),
+  ]);
+
+  if (wedstrijd) {
+    const mail = templateProbleem({
+      wedstrijd: `${wedstrijd.thuis_naam} - ${wedstrijd.uit_naam}`,
+      bericht,
+      official: user.naam,
+    });
+    await Promise.all(
+      beheerders.results.map((b) =>
+        verstuur(env, { naar: b.email, ...mail }).catch(() => ({ verstuurd: false })),
+      ),
+    );
+  }
+
+  return json({ ok: true, matchGuid: guid });
 }

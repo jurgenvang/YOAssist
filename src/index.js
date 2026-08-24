@@ -10,9 +10,24 @@
 import { identify, AuthError } from './lib/access.js';
 import { json, fout } from './lib/http.js';
 import { synchroniseer } from './lib/sync.js';
-import { me, clubs, kiesClub, matches, zetBeschikbaarheid } from './routes/gebruiker.js';
+import { pasWoensdagregelToe, zoekOverbodigeScope } from './lib/woensdag.js';
+import { instelling } from './lib/http.js';
+import { seizoenscode } from './lib/vbl.js';
+import { aantalNodig } from './lib/aanduiding.js';
+import {
+  verstuur,
+  templateWoensdagregel,
+  templateAvondcontrole,
+  templateWeekoverzicht,
+} from './lib/mailer.js';
+import { me, clubs, kiesClub, matches, zetBeschikbaarheid, meldProbleem } from './routes/gebruiker.js';
 import * as admin from './routes/admin/index.js';
 import { diagnoseMatches } from './routes/admin/diagnose.js';
+import * as gebruikers from './routes/admin/gebruikers.js';
+import { overzicht } from './routes/admin/overzicht.js';
+import * as aanduiding from './routes/admin/aanduiding.js';
+import * as mail from './routes/admin/mail.js';
+import { automatisch } from './routes/admin/auto.js';
 
 // ---------------------------------------------------------------------------
 // Routetabel. beheer: true betekent dat de route alleen voor admins is.
@@ -24,6 +39,7 @@ const ROUTES = [
   { methode: 'POST',   pad: '/api/availability',       handler: zetBeschikbaarheid },
   { methode: 'GET',    pad: '/api/clubs',              handler: clubs },
   { methode: 'POST',   pad: '/api/club',               handler: kiesClub },
+  { methode: 'POST',   pad: '/api/probleem',           handler: meldProbleem },
 
   { methode: 'GET',    pad: '/api/admin/config',       handler: admin.config,          beheer: true },
   { methode: 'POST',   pad: '/api/admin/season',       handler: admin.season,          beheer: true },
@@ -36,6 +52,22 @@ const ROUTES = [
   { methode: 'GET',    pad: '/api/admin/sync',         handler: admin.syncLogboek,     beheer: true },
   { methode: 'POST',   pad: '/api/admin/sync',         handler: admin.syncNu,          beheer: true },
   { methode: 'GET',    pad: '/api/admin/diagnose-matches', handler: diagnoseMatches,   beheer: true },
+  { methode: 'GET',    pad: '/api/admin/overzicht',    handler: overzicht,             beheer: true },
+  { methode: 'PATCH',  pad: '/api/admin/scope',        handler: aanduiding.zetScope,   beheer: true },
+  { methode: 'POST',   pad: '/api/admin/aanduiding',   handler: aanduiding.wijsToe,    beheer: true },
+  { methode: 'DELETE', pad: '/api/admin/aanduiding',   handler: aanduiding.geefVrij,   beheer: true },
+  { methode: 'GET',    pad: '/api/admin/problemen',    handler: aanduiding.problemen,  beheer: true },
+  { methode: 'PATCH',  pad: '/api/admin/problemen',    handler: aanduiding.handelProbleemAf, beheer: true },
+
+  { methode: 'GET',    pad: '/api/admin/mail',         handler: mail.config,      beheer: true },
+  { methode: 'POST',   pad: '/api/admin/mail',         handler: mail.zetConfig,   beheer: true },
+  { methode: 'POST',   pad: '/api/admin/mail/test',    handler: mail.testMail,    beheer: true },
+  { methode: 'POST',   pad: '/api/admin/auto',         handler: automatisch,      beheer: true },
+
+  { methode: 'GET',    pad: '/api/admin/users',        handler: gebruikers.lijst,      beheer: true },
+  { methode: 'POST',   pad: '/api/admin/users',        handler: gebruikers.toevoegen,  beheer: true },
+  { methode: 'PATCH',  pad: '/api/admin/users',        handler: gebruikers.wijzigen,   beheer: true },
+  { methode: 'DELETE', pad: '/api/admin/users',        handler: gebruikers.verwijderen, beheer: true },
 ];
 
 /** Zoekt de gebruiker op na een geslaagde identificatie. */
@@ -127,21 +159,170 @@ async function behandelApi(request, env, ctx, url) {
 }
 
 // ---------------------------------------------------------------------------
-// Cron. Cloudflare draait in UTC en België wisselt tussen UTC+1 en UTC+2, dus
-// een vaste UTC-lijst zou twee keer per jaar een uur verschuiven. We vuren op
-// alle kandidaat-uren en beslissen hier of het in Brussel werkelijk 0, 6, 12 of
-// 18 uur is. DST-bestendig, zonder tzdata-pakket.
+// Planner.
+//
+// Cloudflare draait cron in UTC en België wisselt tussen UTC+1 en UTC+2. In
+// plaats van voor elke taak een eigen cron-uitdrukking te schrijven en die twee
+// keer per jaar te zien verschuiven, draait er één cron per uur en beslist deze
+// planner wat er in Brussel op dat moment moet gebeuren.
 // ---------------------------------------------------------------------------
-const DOELUREN = [0, 6, 12, 18];
 
-function brusselsUur(datum) {
-  return Number(
-    new Intl.DateTimeFormat('nl-BE', {
+/** Datum- en tijdsonderdelen zoals ze in Brussel gelden. */
+export function brusselsMoment(datum) {
+  const delen = Object.fromEntries(
+    new Intl.DateTimeFormat('en-GB', {
       timeZone: 'Europe/Brussels',
-      hour: 'numeric',
+      weekday: 'short',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
       hour12: false,
-    }).format(datum),
+    })
+      .formatToParts(datum)
+      .map((p) => [p.type, p.value]),
   );
+
+  const dagen = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+  return {
+    uur: Number(delen.hour) % 24,
+    weekdag: dagen[delen.weekday],
+    datum: `${delen.year}-${delen.month}-${delen.day}`,
+  };
+}
+
+/**
+ * Wat moet er op dit moment gebeuren? Aparte functie zodat de planning
+ * getest kan worden zonder de taken zelf uit te voeren.
+ */
+export function takenVoor({ uur, weekdag }) {
+  const taken = [];
+
+  // Synchroniseren om 0, 6, 12 en 18 uur.
+  if ([0, 6, 12, 18].includes(uur)) taken.push('sync');
+
+  // Woensdag om 14 uur: wedstrijden van het komende weekend zonder twee
+  // scheidsrechters van de bond in de lijst zetten.
+  if (weekdag === 3 && uur === 14) taken.push('woensdagregel');
+
+  // Elke avond om 20 uur nakijken of er intussen iets veranderd is.
+  if (uur === 20) taken.push('avondcontrole');
+
+  // Maandagochtend om 8 uur: het overzicht van het komende weekend.
+  if (weekdag === 1 && uur === 8) taken.push('weekoverzicht');
+
+  return taken;
+}
+
+/** Actieve beheerders, voor wie een taak nog per mail moet bereiken. */
+async function beheerAdressen(db) {
+  const { results } = await db.prepare('SELECT email FROM users WHERE is_admin = 1 AND actief = 1').all();
+  return results.map((r) => r.email);
+}
+
+async function mailBeheerders(env, template) {
+  const adressen = await beheerAdressen(env.DB);
+  const resultaten = await Promise.all(
+    adressen.map((naar) => verstuur(env, { naar, ...template }).catch(() => ({ verstuurd: false }))),
+  );
+  return resultaten.filter((r) => r.verstuurd).length;
+}
+
+/**
+ * @param {string[]} taken
+ * @param {object} env
+ * @param {Date} tijdstip — het geplande moment, niet de klok van nu. Bij een
+ *   vertraagde uitvoering rond middernacht zou de klok het verkeerde weekend
+ *   opleveren.
+ */
+async function voerTakenUit(taken, env, tijdstip) {
+  for (const taak of taken) {
+    try {
+      if (taak === 'sync') {
+        const r = await synchroniseer(env.DB, 'cron');
+        console.log(
+          `[YOAssist] sync ${r.status}: ${r.gevonden} gevonden, ${r.nieuw} nieuw, ` +
+            `${r.gewijzigd} gewijzigd, ${r.verdwenen} verdwenen` +
+            (r.boodschap ? ` — ${r.boodschap}` : ''),
+        );
+      }
+
+      if (taak === 'woensdagregel') {
+        const r = await pasWoensdagregelToe(env.DB, tijdstip);
+        console.log(
+          `[YOAssist] woensdagregel: ${r.gescoopt} wedstrijden ` +
+            `in de lijst gezet voor ${r.van} tot ${r.tot}`,
+        );
+
+        if (r.gescoopt > 0) {
+          const { results: yoPlus } = await env.DB
+            .prepare("SELECT email FROM users WHERE profiel = 'YO+' AND actief = 1")
+            .all();
+          const mail = templateWoensdagregel(r);
+          await Promise.all(
+            yoPlus.map((u) =>
+              verstuur(env, { naar: u.email, ...mail }).catch(() => ({ verstuurd: false })),
+            ),
+          );
+        }
+      }
+
+      if (taak === 'avondcontrole') {
+        const overbodig = await zoekOverbodigeScope(env.DB);
+        if (overbodig.length > 0) {
+          console.log(
+            `[YOAssist] avondcontrole: ${overbodig.length} wedstrijd(en) hebben intussen ` +
+              'twee scheidsrechters van de bond: ' +
+              overbodig.map((o) => o.omschrijving).join(' | '),
+          );
+          await mailBeheerders(env, templateAvondcontrole({ wedstrijden: overbodig }));
+        }
+      }
+
+      if (taak === 'weekoverzicht') {
+        const seizoen = seizoenscode(Number(await instelling(env.DB, 'seizoen_start_jaar', '2026')));
+        const vandaag = tijdstip.toISOString().slice(0, 10);
+        const overWeek = new Date(tijdstip.getTime() + 7 * 86400000).toISOString().slice(0, 10);
+
+        const { results: rijen } = await env.DB.prepare(
+          `SELECT m.guid, m.datum, m.uur, m.thuis_naam, m.uit_naam, m.off_aantal,
+                  cat.groep AS cat_groep,
+                  (SELECT COUNT(*) FROM assignments a
+                    WHERE a.match_guid = m.guid AND a.status = 'toegewezen') AS bezet
+             FROM matches m
+             LEFT JOIN categorieen cat ON cat.code = m.cat_code
+            WHERE m.seizoen = ? AND m.status = 'actief' AND m.scope = 1
+              AND m.datum >= ? AND m.datum <= ?`,
+        )
+          .bind(seizoen, vandaag, overWeek)
+          .all();
+
+        const open = rijen
+          .map((r) => ({
+            datum: r.datum,
+            uur: r.uur,
+            thuis: r.thuis_naam,
+            uit: r.uit_naam,
+            catGroep: r.cat_groep,
+            nogNodig: aantalNodig(r.off_aantal) - r.bezet,
+          }))
+          .filter((r) => r.nogNodig > 0)
+          .sort((a, b) => (a.datum + a.uur).localeCompare(b.datum + b.uur));
+
+        const mail = templateWeekoverzicht({
+          u10u12: open.filter((r) => r.catGroep === 'U10U12'),
+          overig: open.filter((r) => r.catGroep !== 'U10U12'),
+          van: vandaag,
+          tot: overWeek,
+        });
+        const aantal = await mailBeheerders(env, mail);
+        console.log(`[YOAssist] weekoverzicht verstuurd naar ${aantal} beheerder(s), ${open.length} open`);
+      }
+    } catch (err) {
+      console.error(`[YOAssist] taak ${taak} mislukt:`, err);
+    }
+  }
 }
 
 export default {
@@ -160,19 +341,10 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
-    const uur = brusselsUur(new Date(event.scheduledTime));
-    if (!DOELUREN.includes(uur)) return;
+    const moment = brusselsMoment(new Date(event.scheduledTime));
+    const taken = takenVoor(moment);
+    if (taken.length === 0) return;
 
-    ctx.waitUntil(
-      synchroniseer(env.DB, 'cron')
-        .then((r) =>
-          console.log(
-            `[YOAssist] sync ${r.status}: ${r.gevonden} gevonden, ${r.nieuw} nieuw, ` +
-              `${r.gewijzigd} gewijzigd, ${r.verdwenen} verdwenen` +
-              (r.boodschap ? ` — ${r.boodschap}` : ''),
-          ),
-        )
-        .catch((err) => console.error('[YOAssist] sync mislukt:', err)),
-    );
+    ctx.waitUntil(voerTakenUit(taken, env, new Date(event.scheduledTime)));
   },
 };

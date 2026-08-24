@@ -15,3 +15,8 @@ INSERT OR REPLACE INTO users (email, voornaam, achternaam, is_admin, profiel, cl
 
 -- Nadat je de club hebt toegevoegd in het beheermenu, koppel je de gebruikers:
 --   UPDATE users SET club_guid = 'BVBL1053';
+
+-- Optioneel: afzenderadres meteen instellen. Kan ook later via het
+-- beheerscherm. RESEND_API_KEY hoort NIET hier, dat is een secret bij de
+-- Worker.
+-- UPDATE settings SET waarde = 'aanduidingen@jouwclub.be' WHERE sleutel = 'mail_afzender';

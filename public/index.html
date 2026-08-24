@@ -252,6 +252,110 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
 
 .leeg { text-align: center; color: var(--grijs); padding: 2.5rem 1rem; font-size: .92rem; }
 
+/* ---- Weergaveschakelaar voor beheerders --------------------------------- */
+.tabs { display: flex; gap: .3rem; margin-bottom: 1rem;
+        background: #ebedf0; padding: .25rem; border-radius: 10px; }
+.tab {
+  flex: 1; padding: .45rem .6rem; border: 0; border-radius: 8px; background: transparent;
+  font-size: .87rem; font-weight: 600; color: var(--inkt-zacht);
+}
+.tab[aria-selected="true"] { background: var(--kaart); color: var(--inkt); box-shadow: var(--schaduw); }
+
+/* ---- Cluboverzicht ------------------------------------------------------ */
+.samenvatting {
+  display: flex; gap: .5rem; margin-bottom: 1rem; flex-wrap: wrap;
+}
+.cijfer {
+  flex: 1; min-width: 6rem; background: var(--kaart); border: 1px solid var(--lijn);
+  border-radius: var(--r); padding: .6rem .7rem; box-shadow: var(--schaduw);
+}
+.cijfer b { display: block; font-size: 1.3rem; font-variant-numeric: tabular-nums;
+            letter-spacing: -.02em; line-height: 1.1; }
+.cijfer span { font-size: .72rem; color: var(--grijs); }
+.cijfer.let b { color: var(--amber-diep); }
+
+.ov {
+  background: var(--kaart); border: 1px solid var(--lijn); border-left: 4px solid var(--lijn);
+  border-radius: var(--r); padding: .8rem .9rem; margin-bottom: .55rem; box-shadow: var(--schaduw);
+}
+.ov.tekort { border-left-color: var(--amber); }
+.ov-kop { display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap; }
+.ov-uur { font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.ov-ploegen { font-weight: 600; font-size: .95rem; flex: 1; min-width: 10rem; }
+.ov-ploegen .tegen { color: var(--grijs); font-weight: 400; }
+.ov-regel { font-size: .82rem; color: var(--grijs); margin-top: .3rem;
+            display: flex; gap: .4rem; flex-wrap: wrap; align-items: baseline; }
+.ov-label { font-size: .68rem; text-transform: uppercase; letter-spacing: .07em;
+            color: var(--grijs); font-weight: 700; }
+.chip {
+  display: inline-block; font-size: .76rem; padding: .12rem .4rem; border-radius: 5px;
+  background: #eef0f3; color: var(--inkt-zacht);
+}
+.chip.ja  { background: var(--groen-zacht); color: var(--groen); }
+.chip.nee { background: var(--rood-zacht);  color: var(--rood); }
+.chip.vbl { background: #e9edf7; color: #2b3f7a; }
+.chip.geen { background: transparent; color: var(--grijs); font-style: italic; padding-left: 0; }
+.chip.toe { background: var(--inkt); color: #fff; }
+.chip.toe button { background: none; border: 0; color: #aab3c0; margin-left: .25rem;
+                   padding: 0 0 0 .1rem; font-size: .9em; line-height: 1; }
+.chip.toe button:hover { color: #fff; }
+.chip.klik { cursor: pointer; border: 1px dashed var(--lijn); background: transparent; }
+.chip.klik:hover { border-color: var(--inkt); border-style: solid; color: var(--inkt); }
+
+.ov-actie { margin-top: .5rem; display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
+.mini-knop {
+  font-size: .78rem; padding: .25rem .55rem; border-radius: 6px;
+  border: 1px solid var(--lijn); background: var(--kaart); color: var(--inkt-zacht);
+}
+.mini-knop:hover { border-color: var(--inkt); color: var(--inkt); }
+.mini-knop.aan { background: var(--inkt); color: #fff; border-color: var(--inkt); }
+.ov.buiten { opacity: .6; }
+.voorstel {
+  background: var(--kaart); border: 1px solid var(--lijn); border-radius: var(--r);
+  padding: .9rem 1rem; margin-bottom: 1rem; box-shadow: var(--schaduw);
+}
+.voorstel h3 { margin: 0 0 .5rem; font-size: .95rem; }
+.voorstel ul { list-style: none; margin: 0 0 .7rem; padding: 0; font-size: .86rem; }
+.voorstel li { padding: .25rem 0; border-top: 1px solid var(--lijn); }
+.voorstel li:first-child { border-top: 0; }
+.voorstel li b { font-weight: 600; }
+.voorstel .knoppen { display: flex; gap: .5rem; }
+.voorstel .knoppen .knop { flex: 1; }
+.ov.compleet { border-left-color: var(--groen); }
+.reden { font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; color: var(--grijs); }
+
+.vergrendeld { font-size: .8rem; color: var(--grijs); display: flex; align-items: center;
+               gap: .4rem; flex-wrap: wrap; }
+.aangeduid-merk {
+  font-size: .68rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  background: var(--inkt); color: #fff; border-radius: 4px; padding: .12rem .35rem;
+}
+.wed[data-toegewezen="1"] { border-left-color: var(--inkt); }
+
+/* ---- Gebruikersbeheer --------------------------------------------------- */
+.gebr-rij {
+  display: flex; align-items: center; gap: .5rem; padding: .5rem 0;
+  border-top: 1px solid var(--lijn); font-size: .88rem;
+}
+.gebr-rij.inactief { opacity: .55; }
+.gebr-naam { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gebr-naam small { display: block; color: var(--grijs); font-size: .75rem; }
+.merk-adm { font-size: .64rem; font-weight: 700; letter-spacing: .05em; color: var(--amber-diep);
+            background: #fdf4e0; border-radius: 4px; padding: .08rem .3rem; }
+.merk-prof { font-size: .68rem; font-weight: 700; color: var(--inkt-zacht);
+             background: #eef0f3; border-radius: 4px; padding: .1rem .3rem; }
+textarea {
+  width: 100%; min-height: 4.5rem; padding: .5rem .6rem; font: inherit; font-size: .82rem;
+  border: 1.5px solid var(--lijn); border-radius: 8px; resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--kaart);
+  color: var(--inkt);
+}
+.veld-paar { display: flex; gap: .5rem; margin-bottom: .5rem; }
+select {
+  padding: .55rem .5rem; font: inherit; font-size: .88rem; border: 1.5px solid var(--lijn);
+  border-radius: 8px; background: var(--kaart); color: var(--inkt);
+}
+
 /* ---- Clubkeuze ---------------------------------------------------------- */
 .keuze-kaart {
   background: var(--kaart); border: 1px solid var(--lijn); border-radius: var(--r);
@@ -299,6 +403,10 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
 </header>
 
 <main>
+  <div class="tabs" id="tabs" hidden role="tablist">
+    <button class="tab" id="tab-mijn" role="tab" aria-selected="true">Mijn lijst</button>
+    <button class="tab" id="tab-club" role="tab" aria-selected="false">Cluboverzicht</button>
+  </div>
   <div id="hoofd">
     <div class="leeg"><span class="spinner"></span> Laden…</div>
   </div>
@@ -323,7 +431,8 @@ const MAANDEN = ['januari','februari','maart','april','mei','juni',
                  'juli','augustus','september','oktober','november','december'];
 const DAGEN = ['zo','ma','di','wo','do','vr','za'];
 
-const staat = { ik: null, matches: [], config: null };
+const staat = { ik: null, matches: [], config: null, weergave: 'mijn', overzicht: null,
+                teamsRapport: null };
 
 /* --- kleine hulpjes ----------------------------------------------------- */
 const $ = (id) => document.getElementById(id);
@@ -388,6 +497,7 @@ async function laadHoofd() {
       `<strong>${tekst(ik.naam)}</strong>${tekst(ik.profiel)}` +
       `${ik.clubNaam ? ' &middot; ' + tekst(ik.clubNaam) : ''}${beheerRegel}`;
     $('menu-knop').hidden = !ik.isAdmin;
+    $('tabs').hidden = !ik.isAdmin;
 
     if (data.clubKeuze) {
       toonClubKeuze(data.clubKeuze, ik.isAdmin);
@@ -446,7 +556,7 @@ function toonMatches(data) {
     return;
   }
 
-  const onbeantwoord = staat.matches.filter((m) => m.beschikbaarheid === null).length;
+  const onbeantwoord = staat.matches.filter((m) => m.beschikbaarheid === null && !m.toegewezen).length;
   const delen = [];
 
   delen.push(
@@ -476,8 +586,24 @@ function kaart(m) {
   const d = ontleedDatum(m.datum);
   const status = m.beschikbaarheid ?? '';
 
+  // Wie is aangeduid, kan zijn antwoord niet meer wijzigen. In plaats van twee
+  // knoppen die toch niets doen, komt daar de opkomsttijd en een uitweg.
+  const acties = m.toegewezen
+    ? `<div class="wed-acties">
+         <div class="vergrendeld">
+           <span class="aangeduid-merk">Aangeduid</span>
+           <span>Wees om ${tekst(m.opkomst || m.uur)} ter plaatse.</span>
+           <button class="mini" data-probleem="1">Probleem melden</button>
+         </div>
+       </div>`
+    : `<div class="wed-acties">
+         <button class="keuze" data-keuze="ja"  aria-pressed="${status === 'ja'}">Beschikbaar</button>
+         <button class="keuze" data-keuze="nee" aria-pressed="${status === 'nee'}">Niet beschikbaar</button>
+       </div>`;
+
   return `
-  <article class="wed" data-status="${tekst(status)}" data-guid="${tekst(m.guid)}">
+  <article class="wed" data-status="${tekst(status)}" data-guid="${tekst(m.guid)}"
+           data-toegewezen="${m.toegewezen ? '1' : '0'}">
     <div class="wed-datum">
       <span class="dag">${DAGEN[d.getUTCDay()]}</span>
       <span class="nr">${d.getUTCDate()}</span>
@@ -485,15 +611,13 @@ function kaart(m) {
     </div>
     <div class="wed-ploegen">${tekst(m.thuis)} <span class="tegen">&ndash; ${tekst(m.uit)}</span></div>
     <div class="wed-meta">
+      ${m.catLabel ? `<span class="cat">${tekst(m.catCode)}</span>` : ''}
       <span>${tekst(m.locatie || 'locatie onbekend')}</span>
       ${m.wedstrijdblad
         ? `<a class="blad" href="${tekst(m.wedstrijdblad)}" target="_blank" rel="noopener noreferrer">wedstrijdblad &#8599;</a>`
         : ''}
     </div>
-    <div class="wed-acties">
-      <button class="keuze" data-keuze="ja"  aria-pressed="${status === 'ja'}">Beschikbaar</button>
-      <button class="keuze" data-keuze="nee" aria-pressed="${status === 'nee'}">Niet beschikbaar</button>
-    </div>
+    ${acties}
   </article>`;
 }
 
@@ -512,6 +636,23 @@ $('hoofd').addEventListener('click', async (e) => {
     } catch (err) {
       toast(err.message);
       document.querySelectorAll('.club-knop').forEach((k) => (k.disabled = false));
+    }
+    return;
+  }
+
+  const probleemKnop = e.target.closest('[data-probleem]');
+  if (probleemKnop) {
+    const guid = probleemKnop.closest('.wed').dataset.guid;
+    const bericht = prompt('Wat is er aan de hand? De beheerder krijgt dit te zien.');
+    if (!bericht || !bericht.trim()) return;
+    try {
+      await api('/api/probleem', {
+        method: 'POST',
+        body: JSON.stringify({ matchGuid: guid, bericht }),
+      });
+      toast('Gemeld bij de beheerder');
+    } catch (err) {
+      toast(err.message);
     }
     return;
   }
@@ -550,13 +691,277 @@ $('hoofd').addEventListener('click', async (e) => {
 function werkTellerBij() {
   const teller = document.querySelector('.teller');
   if (!teller) return;
-  const open = staat.matches.filter((m) => m.beschikbaarheid === null).length;
+  const open = staat.matches.filter((m) => m.beschikbaarheid === null && !m.toegewezen).length;
   const totaal = staat.matches.length;
   teller.className = 'teller ' + (open === 0 ? 'klaar' : 'open');
   teller.innerHTML =
     open === 0
       ? `<b>&check;</b><span>Alles beantwoord — ${totaal} wedstrijden.</span>`
       : `<b>${open}</b><span>nog te beantwoorden van ${totaal} wedstrijden.</span>`;
+}
+
+/* --- weergaveschakelaar en cluboverzicht -------------------------------- */
+$('tab-mijn').addEventListener('click', () => wisselWeergave('mijn'));
+$('tab-club').addEventListener('click', () => wisselWeergave('club'));
+
+async function wisselWeergave(welke) {
+  staat.weergave = welke;
+  $('tab-mijn').setAttribute('aria-selected', String(welke === 'mijn'));
+  $('tab-club').setAttribute('aria-selected', String(welke === 'club'));
+
+  if (welke === 'mijn') {
+    toonMatches({ matches: staat.matches });
+    return;
+  }
+
+  $('hoofd').innerHTML = '<div class="leeg"><span class="spinner"></span> Overzicht laden…</div>';
+  try {
+    staat.overzicht = await api('/api/admin/overzicht?dagen=14');
+    toonOverzicht(staat.overzicht);
+  } catch (err) {
+    $('hoofd').innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+  }
+}
+
+async function toonAutoVoorstel() {
+  const doel = $('auto-voorstel');
+  const knop = $('auto-knop');
+  knop.disabled = true;
+  doel.innerHTML = '<div class="melding let"><span class="spinner"></span>Voorstel berekenen…</div>';
+
+  try {
+    const r = await api('/api/admin/auto', { method: 'POST', body: JSON.stringify({ dagen: 14 }) });
+
+    if (r.aantalToegewezen === 0) {
+      doel.innerHTML = `<div class="melding let">
+        Geen enkele aanduiding mogelijk.
+        ${r.boodschap ? tekst(r.boodschap) : 'Er is niemand beschikbaar die nog past.'}
+      </div>`;
+      return;
+    }
+
+    const open = r.onvolledig.length
+      ? `<p class="hint" style="margin:.2rem 0 .7rem">${r.onvolledig.length} wedstrijd(en) blijven
+         onvolledig: ${r.onvolledig.map((o) => tekst(o.wedstrijd) + ' (' + tekst(o.reden) + ')').join('; ')}</p>`
+      : '';
+
+    doel.innerHTML = `
+      <div class="voorstel">
+        <h3>${r.aantalToegewezen} voorgestelde aanduiding${r.aantalToegewezen === 1 ? '' : 'en'}</h3>
+        <ul>${r.toewijzingen.map((t) => `
+          <li><b>${tekst(t.naam)}</b> &rarr; ${tekst(t.wedstrijd)}</li>`).join('')}</ul>
+        ${open}
+        <div class="knoppen">
+          <button class="knop" id="auto-bevestig">Bevestigen</button>
+          <button class="knop zacht" id="auto-annuleer">Annuleren</button>
+        </div>
+      </div>`;
+
+    $('auto-annuleer').onclick = () => { doel.innerHTML = ''; };
+    $('auto-bevestig').onclick = async () => {
+      $('auto-bevestig').disabled = true;
+      try {
+        const uit = await api('/api/admin/auto', {
+          method: 'POST',
+          body: JSON.stringify({ dagen: 14, uitvoeren: true }),
+        });
+        toast(`${uit.aantalToegewezen} aanduidingen gezet`);
+        doel.innerHTML = '';
+        await herlaadOverzicht();
+      } catch (err) {
+        doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+      }
+    };
+  } catch (err) {
+    doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+  } finally {
+    knop.disabled = false;
+  }
+}
+
+function toonOverzicht(o) {
+  if (o.aantal === 0) {
+    $('hoofd').innerHTML =
+      `<div class="leeg">Geen thuiswedstrijden in de komende ${o.dagen} dagen.</div>`;
+    return;
+  }
+
+  const delen = [`
+    <div class="samenvatting">
+      <div class="cijfer"><b>${o.aantal}</b><span>wedstrijden in ${o.dagen} dagen</span></div>
+      <div class="cijfer"><b>${o.inScope}</b><span>in de aanduidingslijst</span></div>
+      <div class="cijfer ${o.onvolledig ? 'let' : ''}"><b>${o.onvolledig}</b>
+        <span>nog niet volledig aangeduid</span></div>
+      <div class="cijfer ${o.zonderBeschikbaren ? 'let' : ''}"><b>${o.zonderBeschikbaren}</b>
+        <span>zonder enige beschikbare</span></div>
+    </div>
+    <button class="knop zacht breed" id="auto-knop" style="margin-bottom:1rem">
+      Automatisch aanvullen (voorstel bekijken)
+    </button>
+    <div id="auto-voorstel"></div>`];
+
+  let vorigeDatum = null;
+  for (const w of o.wedstrijden) {
+    if (w.datum !== vorigeDatum) {
+      const d = ontleedDatum(w.datum);
+      delen.push(`<div class="maand"><h2>${DAGEN[d.getUTCDay()]} ${d.getUTCDate()} ${
+        MAANDEN[d.getUTCMonth()]}</h2></div>`);
+      vorigeDatum = w.datum;
+    }
+    delen.push(overzichtKaart(w));
+  }
+
+  $('hoofd').innerHTML = delen.join('');
+  const autoKnop = $('auto-knop');
+  if (autoKnop) autoKnop.onclick = toonAutoVoorstel;
+}
+
+function overzichtKaart(w) {
+  const refs = w.vblNamenGewist
+    ? `<span class="chip vbl">${w.vblAantal} aangeduid</span>`
+    : w.vblRefs.length
+      ? w.vblRefs.map((n) => `<span class="chip vbl">${tekst(n)}</span>`).join('')
+      : '<span class="chip geen">nog niemand</span>';
+
+  // Toegewezen officials, elk met een kruisje om vrij te geven.
+  const toe = w.toegewezen.length
+    ? w.toegewezen.map((p) => `<span class="chip toe">${tekst(p.naam)}<button
+         data-vrij="${tekst(p.email)}" title="Vrijgeven">&times;</button></span>`).join('')
+    : '<span class="chip geen">nog niemand</span>';
+
+  // Beschikbare officials die nog niet toegewezen zijn, klikbaar om toe te wijzen.
+  const alToe = new Set(w.toegewezen.map((p) => p.email));
+  const vrij = w.beschikbaar.filter((p) => !alToe.has(p.email));
+  const ja = w.beschikbaar.length
+    ? vrij.map((p) => `<span class="chip ja klik" data-wijs="${tekst(p.email)}"
+         title="Toewijzen">${tekst(p.naam)}</span>`).join('') ||
+      '<span class="chip geen">allemaal toegewezen</span>'
+    : '<span class="chip geen">niemand</span>';
+
+  const nee = w.nietBeschikbaar.length
+    ? `<div class="ov-regel"><span class="ov-label">Niet</span>${
+        w.nietBeschikbaar.filter((p) => !alToe.has(p.email))
+          .map((p) => `<span class="chip nee klik" data-wijs="${tekst(p.email)}"
+             title="Toch toewijzen">${tekst(p.naam)}</span>`).join('')}</div>`
+    : '';
+
+  const compleet = w.inScope && w.toegewezen.length >= w.nodig;
+  const klassen = ['ov'];
+  if (!w.inScope) klassen.push('buiten');
+  else if (compleet) klassen.push('compleet');
+  else if (w.nodig > 0) klassen.push('tekort');
+
+  const scopeRegels = w.inScope
+    ? `<div class="ov-regel"><span class="ov-label">Wij</span>${toe}
+         <span class="reden">${w.toegewezen.length}/${w.nodig} &middot; ${tekst(w.scopeReden || '')}</span></div>
+       <div class="ov-regel"><span class="ov-label">Vrij</span>${ja}</div>
+       ${nee}`
+    : '';
+
+  return `
+  <article class="${klassen.join(' ')}" data-guid="${tekst(w.guid)}">
+    <div class="ov-kop">
+      <span class="ov-uur">${tekst(w.uur)}</span>
+      <span class="cat ${w.catLabel ? '' : 'onbekend'}">${tekst(w.catCode || '??')}</span>
+      <span class="ov-ploegen">${tekst(w.thuis)} <span class="tegen">&ndash; ${tekst(w.uit)}</span></span>
+    </div>
+    <div class="ov-regel">
+      <span>${tekst(w.locatie || 'locatie onbekend')}</span>
+      ${w.wedstrijdblad
+        ? `<a class="blad" href="${tekst(w.wedstrijdblad)}" target="_blank" rel="noopener noreferrer">wedstrijdblad &#8599;</a>`
+        : ''}
+    </div>
+    <div class="ov-regel"><span class="ov-label">VBL</span>${refs}</div>
+    ${scopeRegels}
+    <div class="ov-actie">
+      <button class="mini-knop ${w.inScope ? 'aan' : ''}" data-scope="${w.inScope ? '0' : '1'}">
+        ${w.inScope ? 'In de lijst' : 'In de lijst zetten'}
+      </button>
+      ${w.inScope ? `<button class="mini-knop" data-handmatig="1">Iemand anders toewijzen</button>` : ''}
+    </div>
+  </article>`;
+}
+
+/* Klikken in het cluboverzicht: toewijzen, vrijgeven, scope wisselen. */
+$('hoofd').addEventListener('click', async (e) => {
+  if (staat.weergave !== 'club') return;
+
+  const kaart = e.target.closest('.ov');
+  if (!kaart) return;
+  const guid = kaart.dataset.guid;
+
+  const wijsKnop = e.target.closest('[data-wijs]');
+  if (wijsKnop) return wijsToe(guid, wijsKnop.dataset.wijs);
+
+  const vrijKnop = e.target.closest('[data-vrij]');
+  if (vrijKnop) return geefVrij(guid, vrijKnop.dataset.vrij);
+
+  const scopeKnop = e.target.closest('[data-scope]');
+  if (scopeKnop) return wisselScope(guid, scopeKnop.dataset.scope === '1');
+
+  const handKnop = e.target.closest('[data-handmatig]');
+  if (handKnop) return kiesOfficial(guid);
+});
+
+async function wijsToe(guid, email, forceer = false) {
+  try {
+    await api('/api/admin/aanduiding', {
+      method: 'POST',
+      body: JSON.stringify({ matchGuid: guid, email, forceer }),
+    });
+    toast('Toegewezen');
+    await herlaadOverzicht();
+  } catch (err) {
+    // 409 met een reden die de beheerder kan overrulen: laat hem beslissen.
+    if (err.status === 409 && /Bevestig/.test(err.message)) {
+      if (confirm(`${err.message}\n\nToch toewijzen?`)) return wijsToe(guid, email, true);
+      return;
+    }
+    toast(err.message);
+  }
+}
+
+async function geefVrij(guid, email) {
+  if (!confirm('Deze aanduiding vrijgeven?')) return;
+  try {
+    await api(`/api/admin/aanduiding?matchGuid=${encodeURIComponent(guid)}&email=${encodeURIComponent(email)}`,
+      { method: 'DELETE' });
+    toast('Vrijgegeven');
+    await herlaadOverzicht();
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
+async function wisselScope(guid, scope) {
+  try {
+    await api('/api/admin/scope', {
+      method: 'PATCH',
+      body: JSON.stringify({ matchGuid: guid, scope }),
+    });
+    await herlaadOverzicht();
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
+/** Toewijzen buiten de beschikbaren om, bijvoorbeeld na een telefoontje. */
+async function kiesOfficial(guid) {
+  if (!staat.gebruikers) {
+    try { staat.gebruikers = await api('/api/admin/users'); } catch (err) { return toast(err.message); }
+  }
+  const keuze = staat.gebruikers.gebruikers.filter((g) => g.actief);
+  const naam = prompt(
+    'Wie wil je toewijzen?\n\n' + keuze.map((g, i) => `${i + 1}. ${g.naam} (${g.profiel})`).join('\n'),
+  );
+  const nr = Number(naam);
+  if (!nr || nr < 1 || nr > keuze.length) return;
+  await wijsToe(guid, keuze[nr - 1].email);
+}
+
+async function herlaadOverzicht() {
+  staat.overzicht = await api('/api/admin/overzicht?dagen=14');
+  toonOverzicht(staat.overzicht);
 }
 
 /* --- beheerpaneel ------------------------------------------------------- */
@@ -609,13 +1014,11 @@ function toonPaneel() {
             <span class="cat ${t.catBekend ? '' : 'onbekend'}"
                   title="${t.catBekend ? tekst(t.catLabel || '') : 'Geen tarief, geen automatische scope'}"
               >${tekst(t.catCode || '??')}</span>
-            <span class="team-naam" title="${tekst(t.guid)}">${tekst(t.naam)}</span>
+            <span class="team-naam" title="${tekst(t.guid)}">${tekst(t.naam)}
+              ${t.autoScope ? '<span class="reden">automatisch</span>' : ''}</span>
             <label class="vink">
-              <input type="checkbox" data-vlag="yo" ${t.yo ? 'checked' : ''} ${t.actief ? '' : 'disabled'}> YO
-            </label>
-            <label class="vink">
-              <input type="checkbox" data-vlag="yoPlus" ${t.yoPlus ? 'checked' : ''}
-                     ${t.actief ? '' : 'disabled'} ${t.yo ? 'disabled' : ''}> YO+
+              <input type="checkbox" data-vlag="volgen" ${t.volgen ? 'checked' : ''}
+                     ${t.actief ? '' : 'disabled'}> volgen
             </label>
           </div>`).join('')}
       </div>`;
@@ -656,11 +1059,43 @@ function toonPaneel() {
 
     <section class="blok">
       <h3>Teams</h3>
-      <p class="hint">Vink aan voor welke ploegen aanduidingen moeten gebeuren.
-        YO aanvinken zet YO+ automatisch mee aan.</p>
+      <p class="hint">Vink aan van welke ploegen de wedstrijden opgehaald moeten worden.
+        Of een wedstrijd in de aanduidingslijst komt, hangt af van de categorie
+        (U10/U12 gaat automatisch) of van jouw keuze in het cluboverzicht.</p>
       <button class="knop breed" id="teams-laden">Teams laden bij Basketbal Vlaanderen</button>
       <div id="teams-melding"></div>
       ${teamBlokken || '<p class="hint" style="margin:.7rem 0 0">Nog geen teams geladen.</p>'}
+    </section>
+
+    <section class="blok">
+      <h3>Mail</h3>
+      <p class="hint">Het afzenderadres wijzig je hier. De API-sleutel van de
+        maildienst is een secret bij de Worker en staat niet in dit scherm.
+        <button class="mini" id="mail-zandbak">Testmodus zonder domein</button></p>
+      <p class="hint" style="margin-top:.4rem">Wanneer actief: bericht bij
+        aanduiding en vrijgave, de woensdagmelding aan YO+, de avondcontrole en
+        het weekoverzicht aan beheerders. Zonder afzender of sleutel gebeurt
+        er stilzwijgend niets — geen mislukte verzendingen, geen foutmeldingen.</p>
+      <div id="mail-status"><span class="spinner"></span> Laden…</div>
+      <div class="veld-rij" style="margin-top:.6rem">
+        <input type="text" id="mail-afzender" placeholder="aanduidingen@jouwclub.be">
+      </div>
+      <div class="veld-rij" style="margin-top:.4rem">
+        <input type="text" id="mail-naam" placeholder="Weergavenaam, bv. YOAssist">
+      </div>
+      <button class="knop breed" id="mail-bewaar">Bewaren</button>
+      <button class="knop zacht breed" id="mail-test">Testmail sturen naar mezelf</button>
+      <div id="mail-melding"></div>
+    </section>
+
+    <section class="blok">
+      <h3>Gebruikers</h3>
+      <p class="hint">Wie hier staat én in de Access-policy, raakt binnen.
+        Beide lijsten moeten kloppen.</p>
+      <div id="gebruikers-lijst"><span class="spinner"></span> Laden…</div>
+      <button class="knop breed zacht" id="gebr-nieuw">Gebruiker toevoegen</button>
+      <div id="gebr-formulier"></div>
+      <div id="gebr-melding"></div>
     </section>
 
     <section class="blok">
@@ -681,6 +1116,46 @@ function bindPaneel() {
   $('club-check').onclick = controleerClub;
   $('teams-laden').onclick = laadTeams;
   $('sync-nu').onclick = syncNu;
+  $('gebr-nieuw').onclick = toonGebruikerFormulier;
+  laadGebruikers();
+  laadMailConfig();
+
+  $('mail-bewaar').onclick = async () => {
+    const melding = $('mail-melding');
+    try {
+      const res = await api('/api/admin/mail', {
+        method: 'POST',
+        body: JSON.stringify({
+          afzender: $('mail-afzender').value,
+          afzenderNaam: $('mail-naam').value,
+        }),
+      });
+      melding.innerHTML = res.herinnering
+        ? `<div class="melding let">Bewaard. ${tekst(res.herinnering)}</div>`
+        : `<div class="melding ok">Bewaard.</div>`;
+      await laadMailConfig();
+    } catch (err) {
+      melding.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+    }
+  };
+
+  $('mail-test').onclick = async () => {
+    const melding = $('mail-melding');
+    const knop = $('mail-test');
+    knop.disabled = true;
+    melding.innerHTML = `<div class="melding let"><span class="spinner"></span>Bezig met versturen…</div>`;
+    try {
+      const res = await api('/api/admin/mail/test', { method: 'POST' });
+      melding.innerHTML = `<div class="melding ok">Verstuurd naar ${tekst(res.naar)}. Kijk ook in je spamfolder.</div>`;
+    } catch (err) {
+      melding.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+    } finally {
+      knop.disabled = false;
+    }
+  };
+
+  // Het laatste laadrapport opnieuw tonen na het herbouwen van het paneel.
+  if (staat.teamsRapport) $('teams-melding').innerHTML = teamsRapportHtml(staat.teamsRapport);
 
   $('club-guid').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); controleerClub(); }
@@ -693,6 +1168,143 @@ function bindPaneel() {
   document.querySelectorAll('.team-rij input[type="checkbox"]').forEach((vak) => {
     vak.onchange = () => wijzigTeamVlaggen(vak);
   });
+}
+
+async function laadMailConfig() {
+  const status = $('mail-status');
+  try {
+    const c = await api('/api/admin/mail');
+    $('mail-afzender').value = c.afzender;
+    $('mail-naam').value = c.afzenderNaam;
+
+    $('mail-zandbak').onclick = () => {
+      $('mail-afzender').value = c.zandbakAdres;
+      $('mail-melding').innerHTML = `<div class="melding let">
+        Testmodus ingevuld. Registreer je bij Resend met je eigen adres, zet de
+        API-sleutel als secret <b>RESEND_API_KEY</b> bij de Worker, en klik
+        daarna op Bewaren en op de testmailknop. Er is geen domein voor nodig,
+        maar er kan alleen naar jouzelf verstuurd worden.
+      </div>`;
+    };
+
+    if (c.zandbak && c.apiSleutelAanwezig) {
+      status.innerHTML = `<div class="melding let">
+        <b>Testmodus.</b> Er wordt verstuurd vanaf ${tekst(c.afzender)}, maar Resend
+        levert alleen af bij het adres waarmee je je hebt geregistreerd.
+        Voor berichten aan de officials is een eigen, geverifieerd domein nodig.
+      </div>`;
+    } else if (c.actief) {
+      status.innerHTML = `<div class="melding ok">Actief: mail wordt verstuurd vanaf ${tekst(c.afzender)}.</div>`;
+    } else if (!c.afzender && !c.apiSleutelAanwezig) {
+      status.innerHTML = `<div class="melding let">Nog niet ingesteld: geen afzenderadres en geen API-sleutel.</div>`;
+    } else if (!c.afzender) {
+      status.innerHTML = `<div class="melding let">API-sleutel aanwezig, maar er is nog geen afzenderadres ingevuld.</div>`;
+    } else {
+      status.innerHTML = `<div class="melding let">Afzenderadres ingevuld, maar RESEND_API_KEY ontbreekt nog als secret bij de Worker.</div>`;
+    }
+  } catch (err) {
+    status.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+  }
+}
+
+async function laadGebruikers() {
+  const doel = $('gebruikers-lijst');
+  try {
+    const data = await api('/api/admin/users');
+    staat.gebruikers = data;
+
+    doel.innerHTML = data.gebruikers.map((g) => `
+      <div class="gebr-rij ${g.actief ? '' : 'inactief'}" data-email="${tekst(g.email)}">
+        <span class="gebr-naam">
+          ${tekst(g.naam)}
+          <small>${tekst(g.email)}${g.clubNaam ? ' &middot; ' + tekst(g.clubNaam) : ''}</small>
+        </span>
+        <span class="merk-prof">${tekst(g.profiel)}</span>
+        ${g.isAdmin ? '<span class="merk-adm">ADMIN</span>' : ''}
+        <button class="mini" data-actief="${g.actief ? '0' : '1'}">${g.actief ? 'uit' : 'aan'}</button>
+      </div>`).join('') +
+      `<p class="hint" style="margin:.7rem 0 .3rem">
+        ${data.aantalActief} actieve gebruikers. Deze adressen horen in de Access-policy:</p>
+      <textarea readonly id="access-lijst">${tekst(data.accessLijst)}</textarea>
+      <button class="knop zacht breed" id="kopieer-access">Adressen kopiëren</button>`;
+
+    $('kopieer-access').onclick = async () => {
+      const veld = $('access-lijst');
+      veld.select();
+      try {
+        await navigator.clipboard.writeText(veld.value);
+        toast('Adressen gekopieerd');
+      } catch {
+        document.execCommand('copy');
+        toast('Adressen gekopieerd');
+      }
+    };
+
+    doel.querySelectorAll('[data-actief]').forEach((knop) => {
+      knop.onclick = async () => {
+        const email = knop.closest('.gebr-rij').dataset.email;
+        try {
+          await api('/api/admin/users', {
+            method: 'PATCH',
+            body: JSON.stringify({ email, actief: knop.dataset.actief === '1' }),
+          });
+          await laadGebruikers();
+        } catch (err) {
+          toast(err.message);
+        }
+      };
+    });
+  } catch (err) {
+    doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+  }
+}
+
+function toonGebruikerFormulier() {
+  const clubs = staat.config.clubs.filter((c) => c.actief);
+  $('gebr-formulier').innerHTML = `
+    <div style="margin-top:.6rem">
+      <div class="veld-paar">
+        <input type="text" id="g-voornaam" placeholder="Voornaam">
+        <input type="text" id="g-achternaam" placeholder="Achternaam">
+      </div>
+      <div class="veld-paar">
+        <input type="text" id="g-email" placeholder="e-mailadres" autocapitalize="none" spellcheck="false">
+      </div>
+      <div class="veld-paar">
+        <select id="g-profiel"><option value="YO">YO</option><option value="YO+">YO+</option></select>
+        <select id="g-club">
+          <option value="">Club automatisch</option>
+          ${clubs.map((c) => `<option value="${tekst(c.guid)}">${tekst(c.naam || c.guid)}</option>`).join('')}
+        </select>
+        <label class="vink"><input type="checkbox" id="g-admin"> Beheerder</label>
+      </div>
+      <button class="knop breed" id="g-bewaar">Toevoegen</button>
+    </div>`;
+
+  $('g-bewaar').onclick = async () => {
+    const knop = $('g-bewaar');
+    knop.disabled = true;
+    try {
+      const res = await api('/api/admin/users', {
+        method: 'POST',
+        body: JSON.stringify({
+          voornaam: $('g-voornaam').value,
+          achternaam: $('g-achternaam').value,
+          email: $('g-email').value,
+          profiel: $('g-profiel').value,
+          clubGuid: $('g-club').value || null,
+          isAdmin: $('g-admin').checked,
+        }),
+      });
+      $('gebr-formulier').innerHTML = '';
+      $('gebr-melding').innerHTML = `<div class="melding let">${tekst(res.herinnering)}</div>`;
+      await laadGebruikers();
+    } catch (err) {
+      $('gebr-melding').innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+    } finally {
+      knop.disabled = false;
+    }
+  };
 }
 
 async function wijzigSeizoen(actie) {
@@ -768,6 +1380,36 @@ async function verwijderClub(guid) {
   }
 }
 
+/** Opmaak van het laatste laadrapport. Blijft staan tot je opnieuw laadt. */
+function teamsRapportHtml(res) {
+  if (!res) return '';
+
+  const regels = res.clubs.map((c) =>
+    c.fout
+      ? `${tekst(c.naam || c.guid)}: ${tekst(c.fout)}`
+      : `${tekst(c.naam)}: ${c.gevonden} teams${c.nieuw ? `, ${c.nieuw} nieuw` : ''}` +
+        `${c.opInactief ? `, ${c.opInactief} op inactief` : ''}` +
+        `${c.waarschuwing ? ` — ${tekst(c.waarschuwing)}` : ''}`,
+  );
+
+  const soort = res.clubs.some((c) => c.fout || c.waarschuwing) ? 'let' : 'ok';
+  let html = `<div class="melding ${soort}">${regels.join('<br>')}</div>`;
+
+  // Codes die niet in de categorieëntabel staan mogen niet stil blijven: geen
+  // categorie betekent geen tarief en geen automatische scope, en dat merk je
+  // anders pas bij het factureren.
+  if (res.onbekendeCategorieen?.length) {
+    html += `<div class="melding let">
+      Onbekende categorie${res.onbekendeCategorieen.length > 1 ? 'ën' : ''}:
+      <b>${res.onbekendeCategorieen.map(tekst).join(', ')}</b>.
+      Die ploegen staan rood in de lijst hieronder. Ze krijgen geen tarief en
+      komen niet automatisch in de wedstrijdlijst.
+    </div>`;
+  }
+
+  return html;
+}
+
 async function laadTeams() {
   const knop = $('teams-laden');
   const melding = $('teams-melding');
@@ -780,30 +1422,9 @@ async function laadTeams() {
       body: JSON.stringify({ actie: 'laden' }),
     });
 
-    const regels = res.clubs.map((c) =>
-      c.fout
-        ? `${tekst(c.naam || c.guid)}: ${tekst(c.fout)}`
-        : `${tekst(c.naam)}: ${c.gevonden} teams${c.nieuw ? `, ${c.nieuw} nieuw` : ''}` +
-          `${c.opInactief ? `, ${c.opInactief} op inactief` : ''}` +
-          `${c.waarschuwing ? ` — ${tekst(c.waarschuwing)}` : ''}`,
-    );
-
-    const soort = res.clubs.some((c) => c.fout || c.waarschuwing) ? 'let' : 'ok';
-    let html = `<div class="melding ${soort}">${regels.join('<br>')}</div>`;
-
-    // De server meldt codes die niet in de categorieëntabel staan. Die mogen
-    // niet stil blijven: een onbekende categorie betekent geen tarief en geen
-    // automatische scope, en dat merk je anders pas bij het factureren.
-    if (res.onbekendeCategorieen?.length) {
-      html += `<div class="melding let">
-        Onbekende categorie${res.onbekendeCategorieen.length > 1 ? 'ën' : ''}:
-        <b>${res.onbekendeCategorieen.map(tekst).join(', ')}</b>.
-        Die ploegen krijgen geen tarief en komen niet automatisch in de lijst.
-      </div>`;
-    }
-
-    melding.innerHTML = html;
-
+    // Bewaren in de staat: laadConfig() herbouwt het hele paneel, en zonder dit
+    // zou de melding één frame zichtbaar zijn en dan verdwijnen.
+    staat.teamsRapport = res;
     await laadConfig();
   } catch (err) {
     melding.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
@@ -815,37 +1436,23 @@ async function laadTeams() {
 async function wijzigTeamVlaggen(vak) {
   const rij = vak.closest('.team-rij');
   const guid = rij.dataset.team;
-  const yoVak = rij.querySelector('[data-vlag="yo"]');
-  const plusVak = rij.querySelector('[data-vlag="yoPlus"]');
-
-  // YO aanvinken zet YO+ mee aan en vergrendelt het; de server dwingt dit ook af.
-  if (yoVak.checked) {
-    plusVak.checked = true;
-    plusVak.disabled = true;
-  } else {
-    plusVak.disabled = false;
-  }
-
-  const vakken = [yoVak, plusVak];
-  vakken.forEach((v) => (v.disabled = true));
+  vak.disabled = true;
 
   try {
     const res = await api('/api/admin/teams', {
       method: 'PATCH',
-      body: JSON.stringify({ guid, yo: yoVak.checked, yoPlus: plusVak.checked }),
+      body: JSON.stringify({ guid, volgen: vak.checked }),
     });
-    yoVak.checked = res.yo;
-    plusVak.checked = res.yoPlus;
+    vak.checked = res.volgen;
 
     const team = staat.config.teams.find((t) => t.guid === guid);
-    if (team) { team.yo = res.yo; team.yoPlus = res.yoPlus; }
+    if (team) team.volgen = res.volgen;
   } catch (err) {
     toast(err.message);
     await laadConfig();
     return;
   } finally {
-    vakken.forEach((v) => (v.disabled = false));
-    if (yoVak.checked) plusVak.disabled = true;
+    vak.disabled = false;
   }
 }
 

@@ -56,9 +56,9 @@ function nieuweDb() {
   const db = new D1Shim();
   db.exec(readFileSync(new URL('../schema.sql', import.meta.url), 'utf8'));
   db.exec(`INSERT INTO clubs (guid, naam) VALUES ('${CLUB}', 'BC Alpha')`);
-  db.exec(`INSERT INTO teams (guid, club_guid, naam, cat_code, yo, yo_plus) VALUES
-    ('${TEAM_A}', '${CLUB}', 'U16 A', 'J16', 1, 1),
-    ('${TEAM_B}', '${CLUB}', 'Heren Senioren', 'HSE', 0, 1)`);
+  db.exec(`INSERT INTO teams (guid, club_guid, naam, cat_code, volgen) VALUES
+    ('${TEAM_A}', '${CLUB}', 'U16 A', 'J16', 1),
+    ('${TEAM_B}', '${CLUB}', 'Heren Senioren', 'HSE', 1)`);
   return db;
 }
 
@@ -92,14 +92,30 @@ console.log('\n2. Uitwedstrijden en ander seizoen worden genegeerd');
   check('in databank', await tel(db, 'SELECT COUNT(*) AS n FROM matches'), 1);
 }
 
-console.log('\n3. Teams zonder vinkje leveren geen wedstrijden op');
+console.log('\n3. Ploegen die niet gevolgd worden leveren niets op');
 {
   const db = nieuweDb();
-  db.exec(`UPDATE teams SET yo = 0, yo_plus = 0`);
+  db.exec(`UPDATE teams SET volgen = 0`);
   zetApi([wed('AA')]);
   const r = await synchroniseer(db, 'handmatig');
-  check('mislukt zonder aangevinkte teams', r.status, 'mislukt');
+  check('mislukt zonder gevolgde ploegen', r.status, 'mislukt');
   check('niets bewaard', await tel(db, 'SELECT COUNT(*) AS n FROM matches'), 0);
+}
+
+console.log('\n3b. Automatische scope volgens categorie');
+{
+  const db = nieuweDb();
+  db.exec(`UPDATE teams SET cat_code = 'G12' WHERE guid = '${TEAM_A}'`);
+  zetApi([wed('AA'), wed('AD', { thuis: TEAM_B, thuisNaam: 'Heren' })]);
+  await synchroniseer(db, 'handmatig');
+
+  const u12 = await db.prepare('SELECT scope, scope_reden FROM matches WHERE guid = ?')
+    .bind('BVBL26279170INJ1621FAA').first();
+  check('U12 komt vanzelf in de lijst', [u12.scope, u12.scope_reden], [1, 'auto']);
+
+  const hse = await db.prepare('SELECT scope, scope_reden FROM matches WHERE guid = ?')
+    .bind('BVBL26279170INJ1621FAD').first();
+  check('Heren senioren niet', [hse.scope, hse.scope_reden], [0, null]);
 }
 
 console.log('\n4. Wijziging van uur en locatie wordt gedetecteerd en gelogd');

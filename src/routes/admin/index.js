@@ -19,8 +19,8 @@ export async function config({ env }) {
     db.prepare('SELECT guid, naam, actief FROM clubs ORDER BY naam, guid').all(),
     db
       .prepare(
-        `SELECT t.guid, t.club_guid, t.naam, t.cat_code, t.yo, t.yo_plus, t.actief,
-                c.label AS cat_label, c.groep AS cat_groep, c.tarief_cent
+        `SELECT t.guid, t.club_guid, t.naam, t.cat_code, t.volgen, t.actief,
+                c.label AS cat_label, c.groep AS cat_groep, c.auto_scope, c.tarief_cent
            FROM teams t
            LEFT JOIN categorieen c ON c.code = t.cat_code
           ORDER BY t.club_guid, t.naam COLLATE NOCASE`,
@@ -54,8 +54,8 @@ export async function config({ env }) {
       // scope. Dat moet zichtbaar zijn, niet stil.
       catBekend: t.cat_label !== null && t.cat_label !== undefined,
       tariefCent: t.tarief_cent ?? null,
-      yo: t.yo === 1,
-      yoPlus: t.yo_plus === 1,
+      autoScope: t.auto_scope === 1,
+      volgen: t.volgen === 1,
       actief: t.actief === 1,
     })),
     laatsteSync,
@@ -282,8 +282,8 @@ export async function teamsLaden({ request, env }) {
 
       opdrachten.push(
         env.DB.prepare(
-          `INSERT INTO teams (guid, club_guid, naam, cat_code, cat_label, actief, laatst_gezien)
-           VALUES (?, ?, ?, ?, ?, 1, datetime('now'))
+          `INSERT INTO teams (guid, club_guid, naam, cat_code, cat_label, volgen, actief, laatst_gezien)
+           VALUES (?, ?, ?, ?, ?, 1, 1, datetime('now'))
            ON CONFLICT (guid) DO UPDATE
              SET naam = excluded.naam, cat_code = excluded.cat_code,
                  cat_label = COALESCE(excluded.cat_label, teams.cat_label),
@@ -316,26 +316,28 @@ export async function teamsLaden({ request, env }) {
 }
 
 /**
- * PATCH /api/admin/teams   { guid, yo, yoPlus }
- * YO aanvinken zet YO+ automatisch mee aan. Die regel wordt hier afgedwongen,
- * niet in de browser — en staat bovendien als CHECK in het schema.
+ * PATCH /api/admin/teams   { guid, volgen }
+ *
+ * Bepaalt of de wedstrijden van deze ploeg opgehaald worden. Of een wedstrijd
+ * in de aanduidingslijst komt, hangt niet meer van de ploeg af maar van de
+ * categorie, van een beheerder of van de woensdagregel — zie matches.scope.
  */
 export async function teamVlaggen({ request, env }) {
   const body = await leesJson(request);
   const guid = typeof body.guid === 'string' ? body.guid : null;
   if (!guid) return fout(400, 'Ongeldige aanvraag', 'guid ontbreekt.');
-
-  const yo = Boolean(body.yo);
-  const yoPlus = yo ? true : Boolean(body.yoPlus);
+  if (typeof body.volgen !== 'boolean') {
+    return fout(400, 'Ongeldige aanvraag', 'volgen moet true of false zijn.');
+  }
 
   const bestaat = await env.DB.prepare('SELECT guid FROM teams WHERE guid = ?').bind(guid).first();
   if (!bestaat) return fout(404, 'Onbekend team', 'Dit team staat niet in de databank.');
 
-  await env.DB.prepare('UPDATE teams SET yo = ?, yo_plus = ? WHERE guid = ?')
-    .bind(yo ? 1 : 0, yoPlus ? 1 : 0, guid)
+  await env.DB.prepare('UPDATE teams SET volgen = ? WHERE guid = ?')
+    .bind(body.volgen ? 1 : 0, guid)
     .run();
 
-  return json({ guid, yo, yoPlus });
+  return json({ guid, volgen: body.volgen });
 }
 
 /** POST /api/admin/sync — nu meteen synchroniseren. */
