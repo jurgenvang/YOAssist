@@ -32,7 +32,22 @@ function decodeJsonSegment(segment) {
   return JSON.parse(new TextDecoder().decode(base64UrlToBytes(segment)));
 }
 
-async function getSigningKeys(teamDomain) {
+/**
+ * Maakt van wat de beheerder heeft ingetypt een bruikbaar hostnaam.
+ * Mensen plakken 'https://team.cloudflareaccess.com/' of laten een spatie
+ * staan; een schuine streep achteraan levert een dubbele slash in de URL op en
+ * dat geeft een 404 op de certificaten. Hier één keer opruimen scheelt een
+ * lange zoektocht.
+ */
+export function normaliseerTeamDomein(waarde) {
+  if (typeof waarde !== 'string') return '';
+  let d = waarde.trim().replace(/^https?:\/\//i, '');
+  d = d.replace(/\/+$/, '').split('/')[0];
+  return d.toLowerCase();
+}
+
+async function getSigningKeys(teamDomeinRuw) {
+  const teamDomain = normaliseerTeamDomein(teamDomeinRuw);
   const url = `https://${teamDomain}/cdn-cgi/access/certs`;
   const now = Date.now();
 
@@ -41,7 +56,13 @@ async function getSigningKeys(teamDomain) {
   }
 
   const res = await fetch(url, { cf: { cacheTtl: 3600, cacheEverything: true } });
-  if (!res.ok) throw new AuthError(`kon Access-certificaten niet ophalen (${res.status})`);
+  if (!res.ok) {
+    throw new AuthError(
+      `kon Access-certificaten niet ophalen (${res.status}) via ${url}. ` +
+        'Controleer CF_ACCESS_TEAM_DOMAIN: enkel de hostnaam, zoals ' +
+        'jouwteam.cloudflareaccess.com.',
+    );
+  }
 
   const body = await res.json();
   if (!Array.isArray(body.keys) || body.keys.length === 0) {
@@ -53,10 +74,12 @@ async function getSigningKeys(teamDomain) {
 }
 
 export async function verifyAccessJwt(token, { teamDomain, aud }) {
-  if (!teamDomain || !aud) {
+  const ontbreekt = [!teamDomain && 'CF_ACCESS_TEAM_DOMAIN', !aud && 'CF_ACCESS_AUD'].filter(Boolean);
+  if (ontbreekt.length > 0) {
     throw new AuthError(
-      'CF_ACCESS_TEAM_DOMAIN of CF_ACCESS_AUD ontbreekt. Die zijn nodig zolang ' +
-        'ctx.access niet beschikbaar is (Worker met static assets).',
+      `${ontbreekt.join(' en ')} ontbreekt. Zet die als secret bij de Worker ` +
+        '(Settings > Variables and Secrets > Add secret). Ze zijn nodig zolang ' +
+        'ctx.access niet beschikbaar is, wat het geval is bij een Worker met static assets.',
     );
   }
 
@@ -92,7 +115,10 @@ export async function verifyAccessJwt(token, { teamDomain, aud }) {
 
   if (typeof claims.exp !== 'number' || claims.exp <= now) throw new AuthError('token verlopen');
   if (typeof claims.nbf === 'number' && claims.nbf > now + 60) throw new AuthError('token nog niet geldig');
-  if (claims.iss !== `https://${teamDomain}`) throw new AuthError('verkeerde issuer');
+  const verwachteIssuer = `https://${normaliseerTeamDomein(teamDomain)}`;
+  if (claims.iss !== verwachteIssuer) {
+    throw new AuthError(`verkeerde issuer: ${claims.iss} in plaats van ${verwachteIssuer}`);
+  }
 
   const audiences = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
   if (!audiences.includes(aud)) throw new AuthError('token hoort bij een andere applicatie');

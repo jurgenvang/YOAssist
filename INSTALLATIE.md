@@ -88,27 +88,37 @@ domein toe, dan is dat automatisch mee beschermd.
 
 ---
 
-## Stap 6 — De twee variabelen invullen
+## Stap 6 — De twee secrets zetten
 
-Ga naar **Zero Trust → Access → Applications**, open de applicatie die bij stap
-5 is aangemaakt, en noteer:
+Ga naar **Zero Trust → Access → Applications**, open de applicatie van je
+Worker, en noteer twee dingen:
 
-- je **teamdomein** (`jouwteam.cloudflareaccess.com`, staat onder Settings)
-- de **Application Audience (AUD) Tag**
+- je **teamdomein** — staat bovenaan het loginscherm, bijvoorbeeld
+  `divine-leaf-1aba.cloudflareaccess.com`
+- de **Application Audience (AUD) Tag** — 64 tekens, alleen cijfers en a-f, geen
+  streepjes. Een waarde mét streepjes is een policy-ID en werkt niet.
 
-Vul die in `wrangler.toml` in en push:
+Zet ze dan bij de Worker: **Workers & Pages → yoassist → Settings → Variables
+and Secrets → Add secret**, twee keer:
 
-```toml
-[vars]
-CF_ACCESS_TEAM_DOMAIN = "jouwteam.cloudflareaccess.com"
-CF_ACCESS_AUD = "de-aud-tag"
-```
+| Naam | Waarde |
+| --- | --- |
+| `CF_ACCESS_TEAM_DOMAIN` | je teamdomein, enkel de hostnaam |
+| `CF_ACCESS_AUD` | de AUD-tag |
+
+**Secrets, geen plain-text variabelen.** Secrets blijven staan bij elke deploy;
+plain-text variabelen worden overschreven door wat er in `wrangler.toml` staat.
+Doordat deze twee buiten dat bestand blijven, kun je de volledige broncode
+vervangen zonder dat je configuratie sneuvelt.
+
+Na het toevoegen: opnieuw deployen, anders zijn ze nog niet actief.
 
 **Waarom dit nodig is ook al hebben we Access voor Workers:** een Worker met
 static assets draait achter een interne router, en die geeft `ctx.access` niet
 door aan jouw code. De app valt dan terug op het zelf verifiëren van het
-Access-token, en daarvoor zijn deze twee waarden nodig. Sla je dit over, dan
-kom je wel door het loginscherm maar krijg je daarna overal 401.
+Access-token, en daarvoor zijn deze twee waarden nodig. Sla je dit over, dan kom
+je wel door het loginscherm maar krijg je daarna overal 401 — met een melding
+die precies zegt welke van de twee ontbreekt.
 
 ---
 
