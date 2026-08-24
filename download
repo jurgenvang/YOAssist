@@ -1,0 +1,7 @@
+node_modules/
+.dev.vars
+.wrangler/
+
+# Alleen de tests hebben afhankelijkheden. Een package.json in de hoofdmap zou
+# de build een npm-installatie laten draaien voor een app zonder buildstap.
+test/node_modules/

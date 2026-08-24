@@ -15,6 +15,44 @@ CREATE TABLE IF NOT EXISTS settings (
 -- seizoen_start_jaar = 2026 betekent seizoen 2026-2027, dus juli 2026 t/m juni 2027.
 INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('seizoen_start_jaar', '2026');
 
+
+-- ---------------------------------------------------------------------------
+-- categorieen: de drieletterige code uit de ploeg-GUID (BVBL1125J16  1 -> J16)
+-- vertaald naar leeftijdsgroep en tarief.
+--
+-- Bewust een tabel en geen code: tarieven wijzigen, en er duiken codes op die
+-- vandaag nog niet bestaan. Een onbekende code wordt gemeld in plaats van
+-- stilzwijgend in een categorie te belanden — anders factureer je over twee
+-- jaar een ploeg aan het verkeerde tarief zonder dat iemand het merkt.
+--
+-- auto_scope = 1: wedstrijden van deze categorie komen vanzelf in de lijst.
+-- Voor alle andere moet een beheerder ze aanduiden, of moet de woensdagregel
+-- vaststellen dat Basketbal Vlaanderen er minder dan twee scheidsrechters op
+-- heeft gezet.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS categorieen (
+  code        TEXT PRIMARY KEY,
+  label       TEXT NOT NULL,
+  groep       TEXT NOT NULL,
+  tarief_cent INTEGER NOT NULL,
+  auto_scope  INTEGER NOT NULL DEFAULT 0,
+  volgorde    INTEGER NOT NULL DEFAULT 0
+);
+
+INSERT OR IGNORE INTO categorieen (code, label, groep, tarief_cent, auto_scope, volgorde) VALUES
+  ('G10', 'U10',            'U10U12', 1500, 1, 10),
+  ('G12', 'U12',            'U10U12', 1500, 1, 20),
+  ('M12', 'U12 meisjes',    'U10U12', 1500, 1, 30),
+  ('G14', 'U14',            'U14',    2000, 0, 40),
+  ('M14', 'U14 meisjes',    'U14',    2000, 0, 50),
+  ('J16', 'U16',            'U16',    2000, 0, 60),
+  ('M16', 'U16 meisjes',    'U16',    2000, 0, 70),
+  ('J18', 'U18',            'U18',    2000, 0, 80),
+  ('M19', 'U19 meisjes',    'U19',    2000, 0, 90),
+  ('J21', 'U21',            'U21',    2000, 0, 100),
+  ('HSE', 'Heren senioren', 'SEN',    2500, 0, 110),
+  ('DSE', 'Dames senioren', 'SEN',    2500, 0, 120);
+
 -- ---------------------------------------------------------------------------
 -- clubs: door de admin geconfigureerd via de club-GUID (BVBL + 4 cijfers).
 -- naam wordt opgehaald bij Basketbal Vlaanderen als controle.
@@ -64,6 +102,8 @@ CREATE TABLE IF NOT EXISTS teams (
   guid          TEXT PRIMARY KEY,
   club_guid     TEXT NOT NULL REFERENCES clubs (guid) ON DELETE CASCADE,
   naam          TEXT NOT NULL,
+  cat_code      TEXT,                       -- 'J16', afgeleid uit de GUID
+  cat_label     TEXT,                       -- 'Heren Senioren', zoals de API het noemt
   yo            INTEGER NOT NULL DEFAULT 0,
   yo_plus       INTEGER NOT NULL DEFAULT 0,
   actief        INTEGER NOT NULL DEFAULT 1,
@@ -93,7 +133,17 @@ CREATE TABLE IF NOT EXISTS matches (
   datum         TEXT NOT NULL,              -- 'YYYY-MM-DD'
   uur           TEXT NOT NULL,              -- 'HH:MM'
   locatie       TEXT,
+  acc_guid      TEXT,                       -- locatie-GUID, betrouwbaarder dan de naam
   poule_naam    TEXT,
+  cat_code      TEXT,                       -- van het thuisteam, gekopieerd bij de sync
+  -- Scheidsrechters zoals Basketbal Vlaanderen ze aanduidt.
+  --   off_aantal blijft altijd bewaard: de woensdagregel en de avondcontrole
+  --   hebben alleen het aantal nodig.
+  --   off_namen wordt gewist vanaf een dag na de wedstrijd; het gaat om namen
+  --   van derden die we niet langer hoeven bij te houden dan nodig.
+  off_namen     TEXT,                       -- JSON-array, of NULL na opkuis
+  off_aantal    INTEGER NOT NULL DEFAULT 0,
+  off_gewist    INTEGER NOT NULL DEFAULT 0,
   hash          TEXT NOT NULL,
   status        TEXT NOT NULL DEFAULT 'actief' CHECK (status IN ('actief', 'verdwenen')),
   laatst_gezien TEXT NOT NULL DEFAULT (datetime('now')),
@@ -103,6 +153,7 @@ CREATE TABLE IF NOT EXISTS matches (
 CREATE INDEX IF NOT EXISTS idx_matches_datum ON matches (datum, uur);
 CREATE INDEX IF NOT EXISTS idx_matches_team ON matches (thuis_guid, status);
 CREATE INDEX IF NOT EXISTS idx_matches_club ON matches (club_guid, seizoen, status);
+CREATE INDEX IF NOT EXISTS idx_matches_opkuis ON matches (off_gewist, datum);
 
 -- ---------------------------------------------------------------------------
 -- match_changes: audittrail van wat de synchronisatie vaststelde. Wat er met
