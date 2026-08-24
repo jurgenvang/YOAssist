@@ -5,7 +5,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { D1Shim } from './d1-shim.mjs';
-import { synchroniseer, DREMPEL_VERDWENEN } from '../functions/_lib/sync.js';
+import { synchroniseer, DREMPEL_VERDWENEN } from '../src/lib/sync.js';
 
 let mislukt = 0;
 const check = (naam, echt, verwacht) => {
