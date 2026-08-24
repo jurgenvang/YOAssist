@@ -10,7 +10,7 @@
     "cron:deploy": "cd cron && wrangler deploy"
   },
   "devDependencies": {
-    "better-sqlite3": "^11.0.0",
+    "better-sqlite3": "^11.10.0",
     "wrangler": "^3.0.0"
   }
 }

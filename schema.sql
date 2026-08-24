@@ -2,8 +2,6 @@
 -- D1 (SQLite). E-mailadressen en GUID's altijd genormaliseerd opgeslagen:
 -- e-mail in lowercase, GUID exact zoals Basketbal Vlaanderen ze teruggeeft.
 
-PRAGMA foreign_keys = ON;
-
 -- ---------------------------------------------------------------------------
 -- settings: losse sleutel/waarde. Gebruikt voor het actieve seizoen en voor
 -- afgeleide status zoals het tijdstip van de laatste geslaagde synchronisatie.
