@@ -5,7 +5,7 @@ pages_build_output_dir = "public"
 [[d1_databases]]
 binding = "DB"
 database_name = "yoassist"
-database_id = "VUL-IN-NA-WRANGLER-D1-CREATE"
+database_id = "696c9518-702e-4e9f-9832-38c6bb10c6f6"
 
 [vars]
 CF_ACCESS_TEAM_DOMAIN = "jouwteam.cloudflareaccess.com"
