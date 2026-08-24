@@ -63,7 +63,10 @@ Ook dit kan volledig in de browser.
 Controleer daarna op github.com dat de map `functions` er staat met daarin
 `api/`. Ontbreekt die, dan werkt straks niets: Pages haalt daar zijn backend uit.
 
-Sleep `node_modules` niet mee als die map bij je staat.
+Sleep `node_modules` niet mee als die map bij je staat. En zorg dat er **geen
+`package.json` of `package-lock.json` in de hoofdmap** belandt: Pages ziet die
+en gaat dan een npm-installatie draaien voor een app die geen buildstap heeft.
+De enige `package.json` in dit project staat in `test/`, en die hoort daar.
 
 ---
 

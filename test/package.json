@@ -1,0 +1,12 @@
+{
+  "name": "yoassist-tests",
+  "private": true,
+  "type": "module",
+  "description": "Testgereedschap, bewust NIET in de hoofdmap: staat er een package.json naast public/, dan draait Cloudflare Pages een npm-installatie voor een app die geen buildstap heeft.",
+  "scripts": {
+    "test": "node sync.test.mjs && node zicht.test.mjs"
+  },
+  "devDependencies": {
+    "better-sqlite3": "^13.0.0"
+  }
+}

@@ -71,7 +71,13 @@ curl -H "X-Cron-Secret: <je-secret>" "https://yoassist-cron.<subdomein>.workers.
 
 ## Testen
 
+De testafhankelijkheden staan bewust in `test/`, niet in de hoofdmap. Een
+`package.json` naast `public/` zou Cloudflare Pages bij elke deploy een
+npm-installatie laten draaien voor een app die geen buildstap heeft — inclusief
+het compileren van `better-sqlite3`, dat alleen de tests gebruiken.
+
 ```bash
+cd test
 npm install
 npm test
 ```
