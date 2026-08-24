@@ -27,8 +27,8 @@ function nieuweEnv() {
   db.exec(readFileSync(new URL('../schema.sql', import.meta.url), 'utf8'));
   db.exec(`
     INSERT INTO clubs (guid, naam) VALUES ('${CLUB}', 'BC Alpha');
-    INSERT INTO teams (guid, club_guid, naam, yo, yo_plus)
-      VALUES ('${CLUB}J16  1', '${CLUB}', 'U16 A', 1, 1);
+    INSERT INTO teams (guid, club_guid, naam, cat_code, yo, yo_plus)
+      VALUES ('${CLUB}J16  1', '${CLUB}', 'U16 A', 'J16', 1, 1);
     INSERT INTO users (email, voornaam, achternaam, is_admin, profiel, club_guid) VALUES
       ('baas@club.be',  'Jurgen', 'van Geijstelen', 1, 'YO+', '${CLUB}'),
       ('yo@club.be',    'Fluppe', 'Van Meerbeeck',  0, 'YO',  '${CLUB}'),
@@ -208,6 +208,34 @@ console.log('\n9. Cron draait alleen op de juiste Brusselse uren');
   check('zomer 22:00 UTC draait (= middernacht Brussel)', gedraaid.length, 3);
 
   await Promise.allSettled(gedraaid);
+}
+
+console.log('\n12. Categorie in het beheerscherm');
+{
+  const env = nieuweEnv();
+  env.DB.exec(`
+    INSERT INTO teams (guid, club_guid, naam, cat_code) VALUES
+      ('${CLUB}G12  1', '${CLUB}', 'G12 A', 'G12'),
+      ('${CLUB}ROL  1', '${CLUB}', 'ROL A', 'ROL'),
+      ('${CLUB}XXX  1', '${CLUB}', 'Zonder code', NULL);
+  `);
+
+  const r = await vraag(env, '/api/admin/config', { alsWie: 'baas@club.be' });
+  const per = Object.fromEntries(r.json.teams.map((t) => [t.naam, t]));
+
+  check('gekende categorie krijgt label', per['G12 A'].catLabel, 'U12');
+  check('en een tarief', per['G12 A'].tariefCent, 1500);
+  check('en wordt als bekend gemarkeerd', per['G12 A'].catBekend, true);
+
+  check('ROL heeft wel een code', per['ROL A'].catCode, 'ROL');
+  check('maar geldt als onbekend', per['ROL A'].catBekend, false);
+  check('en heeft geen tarief', per['ROL A'].tariefCent, null);
+
+  check('ploeg zonder code ook onbekend', per['Zonder code'].catBekend, false);
+
+  const j16 = per['U16 A'];
+  check('bestaande ploeg behoudt haar categorie', j16.catLabel, 'U16');
+  check('U16-tarief', j16.tariefCent, 2000);
 }
 
 console.log('\n10. Versienummer');

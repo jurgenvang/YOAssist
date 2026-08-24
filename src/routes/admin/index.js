@@ -19,8 +19,11 @@ export async function config({ env }) {
     db.prepare('SELECT guid, naam, actief FROM clubs ORDER BY naam, guid').all(),
     db
       .prepare(
-        `SELECT guid, club_guid, naam, yo, yo_plus, actief
-           FROM teams ORDER BY club_guid, naam COLLATE NOCASE`,
+        `SELECT t.guid, t.club_guid, t.naam, t.cat_code, t.yo, t.yo_plus, t.actief,
+                c.label AS cat_label, c.groep AS cat_groep, c.tarief_cent
+           FROM teams t
+           LEFT JOIN categorieen c ON c.code = t.cat_code
+          ORDER BY t.club_guid, t.naam COLLATE NOCASE`,
       )
       .all(),
     db
@@ -44,6 +47,13 @@ export async function config({ env }) {
       guid: t.guid,
       clubGuid: t.club_guid,
       naam: t.naam,
+      catCode: t.cat_code,
+      catLabel: t.cat_label,
+      catGroep: t.cat_groep,
+      // Geen rij in categorieen betekent: geen tarief en geen automatische
+      // scope. Dat moet zichtbaar zijn, niet stil.
+      catBekend: t.cat_label !== null && t.cat_label !== undefined,
+      tariefCent: t.tarief_cent ?? null,
       yo: t.yo === 1,
       yoPlus: t.yo_plus === 1,
       actief: t.actief === 1,
