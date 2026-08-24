@@ -225,7 +225,8 @@ console.log('\n10. Een teruggekeerde wedstrijd wordt weer actief');
 console.log('\n11. Beschikbaarheden overleven een verdwenen wedstrijd');
 {
   const db = nieuweDb();
-  db.exec(`INSERT INTO users (email, naam, profiel, club_guid) VALUES ('yo@club.be','Jan','YO','${CLUB}')`);
+  db.exec(`INSERT INTO users (email, voornaam, achternaam, profiel, club_guid)
+           VALUES ('yo@club.be','Jan','Peeters','YO','${CLUB}')`);
   zetApi([wed('AA')]);
   await synchroniseer(db, 'handmatig');
   db.exec(`INSERT INTO availability (user_email, match_guid, status)

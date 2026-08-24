@@ -82,6 +82,13 @@ detecteren en loggen, de drempel van drie verdwenen wedstrijden, een leeg of
 mislukt antwoord dat niets mag wissen, en wie welke wedstrijden mag zien en
 beantwoorden.
 
+## Namen
+
+`users` heeft `voornaam` en `achternaam` apart. Tussenvoegsels horen bij de
+achternaam: `Van den Broeck` blijft één veld. Lijsten van officials sorteer je
+op `achternaam, voornaam`; de weergavenaam wordt in de middleware samengesteld
+zodat de frontend er niets van hoeft te weten.
+
 ## Twee dingen die nog geverifieerd moeten worden
 
 De API was vanuit de ontwikkelomgeving niet bereikbaar, dus twee aannames staan

@@ -17,7 +17,8 @@ export async function onRequest(context) {
   }
 
   const rij = await env.DB.prepare(
-    `SELECT u.email, u.naam, u.is_admin, u.profiel, u.club_guid, u.actief, c.naam AS club_naam
+    `SELECT u.email, u.voornaam, u.achternaam, u.is_admin, u.profiel, u.club_guid, u.actief,
+            c.naam AS club_naam
        FROM users u
        LEFT JOIN clubs c ON c.guid = u.club_guid
       WHERE u.email = ?`,
@@ -38,7 +39,11 @@ export async function onRequest(context) {
 
   data.user = {
     email: rij.email,
-    naam: rij.naam,
+    voornaam: rij.voornaam,
+    achternaam: rij.achternaam,
+    // Weergavenaam wordt hier samengesteld zodat de frontend er niets over
+    // hoeft te weten. Sorteren gebeurt altijd op achternaam, voornaam.
+    naam: `${rij.voornaam} ${rij.achternaam}`,
     isAdmin: rij.is_admin === 1,
     profiel: rij.profiel,
     clubGuid: rij.club_guid,

@@ -1,9 +1,8 @@
--- Pas de adressen aan vóór je dit uitvoert.
--- Zet jezelf als eerste admin, anders raak je niet in het beheermenu.
--- club_guid blijft NULL tot je de club via het beheermenu hebt toegevoegd.
+-- YOAssist — jouw beheerders.
+-- Beide accounts hebben is_admin = 1 en profiel YO+, dus ze zien zowel het
+-- beheermenu als de wedstrijdlijst van alle YO+-ploegen.
+-- club_guid staat nog op NULL: koppelen doe je zodra de club is toegevoegd.
 
-INSERT OR REPLACE INTO users (email, naam, is_admin, profiel, club_guid, actief) VALUES ('jij@uw-club.be', 'Jouw Naam', 1, 'YO+', NULL, 1);
+INSERT OR REPLACE INTO users (email, voornaam, achternaam, is_admin, profiel, club_guid, actief) VALUES ('jurgenvang@gmail.com', 'Jurgen', 'van Geijstelen', 1, 'YO+', NULL, 1);
 
-INSERT OR REPLACE INTO users (email, naam, is_admin, profiel, club_guid, actief) VALUES ('jan@uw-club.be', 'Jan Peeters', 0, 'YO', NULL, 1);
-
-INSERT OR REPLACE INTO users (email, naam, is_admin, profiel, club_guid, actief) VALUES ('marie@uw-club.be', 'Marie Bos', 0, 'YO+', NULL, 1);
+INSERT OR REPLACE INTO users (email, voornaam, achternaam, is_admin, profiel, club_guid, actief) VALUES ('fluppevanmeerbeeck@gmail.com', 'Fluppe', 'Van Meerbeeck', 1, 'YO+', NULL, 1);

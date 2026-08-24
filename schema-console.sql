@@ -21,14 +21,18 @@ CREATE TABLE IF NOT EXISTS clubs (
 
 -- ===== BLOK 3 van 8 =====
 CREATE TABLE IF NOT EXISTS users (
-  email      TEXT PRIMARY KEY,
-  naam       TEXT NOT NULL,
-  is_admin   INTEGER NOT NULL DEFAULT 0,
-  profiel    TEXT NOT NULL DEFAULT 'YO' CHECK (profiel IN ('YO', 'YO+')),
-  club_guid  TEXT REFERENCES clubs (guid) ON DELETE SET NULL,
-  gsm        TEXT,
-  actief     INTEGER NOT NULL DEFAULT 1
+  email       TEXT PRIMARY KEY,
+  voornaam    TEXT NOT NULL,
+  achternaam  TEXT NOT NULL,
+  is_admin    INTEGER NOT NULL DEFAULT 0,
+  profiel     TEXT NOT NULL DEFAULT 'YO' CHECK (profiel IN ('YO', 'YO+')),
+  club_guid   TEXT REFERENCES clubs (guid) ON DELETE SET NULL,
+  gsm         TEXT,
+  actief      INTEGER NOT NULL DEFAULT 1
 );
+
+CREATE INDEX IF NOT EXISTS idx_users_naam
+  ON users (achternaam COLLATE NOCASE, voornaam COLLATE NOCASE);
 
 -- ===== BLOK 4 van 8 =====
 CREATE TABLE IF NOT EXISTS teams (

@@ -15,11 +15,11 @@ INSERT INTO teams (guid,club_guid,naam,yo,yo_plus,actief) VALUES
   ('BVBL1053G12  1','BVBL1053','G12 A',0,0,1),      -- geen aanduidingen
   ('BVBL1053J14  1','BVBL1053','U14 A',1,1,0),      -- team niet meer actief
   ('BVBL2000J16  1','BVBL2000','Beta U16',1,1,1);   -- andere club
-INSERT INTO users (email,naam,profiel,club_guid) VALUES
-  ('yo@a.be','YO Alpha','YO','BVBL1053'),
-  ('plus@a.be','YOplus Alpha','YO+','BVBL1053'),
-  ('yo@b.be','YO Beta','YO','BVBL2000'),
-  ('los@x.be','Zonder club','YO',NULL);
+INSERT INTO users (email,voornaam,achternaam,profiel,club_guid) VALUES
+  ('yo@a.be','Ann','Aerts','YO','BVBL1053'),
+  ('plus@a.be','Bert','van Geijstelen','YO+','BVBL1053'),
+  ('yo@b.be','Cis','Van Meerbeeck','YO','BVBL2000'),
+  ('los@x.be','Dirk','Willems','YO',NULL);
 INSERT INTO matches (guid,seizoen,club_guid,thuis_guid,thuis_naam,uit_naam,datum,uur,locatie,hash) VALUES
   ('M-YO',     '2627','BVBL1053','BVBL1053J16  1','U16 A','Gamma','2026-09-12','20:30','Noord','h1'),
   ('M-PLUS',   '2627','BVBL1053','BVBL1053HSE  1','Heren A','Delta','2026-09-13','21:00','Noord','h2'),
@@ -76,6 +76,18 @@ const {results:sorted} = await db.prepare(
   `SELECT guid FROM matches WHERE seizoen='2627' AND status='actief' AND datum>='2026-08-24'
    ORDER BY datum, uur, thuis_naam`).all();
 check('chronologisch', sorted.map(r=>r.guid), ['M-YO','M-PLUS','M-GEEN','M-INACT','M-BETA']);
+
+console.log('\nSortering van officials op achternaam');
+const {results:pers} = await db.prepare(
+  `SELECT voornaam || ' ' || achternaam AS n FROM users
+    ORDER BY achternaam COLLATE NOCASE, voornaam COLLATE NOCASE`).all();
+check('hoofdletterongevoelig: kleine v tussen de V-namen', pers.map(r=>r.n),
+  ['Ann Aerts','Bert van Geijstelen','Cis Van Meerbeeck','Dirk Willems']);
+
+const {results:fout} = await db.prepare(
+  "SELECT achternaam AS n FROM users ORDER BY achternaam").all();
+check('zonder NOCASE gaat het mis (bewijs)', fout.map(r=>r.n),
+  ['Aerts','Van Meerbeeck','Willems','van Geijstelen']);
 
 console.log(f===0 ? '\n=== ZICHTBAARHEIDSTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);
 process.exit(f?1:0);

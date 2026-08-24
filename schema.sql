@@ -31,16 +31,28 @@ CREATE TABLE IF NOT EXISTS clubs (
 --   is_admin : toegang tot het beheermenu
 --   profiel  : YO ziet teams met vlag yo, YO+ ziet teams met vlag yo_plus
 --   club_guid: een YO hoort bij één club en ziet alleen die wedstrijden
+-- Voornaam en achternaam staan apart zodat lijsten op achternaam kunnen sorteren.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS users (
-  email      TEXT PRIMARY KEY,
-  naam       TEXT NOT NULL,
-  is_admin   INTEGER NOT NULL DEFAULT 0,
-  profiel    TEXT NOT NULL DEFAULT 'YO' CHECK (profiel IN ('YO', 'YO+')),
-  club_guid  TEXT REFERENCES clubs (guid) ON DELETE SET NULL,
-  gsm        TEXT,
-  actief     INTEGER NOT NULL DEFAULT 1
+  email       TEXT PRIMARY KEY,
+  voornaam    TEXT NOT NULL,
+  achternaam  TEXT NOT NULL,
+  is_admin    INTEGER NOT NULL DEFAULT 0,
+  profiel     TEXT NOT NULL DEFAULT 'YO' CHECK (profiel IN ('YO', 'YO+')),
+  club_guid   TEXT REFERENCES clubs (guid) ON DELETE SET NULL,
+  gsm         TEXT,
+  actief      INTEGER NOT NULL DEFAULT 1
 );
+
+-- Officials sorteer je op achternaam. Tussenvoegsels ('Van der Elst') horen bij
+-- de achternaam: in Vlaanderen sorteert die onder de V, niet onder de E.
+-- COLLATE NOCASE is hier geen detail: zonder die vermelding sorteert SQLite op
+-- bytewaarde, en dan komt 'Van Meerbeeck' vóór 'van Geijstelen' omdat elke
+-- hoofdletter kleiner is dan elke kleine letter. Zoek daar maar eens naar in een
+-- ledenlijst. Queries die op naam sorteren moeten COLLATE NOCASE herhalen,
+-- anders wordt deze index niet gebruikt.
+CREATE INDEX IF NOT EXISTS idx_users_naam
+  ON users (achternaam COLLATE NOCASE, voornaam COLLATE NOCASE);
 
 -- ---------------------------------------------------------------------------
 -- teams: opgehaald bij Basketbal Vlaanderen per club.
