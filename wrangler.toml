@@ -1,0 +1,32 @@
+name = "yoassist"
+main = "src/index.js"
+compatibility_date = "2026-08-01"
+
+# De statische app. Bestaat er een bestand voor het gevraagde pad, dan bedient
+# Cloudflare dat rechtstreeks; al de rest gaat naar de Worker. Onder /api/
+# staan geen bestanden, dus die verzoeken bereiken altijd de code.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "yoassist"
+database_id = "696c9518-702e-4e9f-9832-38c6bb10c6f6"
+
+# Alle kandidaat-uren in UTC. De Worker beslist zelf of het in Brussel
+# werkelijk 0, 6, 12 of 18 uur is, zodat zomer- en wintertijd allebei kloppen.
+[triggers]
+crons = ["0 22,23,4,5,10,11,16,17 * * *"]
+
+# CF_ACCESS_TEAM_DOMAIN en CF_ACCESS_AUD staan bewust NIET hier, maar als
+# secrets in het dashboard (Settings > Variables and Secrets > Add secret).
+#
+# Reden: secrets blijven staan bij elke deploy, plain-text vars in dit bestand
+# overschrijven wat in het dashboard staat. Door ze buiten dit bestand te houden
+# kan de volledige broncode altijd vervangen worden zonder dat er configuratie
+# sneuvelt — en staat er niets omgevingsspecifieks in git.
+#
+# Ze zijn nodig zolang ctx.access niet beschikbaar is: een Worker met static
+# assets draait achter een interne router, en die geeft ctx.access niet door.
+# De code valt dan terug op het zelf verifieren van het Access-token.
