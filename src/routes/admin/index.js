@@ -9,6 +9,7 @@ import {
   VblError,
 } from '../../lib/vbl.js';
 import { synchroniseer, zetInstelling } from '../../lib/sync.js';
+import { log } from '../../lib/logboek.js';
 
 /** GET /api/admin/config — alles wat het beheerscherm in één keer nodig heeft. */
 export async function config({ env }) {
@@ -33,7 +34,7 @@ export async function config({ env }) {
            FROM sync_runs ORDER BY id DESC LIMIT 1`,
       )
       .first(),
-    db.prepare('SELECT COUNT(*) AS aantal FROM match_changes WHERE afgehandeld = 0').first(),
+    db.prepare("SELECT COUNT(*) AS aantal FROM logboek WHERE afgehandeld = 0 AND categorie = 'wedstrijd'").first(),
   ]);
 
   return json({
@@ -68,7 +69,7 @@ export async function config({ env }) {
  *                       of { startJaar: 2027 }
  * Een seizoen loopt van juli tot juni.
  */
-export async function season({ request, env }) {
+export async function season({ request, env, user }) {
   const body = await leesJson(request);
   const huidig = Number(await instelling(env.DB, 'seizoen_start_jaar', huidigSeizoenStartJaar()));
 
@@ -84,6 +85,16 @@ export async function season({ request, env }) {
   }
 
   await zetInstelling(env.DB, 'seizoen_start_jaar', nieuw);
+
+  await log(env.DB, {
+    categorie: 'beheer',
+    soort: 'seizoen',
+    wie: user.email,
+    veld: 'seizoen gewijzigd',
+    oud: seizoenLabel(huidig),
+    nieuw: seizoenLabel(nieuw),
+  });
+
   return json({ startJaar: nieuw, label: seizoenLabel(nieuw) });
 }
 
@@ -137,7 +148,7 @@ export async function resolveClub({ url, env }) {
 }
 
 /** POST /api/admin/clubs   { guid } */
-export async function clubToevoegen({ request, env }) {
+export async function clubToevoegen({ request, env, user }) {
   const body = await leesJson(request);
   const guid = normaliseerGuid(body.guid ?? '').toUpperCase();
 
@@ -164,6 +175,14 @@ export async function clubToevoegen({ request, env }) {
     .bind(guid, naam)
     .run();
 
+  await log(env.DB, {
+    categorie: 'beheer',
+    soort: 'club',
+    wie: user.email,
+    veld: 'club toegevoegd',
+    nieuw: `${naam ?? '(naam onbekend)'} (${guid})`,
+  });
+
   return json({ guid, naam, waarschuwing });
 }
 
@@ -185,7 +204,7 @@ export async function clubAanUit({ request, env }) {
 }
 
 /** DELETE /api/admin/clubs?guid=... */
-export async function clubVerwijderen({ url, env }) {
+export async function clubVerwijderen({ url, env, user }) {
   const guid = normaliseerGuid(url.searchParams.get('guid') ?? '').toUpperCase();
   if (!CLUB_GUID_PATROON.test(guid)) return fout(400, 'Ongeldige GUID', 'Onbekende clubvorm.');
 
@@ -203,6 +222,15 @@ export async function clubVerwijderen({ url, env }) {
 
   // Teams en wedstrijden verdwijnen mee via ON DELETE CASCADE.
   await env.DB.prepare('DELETE FROM clubs WHERE guid = ?').bind(guid).run();
+
+  await log(env.DB, {
+    categorie: 'beheer',
+    soort: 'club',
+    wie: user.email,
+    veld: 'club verwijderd',
+    oud: guid,
+  });
+
   return json({ guid, verwijderd: true });
 }
 
@@ -213,7 +241,7 @@ export async function clubVerwijderen({ url, env }) {
  * teams die niet meer voorkomen gaan op inactief in plaats van verwijderd te
  * worden, zodat historiek en ingevulde beschikbaarheden blijven bestaan.
  */
-export async function teamsLaden({ request, env }) {
+export async function teamsLaden({ request, env, user }) {
   const body = await leesJson(request);
   if (body.actie !== 'laden') return fout(400, 'Ongeldige aanvraag', "Enkel actie 'laden' bestaat.");
 
@@ -406,8 +434,20 @@ export async function teamVlaggen({ request, env }) {
 }
 
 /** POST /api/admin/sync — nu meteen synchroniseren. */
-export async function syncNu({ env }) {
-  return json(await synchroniseer(env.DB, 'handmatig'));
+export async function syncNu({ env, user }) {
+  const rapport = await synchroniseer(env.DB, 'handmatig');
+
+  await log(env.DB, {
+    categorie: 'beheer',
+    soort: 'sync',
+    wie: user.email,
+    veld: `synchronisatie ${rapport.status}`,
+    nieuw:
+      `${rapport.gevonden} gevonden, ${rapport.nieuw} nieuw, ` +
+      `${rapport.gewijzigd} gewijzigd, ${rapport.verdwenen} verdwenen`,
+  });
+
+  return json(rapport);
 }
 
 /** GET /api/admin/sync — de laatste tien runs en de openstaande wijzigingen. */
@@ -421,9 +461,9 @@ export async function syncLogboek({ env }) {
     env.DB.prepare(
       `SELECT c.id, c.match_guid, c.soort, c.veld, c.oud, c.nieuw, c.vastgesteld,
               m.datum, m.uur, m.thuis_naam, m.uit_naam
-         FROM match_changes c
+         FROM logboek c
          LEFT JOIN matches m ON m.guid = c.match_guid
-        WHERE c.afgehandeld = 0
+        WHERE c.afgehandeld = 0 AND c.categorie = 'wedstrijd'
         ORDER BY c.id DESC LIMIT 50`,
     ).all(),
   ]);

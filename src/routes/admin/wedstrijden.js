@@ -1,6 +1,7 @@
 import { json, fout, leesJson, instelling } from '../../lib/http.js';
 import { seizoenscode, wedstrijdbladUrl } from '../../lib/vbl.js';
 import { leesCsv, maakCsv, alsBoolean } from '../../lib/csv.js';
+import { log } from '../../lib/logboek.js';
 
 /**
  * Handmatig toegevoegde wedstrijden.
@@ -166,12 +167,15 @@ async function bewaar(env, w, { overwrite, door }) {
       .bind(w.thuisGuid, w.thuisNaam, w.uitNaam, w.datum, w.uur, w.locatie, w.catCode, w.hash, w.guid)
       .run();
 
-    await env.DB.prepare(
-      `INSERT INTO match_changes (match_guid, soort, veld, oud, nieuw)
-       VALUES (?, 'gewijzigd', 'handmatig overschreven', ?, ?)`,
-    )
-      .bind(w.guid, bestaand.bron, `${w.datum} ${w.uur} ${w.thuisNaam} - ${w.uitNaam} (door ${door})`)
-      .run();
+    await log(env.DB, {
+      categorie: 'wedstrijd',
+      soort: 'gewijzigd',
+      matchGuid: w.guid,
+      wie: door,
+      veld: 'handmatig overschreven',
+      oud: `afkomstig van ${bestaand.bron}`,
+      nieuw: `${w.datum} ${w.uur} ${w.thuisNaam} - ${w.uitNaam}`,
+    });
 
     return { overschreven: true, vorigeBron: bestaand.bron };
   }
@@ -192,12 +196,14 @@ async function bewaar(env, w, { overwrite, door }) {
     )
     .run();
 
-  await env.DB.prepare(
-    `INSERT INTO match_changes (match_guid, soort, veld, oud, nieuw)
-     VALUES (?, 'nieuw', 'handmatig toegevoegd', NULL, ?)`,
-  )
-    .bind(w.guid, `${w.datum} ${w.uur} ${w.thuisNaam} - ${w.uitNaam} (door ${door})`)
-    .run();
+  await log(env.DB, {
+    categorie: 'wedstrijd',
+    soort: 'nieuw',
+    matchGuid: w.guid,
+    wie: door,
+    veld: 'handmatig toegevoegd',
+    nieuw: `${w.datum} ${w.uur} ${w.thuisNaam} - ${w.uitNaam}`,
+  });
 
   return { toegevoegd: true };
 }

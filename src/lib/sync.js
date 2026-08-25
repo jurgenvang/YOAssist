@@ -13,6 +13,7 @@
  *     verwerkt; de run krijgt status 'deels' zodat het opvalt.
  */
 
+import { regel } from './logboek.js';
 import {
   clubWedstrijden,
   normaliseerWedstrijd,
@@ -283,11 +284,15 @@ export async function synchroniseer(db, bron) {
 
     for (const [guid, soort, veld, oud, nieuw] of wijzigingen) {
       opdrachten.push(
-        db
-          .prepare(
-            `INSERT INTO match_changes (match_guid, soort, veld, oud, nieuw) VALUES (?, ?, ?, ?, ?)`,
-          )
-          .bind(guid, soort, veld, oud, nieuw),
+        regel(db, {
+          categorie: 'wedstrijd',
+          soort,
+          matchGuid: guid,
+          wie: bron === 'cron' ? 'systeem' : 'synchronisatie',
+          veld,
+          oud,
+          nieuw,
+        }),
       );
     }
 

@@ -13,14 +13,16 @@ import { synchroniseer } from './lib/sync.js';
 import { pasWoensdagregelToe, zoekOverbodigeScope } from './lib/woensdag.js';
 import { instelling } from './lib/http.js';
 import { seizoenscode } from './lib/vbl.js';
-import { aantalNodig } from './lib/aanduiding.js';
+import { aantalNodig, opkomstUur } from './lib/aanduiding.js';
 import {
-  verstuur,
+  templateHerinnering,
   templateWoensdagregel,
   templateAvondcontrole,
   templateWeekoverzicht,
 } from './lib/mailer.js';
+import { verwittig, verwittigAllen } from './lib/verwittigen.js';
 import { me, clubs, kiesClub, matches, zetBeschikbaarheid, meldProbleem } from './routes/gebruiker.js';
+import * as voorkeuren from './routes/voorkeuren.js';
 import * as admin from './routes/admin/index.js';
 import { diagnoseMatches } from './routes/admin/diagnose.js';
 import * as gebruikers from './routes/admin/gebruikers.js';
@@ -30,6 +32,7 @@ import * as mail from './routes/admin/mail.js';
 import { automatisch } from './routes/admin/auto.js';
 import * as wedstrijden from './routes/admin/wedstrijden.js';
 import * as vrijgeven from './routes/admin/vrijgeven.js';
+import * as logboekRoute from './routes/admin/logboek.js';
 
 // ---------------------------------------------------------------------------
 // Routetabel. beheer: true betekent dat de route alleen voor admins is.
@@ -42,6 +45,12 @@ const ROUTES = [
   { methode: 'GET',    pad: '/api/clubs',              handler: clubs },
   { methode: 'POST',   pad: '/api/club',               handler: kiesClub },
   { methode: 'POST',   pad: '/api/probleem',           handler: meldProbleem },
+
+  { methode: 'GET',    pad: '/api/voorkeuren',         handler: voorkeuren.voorkeuren },
+  { methode: 'PATCH',  pad: '/api/voorkeuren',         handler: voorkeuren.zetVoorkeuren },
+  { methode: 'POST',   pad: '/api/voorkeuren/test',    handler: voorkeuren.testBericht },
+  { methode: 'POST',   pad: '/api/push/abonneer',      handler: voorkeuren.abonneer },
+  { methode: 'DELETE', pad: '/api/push/abonneer',      handler: voorkeuren.afmelden },
 
   { methode: 'GET',    pad: '/api/admin/config',       handler: admin.config,          beheer: true },
   { methode: 'POST',   pad: '/api/admin/season',       handler: admin.season,          beheer: true },
@@ -74,6 +83,10 @@ const ROUTES = [
 
   { methode: 'GET',    pad: '/api/admin/vrijgeven/maanden', handler: vrijgeven.maanden,   beheer: true },
   { methode: 'POST',   pad: '/api/admin/vrijgeven',         handler: vrijgeven.vrijgeven, beheer: true },
+
+  { methode: 'GET',    pad: '/api/admin/logboek',           handler: logboekRoute.logboek,  beheer: true },
+  { methode: 'PATCH',  pad: '/api/admin/logboek',           handler: logboekRoute.handelAf, beheer: true },
+  { methode: 'POST',   pad: '/api/admin/logboek/alles',     handler: logboekRoute.handelAllesAf, beheer: true },
 
   { methode: 'GET',    pad: '/api/admin/users',        handler: gebruikers.lijst,      beheer: true },
   { methode: 'POST',   pad: '/api/admin/users',        handler: gebruikers.toevoegen,  beheer: true },
@@ -225,6 +238,10 @@ export function takenVoor({ uur, weekdag }) {
   // Maandagochtend om 8 uur: het overzicht van het komende weekend.
   if (weekdag === 1 && uur === 8) taken.push('weekoverzicht');
 
+  // Herinneringen: 's avonds voor morgen, 's ochtends voor vandaag.
+  if (uur === 19) taken.push('herinnering-avond');
+  if (uur === 7) taken.push('herinnering-ochtend');
+
   return taken;
 }
 
@@ -237,9 +254,9 @@ async function beheerAdressen(db) {
 async function mailBeheerders(env, template) {
   const adressen = await beheerAdressen(env.DB);
   const resultaten = await Promise.all(
-    adressen.map((naar) => verstuur(env, { naar, ...template }).catch(() => ({ verstuurd: false }))),
+    adressen.map((naar) => verwittig(env, naar, template).catch(() => ({ mail: false }))),
   );
-  return resultaten.filter((r) => r.verstuurd).length;
+  return resultaten.filter((r) => r.mail).length;
 }
 
 /**
@@ -272,12 +289,7 @@ async function voerTakenUit(taken, env, tijdstip) {
           const { results: yoPlus } = await env.DB
             .prepare("SELECT email FROM users WHERE profiel = 'YO+' AND actief = 1")
             .all();
-          const mail = templateWoensdagregel(r);
-          await Promise.all(
-            yoPlus.map((u) =>
-              verstuur(env, { naar: u.email, ...mail }).catch(() => ({ verstuurd: false })),
-            ),
-          );
+          await verwittigAllen(env, yoPlus.map((u) => u.email), templateWoensdagregel(r));
         }
       }
 
@@ -290,6 +302,53 @@ async function voerTakenUit(taken, env, tijdstip) {
               overbodig.map((o) => o.omschrijving).join(' | '),
           );
           await mailBeheerders(env, templateAvondcontrole({ wedstrijden: overbodig }));
+        }
+      }
+
+      if (taak === 'herinnering-avond' || taak === 'herinnering-ochtend') {
+        const avond = taak === 'herinnering-avond';
+        const dag = new Date(tijdstip.getTime() + (avond ? 86400000 : 0))
+          .toISOString().slice(0, 10);
+
+        const { results } = await env.DB.prepare(
+          `SELECT a.user_email, u.voornaam, u.herinner_avond, u.herinner_ochtend,
+                  m.uur, m.locatie, m.thuis_naam, m.uit_naam
+             FROM assignments a
+             JOIN matches m ON m.guid = a.match_guid
+             JOIN users u ON u.email = a.user_email
+            WHERE a.status = 'toegewezen' AND m.status = 'actief'
+              AND m.datum = ? AND u.actief = 1
+            ORDER BY a.user_email, m.uur`,
+        )
+          .bind(dag)
+          .all();
+
+        // Per persoon groeperen: wie twee wedstrijden fluit krijgt één bericht
+        // met allebei erin, niet twee losse.
+        const perOfficial = new Map();
+        for (const r of results) {
+          const wil = avond ? r.herinner_avond === 1 : r.herinner_ochtend === 1;
+          if (!wil) continue;
+          const lijst = perOfficial.get(r.user_email) ?? { voornaam: r.voornaam, wedstrijden: [] };
+          lijst.wedstrijden.push({
+            uur: r.uur,
+            wedstrijd: `${r.thuis_naam} - ${r.uit_naam}`,
+            locatie: r.locatie,
+            opkomst: opkomstUur(r.uur) ?? r.uur,
+          });
+          perOfficial.set(r.user_email, lijst);
+        }
+
+        for (const [email, gegevens] of perOfficial) {
+          await verwittig(env, email, templateHerinnering({
+            naam: gegevens.voornaam,
+            wanneer: avond ? 'Morgen' : 'Vandaag',
+            wedstrijden: gegevens.wedstrijden,
+          })).catch(() => ({ mail: false }));
+        }
+
+        if (perOfficial.size > 0) {
+          console.log(`[YOAssist] ${taak}: ${perOfficial.size} official(s) verwittigd voor ${dag}`);
         }
       }
 

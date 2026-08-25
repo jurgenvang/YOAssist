@@ -75,7 +75,7 @@ console.log('\n1. Eerste synchronisatie voegt wedstrijden toe');
   check('gevonden', r.gevonden, 3);
   check('nieuw', r.nieuw, 3);
   check('in databank', await tel(db, 'SELECT COUNT(*) AS n FROM matches'), 3);
-  check('logboek nieuw', await tel(db, "SELECT COUNT(*) AS n FROM match_changes WHERE soort='nieuw'"), 3);
+  check('logboek nieuw', await tel(db, "SELECT COUNT(*) AS n FROM logboek WHERE soort='nieuw'"), 3);
 }
 
 console.log('\n2. Uitwedstrijden en ander seizoen worden genegeerd');
@@ -137,7 +137,7 @@ console.log('\n4. Wijziging van uur en locatie wordt gedetecteerd en gelogd');
   check('locatie bijgewerkt', rij.locatie, 'Sporthal Zuid');
 
   const velden = (await db.prepare(
-    "SELECT veld, oud, nieuw FROM match_changes WHERE soort='gewijzigd' ORDER BY veld").all()).results;
+    "SELECT veld, oud, nieuw FROM logboek WHERE soort='gewijzigd' ORDER BY veld").all()).results;
   check('twee velden gelogd', velden.map(v => v.veld), ['locatie', 'uur']);
   check('oude waarde bewaard', velden[1].oud, '20:30');
   check('nieuwe waarde bewaard', velden[1].nieuw, '21:00');
@@ -153,7 +153,7 @@ console.log('\n5. Ongewijzigde wedstrijden geven geen ruis in het logboek');
   check('niets nieuw', r.nieuw, 0);
   check('niets gewijzigd', r.gewijzigd, 0);
   check('logboek blijft op 2 (enkel de eerste run)',
-    await tel(db, 'SELECT COUNT(*) AS n FROM match_changes'), 2);
+    await tel(db, 'SELECT COUNT(*) AS n FROM logboek'), 2);
 }
 
 console.log('\n6. Tot en met de drempel worden verdwenen wedstrijden gemarkeerd');
@@ -171,7 +171,7 @@ console.log('\n6. Tot en met de drempel worden verdwenen wedstrijden gemarkeerd'
   check('gemarkeerd, niet gewist',
     await tel(db, "SELECT COUNT(*) AS n FROM matches WHERE status='verdwenen'"), 3);
   check('rijen blijven bestaan', await tel(db, 'SELECT COUNT(*) AS n FROM matches'), 5);
-  check('gelogd', await tel(db, "SELECT COUNT(*) AS n FROM match_changes WHERE soort='verdwenen'"), 3);
+  check('gelogd', await tel(db, "SELECT COUNT(*) AS n FROM logboek WHERE soort='verdwenen'"), 3);
 }
 
 console.log('\n7. Boven de drempel gebeurt er niets met de verdwenen wedstrijden');
@@ -301,14 +301,14 @@ console.log('\n14. Wijziging in de aanduiding vervuilt het logboek niet');
   const db = nieuweDb();
   zetApi([wed('AA', { wedOff: [] })]);
   await synchroniseer(db, 'handmatig');
-  const logboekNa1 = await tel(db, 'SELECT COUNT(*) AS n FROM match_changes');
+  const logboekNa1 = await tel(db, 'SELECT COUNT(*) AS n FROM logboek');
 
   zetApi([wed('AA', { wedOff: ['Yves Knubben', 'Jurgen van Geijstelen'] })]);
   const r = await synchroniseer(db, 'handmatig');
 
   check('niet als gewijzigd geteld', r.gewijzigd, 0);
   check('wel apart bijgehouden', r.offGewijzigd, 1);
-  check('logboek onveranderd', await tel(db, 'SELECT COUNT(*) AS n FROM match_changes'), logboekNa1);
+  check('logboek onveranderd', await tel(db, 'SELECT COUNT(*) AS n FROM logboek'), logboekNa1);
 
   const na = await db.prepare('SELECT off_aantal FROM matches WHERE guid = ?')
     .bind('BVBL26279170INJ1621FAA').first();

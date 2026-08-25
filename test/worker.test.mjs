@@ -187,26 +187,31 @@ console.log('\n9. Cron draait alleen op de juiste Brusselse uren');
   const env = nieuweEnv();
   const gedraaid = [];
   const ctx = { waitUntil: (p) => { gedraaid.push(p); return p; } };
+  const draai = (iso) => worker.scheduled({ scheduledTime: Date.parse(iso) }, env, ctx);
 
-  // 04:00 UTC = 06:00 in Brussel (zomertijd) -> moet draaien
-  await worker.scheduled({ scheduledTime: Date.parse('2026-09-12T04:00:00Z') }, env, ctx);
+  // 04:00 UTC = 06:00 in Brussel (zomertijd) -> synchroniseren
+  await draai('2026-09-12T04:00:00Z');
   check('zomer 04:00 UTC draait', gedraaid.length, 1);
 
-  // 05:00 UTC = 07:00 in Brussel (zomertijd) -> moet niet draaien
-  await worker.scheduled({ scheduledTime: Date.parse('2026-09-12T05:00:00Z') }, env, ctx);
-  check('zomer 05:00 UTC slaat over', gedraaid.length, 1);
+  // 07:00 UTC = 09:00 in Brussel (zomertijd) -> geen enkele taak
+  await draai('2026-09-12T07:00:00Z');
+  check('zomer 07:00 UTC slaat over', gedraaid.length, 1);
 
-  // 05:00 UTC = 06:00 in Brussel (wintertijd) -> moet draaien
-  await worker.scheduled({ scheduledTime: Date.parse('2026-12-12T05:00:00Z') }, env, ctx);
+  // 05:00 UTC = 06:00 in Brussel (wintertijd) -> synchroniseren
+  await draai('2026-12-12T05:00:00Z');
   check('winter 05:00 UTC draait', gedraaid.length, 2);
 
-  // 04:00 UTC = 05:00 in Brussel (wintertijd) -> moet niet draaien
-  await worker.scheduled({ scheduledTime: Date.parse('2026-12-12T04:00:00Z') }, env, ctx);
-  check('winter 04:00 UTC slaat over', gedraaid.length, 2);
+  // 08:00 UTC = 09:00 in Brussel (wintertijd) -> geen enkele taak
+  await draai('2026-12-12T08:00:00Z');
+  check('winter 08:00 UTC slaat over', gedraaid.length, 2);
 
-  // middernacht: 23:00 UTC in de zomer, 22:00 UTC hoort niet
-  await worker.scheduled({ scheduledTime: Date.parse('2026-09-12T22:00:00Z') }, env, ctx);
+  // 22:00 UTC in de zomer is middernacht in Brussel -> synchroniseren
+  await draai('2026-09-12T22:00:00Z');
   check('zomer 22:00 UTC draait (= middernacht Brussel)', gedraaid.length, 3);
+
+  // Dezelfde klokstand in de winter is 23:00, geen taakuur.
+  await draai('2026-12-12T22:00:00Z');
+  check('winter 22:00 UTC slaat over (= 23:00 Brussel)', gedraaid.length, 3);
 
   await Promise.allSettled(gedraaid);
 }

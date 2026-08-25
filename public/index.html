@@ -300,6 +300,31 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
 .meer-knop { margin: 1.2rem 0 .5rem; }
 .geen-treffers { text-align: center; color: var(--grijs); padding: 2rem 1rem; font-size: .9rem; }
 
+/* ---- Logboek ------------------------------------------------------------ */
+.log-balk { display: flex; gap: .4rem; margin-bottom: .8rem; flex-wrap: wrap; }
+.log-balk input[type="text"] { flex: 1; min-width: 8rem; }
+.log-regel {
+  background: var(--kaart); border: 1px solid var(--lijn); border-left: 3px solid var(--lijn);
+  border-radius: 8px; padding: .55rem .7rem; margin-bottom: .35rem; box-shadow: var(--schaduw);
+  display: grid; grid-template-columns: 1fr auto; gap: .2rem .6rem; font-size: .86rem;
+}
+.log-regel.wedstrijd  { border-left-color: #2b3f7a; }
+.log-regel.aanduiding { border-left-color: var(--groen); }
+.log-regel.beheer     { border-left-color: var(--amber); }
+.log-regel.open { background: #fffdf7; }
+.log-kop { font-weight: 600; }
+.log-soort {
+  font-size: .64rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+  background: #eef0f3; color: var(--inkt-zacht); border-radius: 4px; padding: .1rem .3rem;
+  margin-right: .35rem;
+}
+.log-meta { grid-column: 1 / -1; font-size: .76rem; color: var(--grijs); }
+.log-tijd { font-size: .74rem; color: var(--grijs); font-variant-numeric: tabular-nums;
+            white-space: nowrap; }
+.log-wijziging { grid-column: 1 / -1; font-size: .8rem; margin-top: .1rem; }
+.log-wijziging .oud { color: var(--rood); text-decoration: line-through; }
+.log-wijziging .nieuw { color: var(--groen); }
+
 .ov {
   background: var(--kaart); border: 1px solid var(--lijn); border-left: 4px solid var(--lijn);
   border-radius: var(--r); padding: .8rem .9rem; margin-bottom: .55rem; box-shadow: var(--schaduw);
@@ -382,6 +407,59 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
 .merk-prof { font-size: .68rem; font-weight: 700; color: var(--inkt-zacht);
              background: #eef0f3; border-radius: 4px; padding: .1rem .3rem; }
 .gebr-groep { margin-top: .9rem; }
+/* Scheidt de lijst van de acties eronder. Zonder dit lopen de adressenlijst en
+   de toevoegknoppen visueel in elkaar over. */
+.scheiding {
+  display: flex; align-items: center; gap: .6rem;
+  margin: 1.4rem 0 .8rem; font-size: .68rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .09em; color: var(--grijs);
+}
+/* ---- Rondleiding --------------------------------------------------------
+   Een gat in een donkere laag, met de kaart ernaast. Het gat wordt gemaakt met
+   een enorme box-shadow op een doorzichtig kader: zo blijft de echte knop
+   zichtbaar en klikbaar zonder hem te verplaatsen.
+------------------------------------------------------------------------- */
+.rond-laag { position: fixed; inset: 0; z-index: 80; display: none; }
+.rond-laag[open] { display: block; }
+.rond-gat {
+  position: absolute; border-radius: 10px;
+  box-shadow: 0 0 0 9999px rgba(18, 22, 28, .72);
+  transition: all .25s ease;
+  pointer-events: none;
+}
+.rond-kaart {
+  position: absolute; width: min(20rem, calc(100vw - 2rem));
+  background: var(--kaart); border-radius: var(--r); padding: 1rem 1.1rem;
+  box-shadow: 0 10px 40px rgba(18, 22, 28, .35);
+  transition: all .25s ease;
+}
+.rond-kaart h3 { margin: 0 0 .35rem; font-size: 1rem; }
+.rond-kaart p { margin: 0 0 .9rem; font-size: .88rem; color: var(--inkt-zacht); line-height: 1.5; }
+.rond-voet { display: flex; align-items: center; gap: .5rem; }
+.rond-tel { font-size: .76rem; color: var(--grijs); font-variant-numeric: tabular-nums; }
+.rond-voet .knop { padding: .4rem .8rem; font-size: .85rem; }
+.rond-voet .rechts { margin-left: auto; display: flex; gap: .4rem; }
+
+.keuzerij {
+  display: flex; align-items: flex-start; gap: .7rem; padding: .7rem 0;
+  border-top: 1px solid var(--lijn);
+}
+.keuzerij:first-of-type { border-top: 0; }
+.keuzerij .tekst { flex: 1; }
+.keuzerij .tekst b { display: block; font-size: .92rem; font-weight: 600; }
+.keuzerij .tekst small { color: var(--grijs); font-size: .8rem; }
+.schakelaar { flex-shrink: 0; }
+.schakelaar input { width: 1.15rem; height: 1.15rem; accent-color: var(--inkt); }
+.toestel-rij {
+  display: flex; align-items: center; gap: .5rem; padding: .45rem 0;
+  border-top: 1px solid var(--lijn); font-size: .85rem;
+}
+.toestel-rij .naam { flex: 1; min-width: 0; overflow: hidden;
+                     text-overflow: ellipsis; white-space: nowrap; }
+
+.scheiding::before, .scheiding::after {
+  content: ''; flex: 1; height: 1px; background: var(--lijn);
+}
 .gebr-groep > h4 {
   margin: 0 0 .2rem; font-size: .72rem; font-weight: 700; text-transform: uppercase;
   letter-spacing: .08em; color: var(--grijs);
@@ -449,6 +527,8 @@ select {
   <div class="balk-rij">
     <div class="merk">YO<span class="accent">Assist</span><span class="versie" id="versie"></span></div>
     <div class="balk-info" id="balk-info"></div>
+    <button class="menu-knop" id="voorkeur-knop" aria-label="Mijn voorkeuren"
+            title="Mijn voorkeuren">&#9788;</button>
     <button class="menu-knop" id="menu-knop" hidden aria-label="Beheer" title="Beheer">&#8942;</button>
   </div>
 </header>
@@ -457,6 +537,7 @@ select {
   <div class="tabs" id="tabs" hidden role="tablist">
     <button class="tab" id="tab-mijn" role="tab" aria-selected="true">Beschikbaarheden</button>
     <button class="tab" id="tab-club" role="tab" aria-selected="false">Cluboverzicht</button>
+    <button class="tab" id="tab-log" role="tab" aria-selected="false">Logboek</button>
   </div>
   <div id="hoofd">
     <div class="leeg"><span class="spinner"></span> Laden…</div>
@@ -473,7 +554,34 @@ select {
   </div>
 </div>
 
+<div class="overlay" id="voorkeur-overlay" role="dialog" aria-modal="true" aria-label="Mijn voorkeuren">
+  <div class="paneel">
+    <div class="paneel-kop">
+      <h2>Mijn voorkeuren</h2>
+      <button class="sluit" id="voorkeur-sluit" aria-label="Sluiten">&times;</button>
+    </div>
+    <div id="voorkeur-inhoud"><div class="leeg"><span class="spinner"></span> Laden…</div></div>
+  </div>
+</div>
+
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<div class="rond-laag" id="rond-laag" role="dialog" aria-modal="true" aria-label="Rondleiding">
+  <div class="rond-gat" id="rond-gat"></div>
+  <div class="rond-kaart" id="rond-kaart">
+    <h3 id="rond-titel"></h3>
+    <p id="rond-tekst"></p>
+    <div class="rond-voet">
+      <span class="rond-tel" id="rond-tel"></span>
+      <span class="rechts">
+        <button class="knop zacht" id="rond-stop">Overslaan</button>
+        <button class="knop" id="rond-verder">Verder</button>
+      </span>
+    </div>
+  </div>
+</div>
+
+<script src="/rondleiding.js"></script>
 
 <script>
 'use strict';
@@ -625,6 +733,7 @@ async function laadHoofd() {
     }
 
     toonMatches(data);
+    misschienRondleiding();
   } catch (err) {
     $('hoofd').innerHTML =
       `<div class="status"><h2>${tekst(err.titel || 'Er ging iets mis')}</h2>
@@ -853,14 +962,21 @@ function werkTellerBij() {
 /* --- weergaveschakelaar en cluboverzicht -------------------------------- */
 $('tab-mijn').addEventListener('click', () => wisselWeergave('mijn'));
 $('tab-club').addEventListener('click', () => wisselWeergave('club'));
+$('tab-log').addEventListener('click', () => wisselWeergave('log'));
 
 async function wisselWeergave(welke) {
   staat.weergave = welke;
-  $('tab-mijn').setAttribute('aria-selected', String(welke === 'mijn'));
-  $('tab-club').setAttribute('aria-selected', String(welke === 'club'));
+  for (const [id, sleutel] of [['tab-mijn', 'mijn'], ['tab-club', 'club'], ['tab-log', 'log']]) {
+    $(id).setAttribute('aria-selected', String(welke === sleutel));
+  }
 
   if (welke === 'mijn') {
     toonMatches({ matches: staat.matches });
+    return;
+  }
+
+  if (welke === 'log') {
+    await laadLogboek();
     return;
   }
 
@@ -871,6 +987,153 @@ async function wisselWeergave(welke) {
   } catch (err) {
     $('hoofd').innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
   }
+}
+
+/* --- Logboek ------------------------------------------------------------- */
+const LOG_CATEGORIEEN = [
+  ['', 'Alles'],
+  ['wedstrijd', 'Wedstrijden'],
+  ['aanduiding', 'Aanduidingen'],
+  ['beheer', 'Beheer'],
+];
+
+async function laadLogboek() {
+  staat.log = staat.log ?? { categorie: '', dagen: 30, open: false, zoek: '' };
+  const q = staat.log;
+
+  $('hoofd').innerHTML = '<div class="leeg"><span class="spinner"></span> Logboek laden…</div>';
+
+  const params = new URLSearchParams({ dagen: String(q.dagen) });
+  if (q.categorie) params.set('categorie', q.categorie);
+  if (q.open) params.set('open', '1');
+  if (q.zoek) params.set('q', q.zoek);
+
+  try {
+    toonLogboek(await api(`/api/admin/logboek?${params}`));
+  } catch (err) {
+    $('hoofd').innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+  }
+}
+
+function toonLogboek(data) {
+  const q = staat.log;
+  const teller = (sleutel) => (sleutel ? data.tellers[sleutel]?.aantal ?? 0
+    : Object.values(data.tellers).reduce((s, t) => s + t.aantal, 0));
+  const open = Object.values(data.tellers).reduce((s, t) => s + (t.open ?? 0), 0);
+
+  const delen = [`
+    <div class="log-balk">
+      ${LOG_CATEGORIEEN.map(([sleutel, label]) => `
+        <button class="mini-knop ${q.categorie === sleutel ? 'aan' : ''}" data-logcat="${sleutel}">
+          ${label} <span class="regelnr">${teller(sleutel)}</span>
+        </button>`).join('')}
+      <button class="mini-knop ${q.open ? 'aan' : ''}" data-logopen="1">
+        Enkel open <span class="regelnr">${open}</span>
+      </button>
+    </div>
+    <div class="log-balk">
+      <input type="text" id="log-zoek" placeholder="Zoek op naam, ploeg of veld"
+             value="${tekst(q.zoek)}">
+      <select id="log-dagen">
+        ${[7, 30, 90, 365].map((d) => `<option value="${d}" ${q.dagen === d ? 'selected' : ''}>
+          ${d === 365 ? 'heel seizoen' : `${d} dagen`}</option>`).join('')}
+      </select>
+      ${open > 0 ? '<button class="mini-knop" id="log-alles">Alles afvinken</button>' : ''}
+    </div>`];
+
+  if (data.regels.length === 0) {
+    delen.push('<div class="geen-treffers">Geen regels die aan deze filters voldoen.</div>');
+  } else {
+    let vorigeDag = null;
+    for (const r of data.regels) {
+      const dag = r.vastgesteld.slice(0, 10);
+      if (dag !== vorigeDag) {
+        const d = ontleedDatum(dag);
+        delen.push(`<div class="dag-kop">${DAGEN[d.getUTCDay()]} ${d.getUTCDate()} ${
+          MAANDEN[d.getUTCMonth()]}</div>`);
+        vorigeDag = dag;
+      }
+      delen.push(logRegel(r));
+    }
+    if (data.afgekapt) {
+      delen.push(`<p class="hint" style="text-align:center">Enkel de recentste
+        ${data.regels.length} regels worden getoond. Verfijn met een filter.</p>`);
+    }
+  }
+
+  $('hoofd').innerHTML = delen.join('');
+
+  document.querySelectorAll('[data-logcat]').forEach((knop) => {
+    knop.onclick = () => { q.categorie = knop.dataset.logcat; laadLogboek(); };
+  });
+  $('hoofd').querySelector('[data-logopen]').onclick = () => { q.open = !q.open; laadLogboek(); };
+  $('log-dagen').onchange = (e) => { q.dagen = Number(e.target.value); laadLogboek(); };
+
+  const zoekveld = $('log-zoek');
+  zoekveld.onkeydown = (e) => {
+    if (e.key === 'Enter') { q.zoek = zoekveld.value.trim(); laadLogboek(); }
+  };
+
+  const alles = $('log-alles');
+  if (alles) {
+    alles.onclick = async () => {
+      if (!confirm('Alle openstaande regels afvinken?')) return;
+      try {
+        await api('/api/admin/logboek/alles', {
+          method: 'POST',
+          body: JSON.stringify({ categorie: q.categorie || undefined }),
+        });
+        await laadLogboek();
+      } catch (err) {
+        toast(err.message);
+      }
+    };
+  }
+
+  document.querySelectorAll('[data-logvink]').forEach((knop) => {
+    knop.onclick = async () => {
+      try {
+        await api('/api/admin/logboek', {
+          method: 'PATCH',
+          body: JSON.stringify({ id: Number(knop.dataset.logvink) }),
+        });
+        await laadLogboek();
+      } catch (err) {
+        toast(err.message);
+      }
+    };
+  });
+}
+
+function logRegel(r) {
+  // Van-naar tonen waar dat betekenis heeft; bij een nieuwe of verdwenen
+  // wedstrijd is er maar één kant.
+  const wijziging = r.oud && r.nieuw
+    ? `<div class="log-wijziging"><span class="oud">${tekst(r.oud)}</span>
+         &rarr; <span class="nieuw">${tekst(r.nieuw)}</span></div>`
+    : r.nieuw
+      ? `<div class="log-wijziging"><span class="nieuw">${tekst(r.nieuw)}</span></div>`
+      : r.oud
+        ? `<div class="log-wijziging"><span class="oud">${tekst(r.oud)}</span></div>`
+        : '';
+
+  const context = r.wedstrijd ?? r.veld ?? '';
+  const kop = r.wedstrijd && r.veld && r.veld !== r.wedstrijd
+    ? `${tekst(r.veld)}`
+    : '';
+
+  return `
+    <article class="log-regel ${tekst(r.categorie)} ${r.afgehandeld ? '' : 'open'}">
+      <div class="log-kop">
+        <span class="log-soort">${tekst(r.soort)}</span>${kop}
+      </div>
+      <div class="log-tijd">
+        ${tekst(r.vastgesteld.slice(11, 16))}
+        ${r.afgehandeld ? '' : `<button class="mini" data-logvink="${r.id}">vink af</button>`}
+      </div>
+      ${wijziging}
+      <div class="log-meta">${tekst(context)}${context && r.wie ? ' &middot; ' : ''}${tekst(r.wie)}</div>
+    </article>`;
 }
 
 async function toonAutoVoorstel() {
@@ -1197,11 +1460,331 @@ async function herlaadOverzicht() {
   toonOverzicht(staat.overzicht);
 }
 
+/* --- Rondleiding ---------------------------------------------------------
+   Wijst de echte knoppen aan in plaats van ze na te tekenen. Dat betekent wel
+   dat een stap kan verwijzen naar iets dat er niet is — een beheerdersknop bij
+   een gewone YO, of een wedstrijdkaart in een lege lijst. Zulke stappen worden
+   overgeslagen in plaats van de rondleiding te laten stranden.
+------------------------------------------------------------------------- */
+const ROND_GEZIEN = 'yoassist-rondleiding-gezien';
+
+function rondStappen() {
+  const alles = window.YOASSIST_RONDLEIDING ?? [];
+  return alles.filter((stap) => {
+    if (stap.enkelAdmin && !staat.ik?.isAdmin) return false;
+
+    // Ontbreekt het element, dan valt er niets aan te wijzen. Overslaan is
+    // beter dan een pijl naar het luchtledige of een rondleiding die strandt.
+    const el = document.querySelector(stap.doel);
+    if (!el) return false;
+
+    // offsetParent is null bij een verborgen element; document.body zou dat ook
+    // zijn, maar daar wijzen we nooit naar.
+    return el.offsetParent !== null;
+  });
+}
+
+function startRondleiding() {
+  const stappen = rondStappen();
+  if (stappen.length === 0) {
+    toast('Er valt nu niets aan te wijzen. Probeer het als er wedstrijden staan.');
+    return;
+  }
+
+  staat.rond = { stappen, nummer: 0 };
+  $('rond-laag').setAttribute('open', '');
+  toonRondStap();
+}
+
+function stopRondleiding() {
+  $('rond-laag').removeAttribute('open');
+  staat.rond = null;
+  try { localStorage.setItem(ROND_GEZIEN, '1'); } catch { /* prima zonder */ }
+}
+
+function toonRondStap() {
+  const { stappen, nummer } = staat.rond;
+  const stap = stappen[nummer];
+  const el = document.querySelector(stap.doel);
+
+  // Het element kan intussen verdwenen zijn doordat een scherm verversde.
+  if (!el) {
+    if (nummer + 1 < stappen.length) {
+      staat.rond.nummer++;
+      toonRondStap();
+    } else {
+      stopRondleiding();
+    }
+    return;
+  }
+
+  el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+
+  // Even wachten tot het scrollen klaar is, anders staat het gat naast de knop.
+  setTimeout(() => {
+    const rand = el.getBoundingClientRect();
+    const marge = 6;
+
+    const gat = $('rond-gat');
+    gat.style.top = `${rand.top - marge}px`;
+    gat.style.left = `${rand.left - marge}px`;
+    gat.style.width = `${rand.width + marge * 2}px`;
+    gat.style.height = `${rand.height + marge * 2}px`;
+
+    $('rond-titel').textContent = stap.titel;
+    $('rond-tekst').textContent = stap.tekst;
+    $('rond-tel').textContent = `${nummer + 1} van ${stappen.length}`;
+    $('rond-verder').textContent = nummer + 1 === stappen.length ? 'Klaar' : 'Verder';
+
+    // Kaart onder het gat, of erboven als er onderaan geen plaats is.
+    const kaart = $('rond-kaart');
+    const hoogte = kaart.offsetHeight || 180;
+    const onderRuimte = window.innerHeight - rand.bottom;
+    const boven = stap.plaats === 'boven' || onderRuimte < hoogte + 24;
+
+    kaart.style.top = boven
+      ? `${Math.max(12, rand.top - hoogte - 16)}px`
+      : `${rand.bottom + 16}px`;
+    kaart.style.left = `${Math.min(
+      Math.max(12, rand.left),
+      window.innerWidth - kaart.offsetWidth - 12,
+    )}px`;
+  }, 220);
+}
+
+$('rond-verder').addEventListener('click', () => {
+  if (!staat.rond) return;
+  if (staat.rond.nummer + 1 >= staat.rond.stappen.length) return stopRondleiding();
+  staat.rond.nummer++;
+  toonRondStap();
+});
+
+$('rond-stop').addEventListener('click', stopRondleiding);
+
+/** Bij de allereerste aanmelding vanzelf, daarna enkel op verzoek. */
+function misschienRondleiding() {
+  let gezien = true;
+  try { gezien = localStorage.getItem(ROND_GEZIEN) === '1'; } catch { /* geen opslag */ }
+  if (gezien) return;
+  // Even wachten tot de lijst getekend is: anders valt er niets aan te wijzen.
+  setTimeout(startRondleiding, 600);
+}
+
+/* --- Mijn voorkeuren -----------------------------------------------------
+   Bewust een eigen paneel naast Beheer. Dit gaat over hoe iemand zelf
+   verwittigd wil worden; dat is iets anders dan de club beheren. Een
+   beheerder die ook YO+ is, zou anders door clubconfiguratie moeten scrollen
+   op zoek naar zijn eigen pushknop.
+--------------------------------------------------------------------------- */
+$('voorkeur-knop').addEventListener('click', openVoorkeuren);
+$('voorkeur-sluit').addEventListener('click', sluitVoorkeuren);
+$('voorkeur-overlay').addEventListener('click', (e) => {
+  if (e.target === $('voorkeur-overlay')) sluitVoorkeuren();
+});
+
+async function openVoorkeuren() {
+  $('voorkeur-overlay').setAttribute('open', '');
+  document.body.style.overflow = 'hidden';
+  await laadVoorkeuren();
+}
+
+function sluitVoorkeuren() {
+  $('voorkeur-overlay').removeAttribute('open');
+  document.body.style.overflow = '';
+}
+
+async function laadVoorkeuren() {
+  try {
+    staat.voorkeuren = await api('/api/voorkeuren');
+    toonVoorkeuren(staat.voorkeuren);
+  } catch (err) {
+    $('voorkeur-inhoud').innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+  }
+}
+
+/** Kan deze browser überhaupt push? Op iOS enkel als de app op het beginscherm staat. */
+function pushMogelijk() {
+  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+}
+
+function toonVoorkeuren(v) {
+  const rij = (sleutel, titel, uitleg, aan, uit = false) => `
+    <div class="keuzerij">
+      <span class="tekst"><b>${titel}</b><small>${uitleg}</small></span>
+      <label class="schakelaar">
+        <input type="checkbox" data-voorkeur="${sleutel}" ${aan ? 'checked' : ''} ${uit ? 'disabled' : ''}>
+      </label>
+    </div>`;
+
+  const pushKan = pushMogelijk() && v.pushBeschikbaar;
+  const toestemming = 'Notification' in window ? Notification.permission : 'default';
+
+  let pushUitleg = 'Meldingen op dit toestel.';
+  if (!v.pushBeschikbaar) pushUitleg = 'Nog niet ingesteld door de beheerder.';
+  else if (!pushMogelijk()) pushUitleg = 'Deze browser ondersteunt het niet.';
+  else if (toestemming === 'denied') pushUitleg = 'Je hebt meldingen geblokkeerd in je browser.';
+
+  const toestellen = v.toestellen.length
+    ? v.toestellen.map((tst) => `
+        <div class="toestel-rij">
+          <span class="naam">${tekst(tst.toestel || 'onbekend toestel')}</span>
+          <button class="mini gevaar" data-toestel="${tst.id}">verwijder</button>
+        </div>`).join('')
+    : '';
+
+  $('voorkeur-inhoud').innerHTML = `
+    <section class="blok">
+      <h3>Hoe wil je bericht krijgen</h3>
+      ${rij('mail', 'E-mail', 'Het betrouwbare kanaal. Blijft best aan staan.', v.mail)}
+      ${rij('push', 'Meldingen', pushUitleg, v.push, !pushKan || toestemming === 'denied')}
+      ${toestellen ? `<p class="hint" style="margin:.7rem 0 0">Toestellen met meldingen:</p>${toestellen}` : ''}
+      ${pushKan && !v.push
+        ? '<button class="knop breed zacht" id="push-aan">Meldingen op dit toestel aanzetten</button>'
+        : ''}
+      <div id="voorkeur-melding"></div>
+    </section>
+
+    <section class="blok">
+      <h3>Herinneringen</h3>
+      <p class="hint">Voor wedstrijden waarvoor je bent aangeduid.</p>
+      ${rij('herinnerAvond', 'De avond ervoor', 'Een overzicht van wat je de volgende dag fluit.', v.herinnerAvond)}
+      ${rij('herinnerOchtend', 'De ochtend zelf', 'Een korte herinnering.', v.herinnerOchtend)}
+    </section>
+
+    <section class="blok">
+      <h3>Rondleiding</h3>
+      <p class="hint">Een korte uitleg die de knoppen aanwijst.</p>
+      <button class="knop breed zacht" id="rond-start">Rondleiding tonen</button>
+    </section>
+
+    <section class="blok">
+      <h3>Uitproberen</h3>
+      <p class="hint">Stuurt een testbericht naar jezelf over alle kanalen,
+        ook die je hebt uitgezet.</p>
+      <button class="knop breed zacht" id="voorkeur-test">Testbericht sturen</button>
+      <div id="voorkeur-testmelding"></div>
+    </section>`;
+
+  document.querySelectorAll('[data-voorkeur]').forEach((vak) => {
+    vak.onchange = async () => {
+      vak.disabled = true;
+      try {
+        await api('/api/voorkeuren', {
+          method: 'PATCH',
+          body: JSON.stringify({ [vak.dataset.voorkeur]: vak.checked }),
+        });
+        toast('Bewaard');
+      } catch (err) {
+        vak.checked = !vak.checked;
+        toast(err.message);
+      } finally {
+        vak.disabled = false;
+      }
+    };
+  });
+
+  document.querySelectorAll('[data-toestel]').forEach((knop) => {
+    knop.onclick = async () => {
+      try {
+        await api(`/api/push/abonneer?id=${knop.dataset.toestel}`, { method: 'DELETE' });
+        await laadVoorkeuren();
+      } catch (err) {
+        toast(err.message);
+      }
+    };
+  });
+
+  const aanKnop = $('push-aan');
+  if (aanKnop) aanKnop.onclick = () => zetPushAan(v.vapidPubliek);
+
+  $('rond-start').onclick = () => {
+    sluitVoorkeuren();
+    // Even wachten tot het paneel dicht is, anders wijst het gat naar iets
+    // dat achter de overlay zit.
+    setTimeout(startRondleiding, 250);
+  };
+
+  $('voorkeur-test').onclick = async () => {
+    const doel = $('voorkeur-testmelding');
+    doel.innerHTML = '<div class="melding let"><span class="spinner"></span>Versturen…</div>';
+    try {
+      const r = await api('/api/voorkeuren/test', { method: 'POST' });
+      const delen = [];
+      delen.push(r.mail ? 'Mail verstuurd.' : `Geen mail: ${tekst(r.mailReden || 'niet ingesteld')}.`);
+      if (r.push > 0) delen.push(`${r.push} melding(en) verstuurd.`);
+      else delen.push('Geen meldingen verstuurd.');
+      doel.innerHTML = `<div class="melding ${r.mail || r.push ? 'ok' : 'let'}">${delen.join(' ')}</div>`;
+    } catch (err) {
+      doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+    }
+  };
+}
+
+/** base64url naar de Uint8Array die pushManager.subscribe verwacht. */
+function sleutelNaarBytes(b64url) {
+  const b64 = (b64url + '='.repeat((4 - (b64url.length % 4)) % 4))
+    .replace(/-/g, '+').replace(/_/g, '/');
+  const ruw = atob(b64);
+  return Uint8Array.from([...ruw].map((c) => c.charCodeAt(0)));
+}
+
+function alsB64url(buffer) {
+  return btoa(String.fromCharCode(...new Uint8Array(buffer)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function zetPushAan(vapidPubliek) {
+  const melding = $('voorkeur-melding');
+  melding.innerHTML = '<div class="melding let"><span class="spinner"></span>Toestemming vragen…</div>';
+
+  try {
+    const toestemming = await Notification.requestPermission();
+    if (toestemming !== 'granted') {
+      melding.innerHTML = `<div class="melding let">Zonder toestemming kunnen er geen
+        meldingen komen. Je kunt dit later in je browserinstellingen wijzigen.</div>`;
+      return;
+    }
+
+    const registratie = await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.ready;
+
+    // Een bestaand abonnement hergebruiken; opnieuw inschrijven met een andere
+    // sleutel zou stilzwijgend mislukken.
+    const abonnement =
+      (await registratie.pushManager.getSubscription()) ??
+      (await registratie.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: sleutelNaarBytes(vapidPubliek),
+      }));
+
+    await api('/api/push/abonneer', {
+      method: 'POST',
+      body: JSON.stringify({
+        endpoint: abonnement.endpoint,
+        p256dh: alsB64url(abonnement.getKey('p256dh')),
+        auth: alsB64url(abonnement.getKey('auth')),
+        toestel: navigator.userAgent.slice(0, 80),
+      }),
+    });
+
+    melding.innerHTML = '<div class="melding ok">Meldingen staan aan op dit toestel.</div>';
+    await laadVoorkeuren();
+  } catch (err) {
+    melding.innerHTML = `<div class="melding fout">Meldingen aanzetten lukte niet:
+      ${tekst(err.message)}</div>`;
+  }
+}
+
 /* --- beheerpaneel ------------------------------------------------------- */
 $('menu-knop').addEventListener('click', openPaneel);
 $('paneel-sluit').addEventListener('click', sluitPaneel);
 $('overlay').addEventListener('click', (e) => { if (e.target === $('overlay')) sluitPaneel(); });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') sluitPaneel(); });
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  sluitPaneel();
+  sluitVoorkeuren();
+  if (staat.rond) stopRondleiding();
+});
 
 async function openPaneel() {
   $('overlay').setAttribute('open', '');
@@ -1330,6 +1913,8 @@ function toonPaneel() {
       <p class="hint">Wie hier staat én in de Access-policy, raakt binnen.
         Beide lijsten moeten kloppen.</p>
       <div id="gebruikers-lijst"><span class="spinner"></span> Laden…</div>
+      <div class="scheiding"><span>Toevoegen</span></div>
+
       <button class="knop breed zacht" id="gebr-nieuw">Gebruiker toevoegen</button>
       <div id="gebr-formulier"></div>
       <div id="gebr-melding"></div>
@@ -1451,7 +2036,9 @@ function bindPaneel() {
       e.target.value = '';
     }
   };
+
   laadMailConfig();
+  laadVrijgeven();
 
   $('mail-bewaar').onclick = async () => {
     const melding = $('mail-melding');

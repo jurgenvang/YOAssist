@@ -6,4 +6,4 @@
  * cosmetisch: als een Youth Official een probleem meldt, wil je weten welke
  * versie hij in zijn browser had.
  */
-export const VERSIE = '0.10.0';
+export const VERSIE = '0.13.0';

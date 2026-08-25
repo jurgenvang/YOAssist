@@ -35,10 +35,14 @@ console.log('\n2. Welke taken op welk moment');
   check('06:00 synchroniseren', takenVoor({ uur: 6, weekdag: 1 }), ['sync']);
   check('12:00 synchroniseren', takenVoor({ uur: 12, weekdag: 1 }), ['sync']);
   check('middernacht synchroniseren', takenVoor({ uur: 0, weekdag: 1 }), ['sync']);
-  check('07:00 niets', takenVoor({ uur: 7, weekdag: 1 }), []);
+  check('09:00 niets', takenVoor({ uur: 9, weekdag: 2 }), []);
   check('woensdag 14:00 de regel', takenVoor({ uur: 14, weekdag: woensdag }), ['woensdagregel']);
   check('zaterdag 14:00 niets', takenVoor({ uur: 14, weekdag: zaterdag }), []);
   check('20:00 avondcontrole', takenVoor({ uur: 20, weekdag: 1 }), ['avondcontrole']);
+  check('19:00 herinnering voor morgen', takenVoor({ uur: 19, weekdag: 1 }), ['herinnering-avond']);
+  check('07:00 herinnering voor vandaag', takenVoor({ uur: 7, weekdag: 1 }), ['herinnering-ochtend']);
+  check('maandag 08:00 weekoverzicht', takenVoor({ uur: 8, weekdag: 1 }), ['weekoverzicht']);
+  check('dinsdag 08:00 niets', takenVoor({ uur: 8, weekdag: 2 }), []);
   check('18:00 enkel sync', takenVoor({ uur: 18, weekdag: woensdag }), ['sync']);
 }
 
@@ -155,10 +159,82 @@ console.log('\n7. De planner voert de juiste taken uit');
   check('woensdagregel is uitgevoerd',
     (await db.prepare("SELECT scope FROM matches WHERE guid = 'GEEN'").first()).scope, 1);
 
-  // Dinsdag 07:00 Brussel = 05:00 UTC: niets te doen
+  // Dinsdag 09:00 Brussel = 07:00 UTC: geen enkele taak.
+  // Niet 07:00 Brussel nemen: dat is sinds de herinneringen een taakuur.
   const voor = wachten.length;
-  await worker.scheduled({ scheduledTime: Date.parse('2026-09-08T05:00:00Z') }, { DB: db }, ctx);
+  await worker.scheduled({ scheduledTime: Date.parse('2026-09-08T07:00:00Z') }, { DB: db }, ctx);
   check('op een leeg uur gebeurt niets', wachten.length, voor);
+}
+
+console.log('\n8. Herinneringen volgen de voorkeuren van elke official');
+{
+  const db = nieuweDb();
+  db.exec(`
+    INSERT INTO users (email, voornaam, achternaam, profiel, club_guid,
+                       herinner_avond, herinner_ochtend) VALUES
+      ('wil@club.be',  'Wil',  'Alles', 'YO+', '${CLUB}', 1, 1),
+      ('geen@club.be', 'Geen', 'Avond', 'YO+', '${CLUB}', 0, 1);
+    UPDATE settings SET waarde = 'aanduidingen@club.be' WHERE sleutel = 'mail_afzender';
+  `);
+  wed(db, 'MORGEN', { datum: '2026-09-13', uur: '14:00', scope: 1, reden: 'auto' });
+  db.exec(`
+    INSERT INTO assignments (match_guid, user_email, toegewezen_door) VALUES
+      ('MORGEN', 'wil@club.be', 'baas@club.be'),
+      ('MORGEN', 'geen@club.be', 'baas@club.be');
+  `);
+
+  const verzonden = [];
+  globalThis.fetch = async (url, opties) => {
+    verzonden.push(JSON.parse(opties.body));
+    return { ok: true, json: async () => ({}) };
+  };
+
+  const env = { DB: db, RESEND_API_KEY: 're_test' };
+  const ctx = { waitUntil: (p) => p };
+
+  // Zaterdag 12 september 19:00 Brussel = 17:00 UTC in de zomer.
+  await worker.scheduled({ scheduledTime: Date.parse('2026-09-12T17:00:00Z') }, env, ctx);
+  await new Promise((r) => setTimeout(r, 10));
+
+  const ontvangers = verzonden.map((m) => m.to);
+  check('wie de avondherinnering wil, krijgt ze', ontvangers.includes('wil@club.be'), true);
+  check('wie ze uitzette niet', ontvangers.includes('geen@club.be'), false);
+  check('met de opkomsttijd erin', /13:40/.test(verzonden[0].text), true);
+  check('en met de wedstrijd', /J16 A - Gast/.test(verzonden[0].text), true);
+}
+
+console.log('\n9. Twee wedstrijden op één dag geven één bericht');
+{
+  const db = nieuweDb();
+  db.exec(`
+    INSERT INTO users (email, voornaam, achternaam, profiel, club_guid) VALUES
+      ('druk@club.be', 'Druk', 'Bezet', 'YO+', '${CLUB}');
+    UPDATE settings SET waarde = 'aanduidingen@club.be' WHERE sleutel = 'mail_afzender';
+  `);
+  wed(db, 'VROEG', { datum: '2026-09-13', uur: '10:00', scope: 1, reden: 'auto' });
+  wed(db, 'LAAT',  { datum: '2026-09-13', uur: '16:00', scope: 1, reden: 'auto' });
+  db.exec(`
+    INSERT INTO assignments (match_guid, user_email, toegewezen_door) VALUES
+      ('VROEG', 'druk@club.be', 'baas@club.be'),
+      ('LAAT',  'druk@club.be', 'baas@club.be');
+  `);
+
+  const verzonden = [];
+  globalThis.fetch = async (url, opties) => {
+    verzonden.push(JSON.parse(opties.body));
+    return { ok: true, json: async () => ({}) };
+  };
+
+  const env = { DB: db, RESEND_API_KEY: 're_test' };
+  await worker.scheduled({ scheduledTime: Date.parse('2026-09-12T17:00:00Z') },
+    env, { waitUntil: (p) => p });
+  await new Promise((r) => setTimeout(r, 10));
+
+  const voorDruk = verzonden.filter((m) => m.to === 'druk@club.be');
+  check('één bericht, geen twee', voorDruk.length, 1);
+  check('met beide wedstrijden erin',
+    [/10:00/.test(voorDruk[0].text), /16:00/.test(voorDruk[0].text)], [true, true]);
+  check('meervoud in het onderwerp', /2 wedstrijden/.test(voorDruk[0].subject), true);
 }
 
 console.log(f === 0 ? '\n=== ALLE PLANNERTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);

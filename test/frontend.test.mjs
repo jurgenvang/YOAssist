@@ -16,6 +16,18 @@ const check = (n, e, v) => {
 
 const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
 
+/** Bestaat er in de HTML een element dat aan deze selector voldoet? */
+function bestaatSelector(selector) {
+  if (selector.startsWith('#')) {
+    return new RegExp(`id="${selector.slice(1)}"`).test(html);
+  }
+  if (selector.startsWith('.')) {
+    // Klassen kunnen ook in een template-literal staan, vandaar de losse match.
+    return new RegExp(`class="[^"]*\\b${selector.slice(1)}\\b`).test(html);
+  }
+  return new RegExp(`<${selector}[\\s>]`).test(html);
+}
+
 /**
  * Haalt een functie met haakjes-telling uit de bron.
  *
@@ -115,6 +127,78 @@ console.log('\n5. De 401-afhandeling zit echt in api()');
 
   const bronBestand = haalFunctie('haalBestand');
   check('downloads volgen dezelfde weg', /res\.status === 401/.test(bronBestand), true);
+}
+
+console.log('\n6. Elk "Laden…"-vak wordt ook echt gevuld');
+{
+  // Deze test bestaat omdat het al twee keer is misgegaan: een sectie krijgt
+  // een placeholder, maar de functie die hem vervangt wordt nergens
+  // aangeroepen. Het scherm blijft dan eeuwig 'Laden…' tonen zonder fout.
+  const placeholders = [...html.matchAll(/id="([\w-]+)"[^>]*>\s*<span class="spinner">/g)]
+    .map((m) => m[1]);
+
+  check('er zijn placeholders om te controleren', placeholders.length > 0, true);
+
+  for (const id of placeholders) {
+    // Ergens moet iets de inhoud van dat element vervangen.
+    const wordtGevuld = new RegExp(`\\$\\('${id}'\\)`).test(html);
+    if (!wordtGevuld) {
+      f++;
+      console.log(`  FOUT ${id}: placeholder wordt nergens vervangen`);
+    }
+  }
+  console.log(`  ok   ${placeholders.length} placeholder(s) worden gevuld`);
+}
+
+console.log('\n7. De laadfuncties van het beheerpaneel worden aangeroepen');
+{
+  const bind = haalFunctie('bindPaneel');
+
+  // Elke functie die een paneelsectie vult, moet in bindPaneel aangeroepen
+  // worden. Ontbreekt er één, dan blijft die sectie leeg.
+  for (const naam of ['laadGebruikers', 'laadMailConfig', 'laadVrijgeven']) {
+    check(`${naam} wordt aangeroepen`, new RegExp(`${naam}\\(\\)`).test(bind), true);
+  }
+}
+
+console.log('\n8. De rondleiding wijst naar bestaande elementen');
+{
+  // Dit is de reden dat de stappen in een apart bestand staan: zo kan een test
+  // controleren dat elk doel ook echt in de interface bestaat. Verhuist er ooit
+  // een knop, dan valt deze test om in plaats van dat er stil een pijl naar het
+  // luchtledige wijst.
+  const bron = readFileSync(new URL('../public/rondleiding.js', import.meta.url), 'utf8');
+  const window = {};
+  // eslint-disable-next-line no-new-func
+  new Function('window', bron)(window);
+  const stappen = window.YOASSIST_RONDLEIDING;
+
+  check('er zijn stappen', stappen.length > 0, true);
+
+  for (const stap of stappen) {
+    check(`doel ${stap.doel} bestaat`, bestaatSelector(stap.doel), true);
+    check(`stap ${stap.doel} heeft een titel`, Boolean(stap.titel), true);
+    check(`stap ${stap.doel} heeft tekst`, stap.tekst.length > 20, true);
+  }
+
+  const adminStappen = stappen.filter((s) => s.enkelAdmin);
+  check('er zijn beheerdersstappen', adminStappen.length > 0, true);
+  check('en stappen voor iedereen', stappen.length > adminStappen.length, true);
+}
+
+console.log('\n9. De rondleiding is oproepbaar en onthoudt zichzelf');
+{
+  const start = haalFunctie('startRondleiding');
+  check('slaat over als er niets aan te wijzen valt', /toast\(/.test(start), true);
+
+  const stop = haalFunctie('stopRondleiding');
+  check('onthoudt dat ze gezien is', /localStorage\.setItem/.test(stop), true);
+
+  const misschien = haalFunctie('misschienRondleiding');
+  check('start enkel bij de eerste keer', /localStorage\.getItem/.test(misschien), true);
+
+  check('er is een knop om ze opnieuw te tonen', /id="rond-start"/.test(html), true);
+  check('en die roept de rondleiding aan', /\$\('rond-start'\)\.onclick/.test(html), true);
 }
 
 console.log(f === 0 ? '\n=== ALLE FRONTENDTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);

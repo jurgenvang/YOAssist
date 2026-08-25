@@ -87,7 +87,14 @@ CREATE TABLE IF NOT EXISTS users (
   profiel     TEXT NOT NULL DEFAULT 'YO' CHECK (profiel IN ('YO', 'YO+')),
   club_guid   TEXT REFERENCES clubs (guid) ON DELETE SET NULL,
   gsm         TEXT,
-  actief      INTEGER NOT NULL DEFAULT 1
+  actief      INTEGER NOT NULL DEFAULT 1,
+  -- Berichtvoorkeuren. Mail staat standaard aan en is het betrouwbare kanaal;
+  -- push moet de gebruiker zelf activeren omdat de browser toestemming vraagt.
+  kanaal_mail INTEGER NOT NULL DEFAULT 1,
+  kanaal_push INTEGER NOT NULL DEFAULT 0,
+  -- Herinneringen staan standaard aan. Wie ze niet wil, zet ze zelf af.
+  herinner_avond   INTEGER NOT NULL DEFAULT 1,
+  herinner_ochtend INTEGER NOT NULL DEFAULT 1
 );
 
 -- Officials sorteer je op achternaam. Tussenvoegsels ('Van der Elst') horen bij
@@ -99,6 +106,29 @@ CREATE TABLE IF NOT EXISTS users (
 -- anders wordt deze index niet gebruikt.
 CREATE INDEX IF NOT EXISTS idx_users_naam
   ON users (achternaam COLLATE NOCASE, voornaam COLLATE NOCASE);
+
+
+-- ---------------------------------------------------------------------------
+-- push_abonnementen: één rij per toestel, niet per gebruiker. Iemand kan de app
+-- op zijn gsm én op een laptop hebben staan.
+--
+-- Abonnementen verlopen stil: de pushdienst antwoordt dan met 404 of 410. Die
+-- rij wordt dan verwijderd — een verlopen abonnement blijven proberen levert
+-- alleen ruis op.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS push_abonnementen (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_email  TEXT NOT NULL REFERENCES users (email) ON DELETE CASCADE,
+  endpoint    TEXT NOT NULL UNIQUE,
+  p256dh      TEXT NOT NULL,
+  auth        TEXT NOT NULL,
+  toestel     TEXT,
+  aangemaakt  TEXT NOT NULL DEFAULT (datetime('now')),
+  laatst_ok   TEXT,
+  mislukt     INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_push_user ON push_abonnementen (user_email);
 
 -- ---------------------------------------------------------------------------
 -- teams: opgehaald bij Basketbal Vlaanderen per club.
@@ -223,13 +253,29 @@ CREATE TABLE IF NOT EXISTS problemen (
 CREATE INDEX IF NOT EXISTS idx_problemen_open ON problemen (afgehandeld, gemeld_op);
 
 -- ---------------------------------------------------------------------------
--- match_changes: audittrail van wat de synchronisatie vaststelde. Wat er met
--- deze regels moet gebeuren, wordt later ingevuld — voorlopig enkel loggen.
+-- logboek: één chronologisch spoor van alles wat er gebeurt.
+--
+-- Bewust één tabel en geen aparte per onderwerp. Een beheerder die zich afvraagt
+-- waarom een wedstrijd er anders bij staat, wil in één lijst kunnen zien dat de
+-- synchronisatie het uur wijzigde én dat iemand daarna de aanduiding vrijgaf.
+-- Twee tabellen zouden bij elke vraag samengevoegd moeten worden.
+--
+--   categorie : 'wedstrijd' | 'aanduiding' | 'beheer'
+--   soort     : wat er gebeurde, bv. 'nieuw', 'gewijzigd', 'verdwenen',
+--               'toegewezen', 'vrijgegeven', 'probleem', 'sync', 'teams',
+--               'club', 'seizoen', 'bulk'
+--   wie       : e-mailadres van wie het deed, of 'systeem' voor de cron
+--   match_guid: leeg bij beheeracties die niet over één wedstrijd gaan
+--
+-- afgehandeld blijft bestaan voor wedstrijdwijzigingen die opvolging vragen;
+-- beheeracties staan er meteen op 1, want daar valt niets aan af te handelen.
 -- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS match_changes (
+CREATE TABLE IF NOT EXISTS logboek (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
-  match_guid   TEXT NOT NULL,
-  soort        TEXT NOT NULL CHECK (soort IN ('nieuw', 'gewijzigd', 'verdwenen')),
+  categorie    TEXT NOT NULL CHECK (categorie IN ('wedstrijd', 'aanduiding', 'beheer')),
+  soort        TEXT NOT NULL,
+  match_guid   TEXT,
+  wie          TEXT NOT NULL DEFAULT 'systeem',
   veld         TEXT,
   oud          TEXT,
   nieuw        TEXT,
@@ -237,7 +283,9 @@ CREATE TABLE IF NOT EXISTS match_changes (
   afgehandeld  INTEGER NOT NULL DEFAULT 0
 );
 
-CREATE INDEX IF NOT EXISTS idx_changes_open ON match_changes (afgehandeld, vastgesteld);
+CREATE INDEX IF NOT EXISTS idx_logboek_tijd ON logboek (id DESC);
+CREATE INDEX IF NOT EXISTS idx_logboek_open ON logboek (afgehandeld, categorie);
+CREATE INDEX IF NOT EXISTS idx_logboek_match ON logboek (match_guid, id DESC);
 
 -- ---------------------------------------------------------------------------
 -- availability: door de Youth Official zelf ingevuld.

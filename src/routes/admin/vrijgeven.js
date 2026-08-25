@@ -1,6 +1,7 @@
 import { json, fout, leesJson, instelling } from '../../lib/http.js';
 import { seizoenscode } from '../../lib/vbl.js';
-import { verstuur } from '../../lib/mailer.js';
+import { verwittigAllen } from '../../lib/verwittigen.js';
+import { regel } from '../../lib/logboek.js';
 
 /**
  * Aanduidingen en beschikbaarheden in bulk vrijgeven.
@@ -157,13 +158,16 @@ export async function vrijgeven({ request, env, user }) {
 
   // Eén regel in het logboek, met wie het deed en wat het raakte.
   opdrachten.push(
-    env.DB.prepare(
-      `INSERT INTO match_changes (match_guid, soort, veld, oud, nieuw)
-       VALUES ('*', 'gewijzigd', 'vrijgegeven in bulk', ?, ?)`,
-    ).bind(
-      `${rapport.aantalAanduidingen} aanduiding(en), ${rapport.aantalBeschikbaarheden} beschikbaarheid(heden)`,
-      `${wat} voor ${periode.omschrijving} door ${user.email}`,
-    ),
+    regel(env.DB, {
+      categorie: 'beheer',
+      soort: 'bulk',
+      wie: user.email,
+      veld: `${wat} vrijgegeven`,
+      oud: periode.omschrijving,
+      nieuw:
+        `${rapport.aantalAanduidingen} aanduiding(en), ` +
+        `${rapport.aantalBeschikbaarheden} beschikbaarheid(heden)`,
+    }),
   );
 
   if (opdrachten.length > 0) await env.DB.batch(opdrachten);
@@ -197,15 +201,10 @@ export async function vrijgeven({ request, env, user }) {
       'De betrokken officials hebben hierover geen bericht gekregen.',
     );
 
-    await Promise.all(
-      beheerders.map((b) =>
-        verstuur(env, {
-          naar: b.email,
-          onderwerp: `Vrijgegeven: ${wat} voor ${periode.omschrijving}`,
-          tekst: tekstDelen.join('\n'),
-        }).catch(() => ({ verstuurd: false })),
-      ),
-    );
+    await verwittigAllen(env, beheerders.map((b) => b.email), {
+      onderwerp: `Vrijgegeven: ${wat} voor ${periode.omschrijving}`,
+      tekst: tekstDelen.join('\n'),
+    });
   }
 
   return json(rapport);

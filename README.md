@@ -112,6 +112,53 @@ Mail versturen kan de eigenlijke actie (toewijzen, vrijgeven, een probleem
 melden) nooit laten mislukken — lukt het versturen niet, dan gaat de actie
 gewoon door en meldt de respons dat er geen mail is gegaan.
 
+**Rondleiding.** Wijst de echte knoppen aan met een gat in een donkere laag,
+in plaats van ze na te tekenen. Verschijnt eenmalig bij de eerste aanmelding en
+is daarna oproepbaar via Mijn voorkeuren. Beheerders krijgen drie stappen extra.
+
+De stappen staan in `public/rondleiding.js`, los van de weergavecode. Dat is
+geen ordelijkheid maar noodzaak: zo kan een test controleren dat elk doelelement
+ook echt in de interface bestaat. Verhuist er ooit een knop, dan valt de test om
+in plaats van dat er stil een pijl naar het luchtledige wijst. Stappen die naar
+een onzichtbaar element wijzen — een beheerdersknop bij een gewone YO, of een
+wedstrijdkaart in een lege lijst — worden overgeslagen.
+
+**Mijn voorkeuren.** Een eigen paneel naast Beheer, zichtbaar voor iedereen —
+ook voor een gewone Youth Official. Mail aan of uit, meldingen aan of uit, en de
+twee herinneringen (de avond ervoor, de ochtend zelf). Bewust gescheiden van het
+beheerpaneel: dit gaat over hoe iemand zelf verwittigd wil worden, niet over de
+club. Een beheerder die ook YO+ is, ziet beide knoppen naast elkaar.
+
+Alle berichten gaan door `verwittigen.js`, dat per ontvanger de voorkeuren
+toepast. Geen enkele route stuurt nog rechtstreeks mail of push: zo kan een
+nieuwe aanroeper de voorkeuren niet vergeten.
+
+**Push.** Web Push werkt niet met bestaande bibliotheken in een Worker, dus
+`push.js` doet het zelf met WebCrypto: een VAPID-JWT met ECDSA P-256, en de
+inhoud versleuteld volgens aes128gcm. Dat laatste is geen luxe — een pushbericht
+zonder correcte versleuteling wordt door de browser weggegooid zonder
+foutmelding.
+
+Verlopen abonnementen (status 404 of 410) worden meteen opgeruimd. Mail blijft
+het betrouwbare kanaal: op iPhone werkt push alleen als de gebruiker de site aan
+zijn beginscherm heeft toegevoegd, en dat is een Apple-beperking die niet te
+omzeilen is.
+
+Sleutels aanmaken: `cd test && node maak-vapid.mjs`. De private sleutel hoort
+als secret bij de Worker, samen met `VAPID_PUBLIEK` en `VAPID_CONTACT`.
+
+**Logboek.** Eén chronologisch spoor van alles wat er gebeurt, in drie
+categorieën: wedstrijden (synchronisatie, handmatige toevoegingen), aanduidingen
+(toewijzen, vrijgeven, probleemmeldingen) en beheer (club, teams, seizoen,
+bulkacties). Filterbaar op categorie, periode en zoekterm, met de mogelijkheid
+om regels af te vinken.
+
+Bewust één tabel en geen aparte per onderwerp: een beheerder die zich afvraagt
+waarom een wedstrijd er anders bij staat, wil in één lijst zien dat de
+synchronisatie het uur wijzigde én dat iemand daarna de aanduiding vrijgaf.
+Loggen faalt stil — een kapotte logregel mag de actie zelf nooit breken, en daar
+staat een test op.
+
 **Vrijgeven in bulk.** Per maand of voor het hele seizoen, apart voor
 aanduidingen en beschikbaarheden of allebei tegelijk. Standaard een droogloop:
 je ziet eerst hoeveel er geraakt wordt en wie, pas na bevestiging gebeurt er
@@ -158,8 +205,14 @@ src/lib/autotoewijzing.js  het planningsalgoritme, zuivere functie
 src/lib/mailer.js          versturen, templates, de zandbakgrens
 src/lib/venster.js         het weekendvenster van het cluboverzicht
 src/lib/csv.js             CSV lezen en schrijven, zuivere functies
+src/lib/logboek.js         één plaats waar een logregel vorm krijgt
+src/lib/push.js            Web Push: VAPID-JWT en aes128gcm met WebCrypto
+src/lib/verwittigen.js     één kanaal per persoon, volgens zijn voorkeuren
 src/routes/gebruiker.js    /api/me, /api/clubs, /api/club, /api/matches,
                            /api/availability
+src/routes/voorkeuren.js   persoonlijke voorkeuren en push-abonnementen
+public/sw.js               service worker: meldingen tonen en openen
+public/rondleiding.js      de stappen van de rondleiding, los van de weergave
 src/routes/admin/index.js       seizoen, clubs, teams, sync
 src/routes/admin/gebruikers.js  gebruikersbeheer
 src/routes/admin/overzicht.js   cluboverzicht komende dagen
@@ -167,11 +220,12 @@ src/routes/admin/aanduiding.js  scope, toewijzen, vrijgeven, problemen
 src/routes/admin/auto.js        automatische toewijzing
 src/routes/admin/wedstrijden.js eigen wedstrijden toevoegen en importeren
 src/routes/admin/vrijgeven.js   aanduidingen en beschikbaarheden in bulk
+src/routes/admin/logboek.js     het logboek bekijken en afvinken
 src/routes/admin/mail.js        mailconfiguratie en testmail
 src/routes/admin/diagnose.js    ruwe API-respons bekijken
 public/index.html          de app, geen buildstap
 schema.sql / seed.sql      D1
-test/                      647 tests, draaien zonder netwerk
+test/                      785 tests, draaien zonder netwerk
 ```
 
 Er staat bewust **geen `package.json` in de hoofdmap**. De build zou er anders

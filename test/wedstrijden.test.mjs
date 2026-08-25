@@ -64,7 +64,7 @@ console.log('\n1. Een wedstrijd toevoegen');
   check('categorie van de ploeg', rij.cat_code, 'G12');
   check('locatie bewaard', rij.locatie, 'Sporthal Noord');
   check('in het logboek', (await env.DB.prepare(
-    "SELECT soort FROM match_changes WHERE match_guid = ?").bind(r.json.guid).first()).soort, 'nieuw');
+    "SELECT soort FROM logboek WHERE match_guid = ?").bind(r.json.guid).first()).soort, 'nieuw');
 }
 
 console.log('\n2. Datum- en uurnotaties');
@@ -125,7 +125,8 @@ console.log('\n5. Een API-wedstrijd wordt niet zomaar overschreven');
   const met = await voegToe(env, { ...basis, locatie: 'Andere zaal', overwrite: true });
   check('met overwrite mag het', met.status, 200);
   check('vorige herkomst gelogd', (await env.DB.prepare(
-    "SELECT oud FROM match_changes WHERE veld = 'handmatig overschreven'").first()).oud, 'vbl');
+    "SELECT oud FROM logboek WHERE veld = 'handmatig overschreven'").first()).oud,
+    'afkomstig van vbl');
 }
 
 console.log('\n6. Overschrijven raakt beschikbaarheden en aanduidingen niet aan');

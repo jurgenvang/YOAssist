@@ -1,6 +1,8 @@
 import { json, fout, leesJson } from '../../lib/http.js';
 import { aantalNodig, conflicten, opkomstUur } from '../../lib/aanduiding.js';
-import { verstuur, templateAanduiding, templateVrijgegeven, templateProbleem } from '../../lib/mailer.js';
+import { templateAanduiding, templateVrijgegeven } from '../../lib/mailer.js';
+import { verwittig } from '../../lib/verwittigen.js';
+import { log, wedstrijdOmschrijving } from '../../lib/logboek.js';
 
 /**
  * PATCH /api/admin/scope   { matchGuid, scope: true|false }
@@ -197,6 +199,15 @@ export async function wijsToe({ request, env, user }) {
 
   const naam = `${official.voornaam} ${official.achternaam}`;
 
+  await log(env.DB, {
+    categorie: 'aanduiding',
+    soort: 'toegewezen',
+    matchGuid: guid,
+    wie: user.email,
+    veld: wedstrijdOmschrijving(wedstrijd),
+    nieuw: naam + (forceer && botsingen.length > 0 ? ' (geforceerd)' : ''),
+  });
+
   // Mail versturen mag de aanduiding zelf niet laten mislukken. Een geweigerde
   // of onbereikbare maildienst is een probleem voor later, niet voor nu.
   const mail = templateAanduiding({
@@ -208,7 +219,7 @@ export async function wijsToe({ request, env, user }) {
     locatie: wedstrijd.locatie,
     opkomst: opkomstUur(wedstrijd.uur) ?? wedstrijd.uur,
   });
-  const verzending = await verstuur(env, { naar: email, ...mail }).catch(() => ({ verstuurd: false }));
+  const verzending = await verwittig(env, email, mail).catch(() => ({ mail: false, push: 0 }));
 
   return json({
     matchGuid: guid,
@@ -216,7 +227,8 @@ export async function wijsToe({ request, env, user }) {
     naam,
     geforceerd: forceer && botsingen.length > 0,
     botsingen: botsingen.map((b) => b.omschrijving),
-    mailVerstuurd: verzending.verstuurd,
+    mailVerstuurd: verzending.mail,
+    pushVerstuurd: verzending.push,
   });
 }
 
@@ -227,7 +239,7 @@ export async function wijsToe({ request, env, user }) {
  * weigeren van een voorstel: het verschil zit alleen in de begintoestand, en
  * die kent de databank zelf.
  */
-export async function geefVrij({ url, env }) {
+export async function geefVrij({ url, env, user }) {
   const guid = (url.searchParams.get('matchGuid') ?? '').trim();
   const email = (url.searchParams.get('email') ?? '').trim().toLowerCase();
   if (!guid || !email) return fout(400, 'Ongeldige aanvraag', 'matchGuid en email zijn nodig.');
@@ -255,6 +267,15 @@ export async function geefVrij({ url, env }) {
     env.DB.prepare('SELECT voornaam, achternaam FROM users WHERE email = ?').bind(email).first(),
   ]);
 
+  await log(env.DB, {
+    categorie: 'aanduiding',
+    soort: 'vrijgegeven',
+    matchGuid: guid,
+    wie: user.email,
+    veld: wedstrijdOmschrijving(wedstrijd),
+    oud: official ? `${official.voornaam} ${official.achternaam}` : email,
+  });
+
   let mailVerstuurd = false;
   if (wedstrijd && official) {
     const mail = templateVrijgegeven({
@@ -263,8 +284,8 @@ export async function geefVrij({ url, env }) {
       datum: wedstrijd.datum,
       uur: wedstrijd.uur,
     });
-    const verzending = await verstuur(env, { naar: email, ...mail }).catch(() => ({ verstuurd: false }));
-    mailVerstuurd = verzending.verstuurd;
+    const verzending = await verwittig(env, email, mail).catch(() => ({ mail: false }));
+    mailVerstuurd = verzending.mail;
   }
 
   return json({ matchGuid: guid, email, vrijgegeven: true, mailVerstuurd });
@@ -297,7 +318,7 @@ export async function problemen({ env }) {
 }
 
 /** PATCH /api/admin/problemen   { id, afgehandeld } */
-export async function handelProbleemAf({ request, env }) {
+export async function handelProbleemAf({ request, env, user }) {
   const body = await leesJson(request);
   const id = Number(body.id);
   if (!Number.isInteger(id)) return fout(400, 'Ongeldige aanvraag', 'id ontbreekt.');
@@ -305,6 +326,14 @@ export async function handelProbleemAf({ request, env }) {
   await env.DB.prepare('UPDATE problemen SET afgehandeld = ? WHERE id = ?')
     .bind(body.afgehandeld === false ? 0 : 1, id)
     .run();
+
+  await log(env.DB, {
+    categorie: 'aanduiding',
+    soort: 'probleem',
+    wie: user.email,
+    veld: body.afgehandeld === false ? 'heropend' : 'afgehandeld',
+    nieuw: `melding ${id}`,
+  });
 
   return json({ id, afgehandeld: body.afgehandeld !== false });
 }

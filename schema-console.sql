@@ -2,7 +2,7 @@
 -- Geen commentaar binnenin, geen PRAGMA: daar struikelt de console over.
 -- Werkt de console alleen met een statement tegelijk, plak dan blok per blok.
 
--- ===== BLOK 1 van 11 =====
+-- ===== BLOK 1 van 12 =====
 CREATE TABLE IF NOT EXISTS settings (
   sleutel  TEXT PRIMARY KEY,
   waarde   TEXT NOT NULL,
@@ -15,7 +15,7 @@ INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('mail_afzender', '');
 
 INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('mail_afzender_naam', 'YOAssist');
 
--- ===== BLOK 2 van 11 =====
+-- ===== BLOK 2 van 12 =====
 CREATE TABLE IF NOT EXISTS categorieen (
   code        TEXT PRIMARY KEY,
   label       TEXT NOT NULL,
@@ -39,7 +39,7 @@ INSERT OR IGNORE INTO categorieen (code, label, groep, tarief_cent, auto_scope, 
   ('HSE', 'Heren senioren', 'SEN',    2500, 0, 110),
   ('DSE', 'Dames senioren', 'SEN',    2500, 0, 120);
 
--- ===== BLOK 3 van 11 =====
+-- ===== BLOK 3 van 12 =====
 CREATE TABLE IF NOT EXISTS clubs (
   guid        TEXT PRIMARY KEY,
   naam        TEXT,
@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS clubs (
   toegevoegd  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- ===== BLOK 4 van 11 =====
+-- ===== BLOK 4 van 12 =====
 CREATE TABLE IF NOT EXISTS users (
   email       TEXT PRIMARY KEY,
   voornaam    TEXT NOT NULL,
@@ -56,13 +56,32 @@ CREATE TABLE IF NOT EXISTS users (
   profiel     TEXT NOT NULL DEFAULT 'YO' CHECK (profiel IN ('YO', 'YO+')),
   club_guid   TEXT REFERENCES clubs (guid) ON DELETE SET NULL,
   gsm         TEXT,
-  actief      INTEGER NOT NULL DEFAULT 1
+  actief      INTEGER NOT NULL DEFAULT 1,
+  kanaal_mail INTEGER NOT NULL DEFAULT 1,
+  kanaal_push INTEGER NOT NULL DEFAULT 0,
+  herinner_avond   INTEGER NOT NULL DEFAULT 1,
+  herinner_ochtend INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_naam
   ON users (achternaam COLLATE NOCASE, voornaam COLLATE NOCASE);
 
--- ===== BLOK 5 van 11 =====
+-- ===== BLOK 5 van 12 =====
+CREATE TABLE IF NOT EXISTS push_abonnementen (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_email  TEXT NOT NULL REFERENCES users (email) ON DELETE CASCADE,
+  endpoint    TEXT NOT NULL UNIQUE,
+  p256dh      TEXT NOT NULL,
+  auth        TEXT NOT NULL,
+  toestel     TEXT,
+  aangemaakt  TEXT NOT NULL DEFAULT (datetime('now')),
+  laatst_ok   TEXT,
+  mislukt     INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_push_user ON push_abonnementen (user_email);
+
+-- ===== BLOK 6 van 12 =====
 CREATE TABLE IF NOT EXISTS teams (
   guid          TEXT PRIMARY KEY,
   club_guid     TEXT NOT NULL REFERENCES clubs (guid) ON DELETE CASCADE,
@@ -76,7 +95,7 @@ CREATE TABLE IF NOT EXISTS teams (
 
 CREATE INDEX IF NOT EXISTS idx_teams_club ON teams (club_guid, naam);
 
--- ===== BLOK 6 van 11 =====
+-- ===== BLOK 7 van 12 =====
 CREATE TABLE IF NOT EXISTS matches (
   guid          TEXT PRIMARY KEY,
   wed_id        TEXT,
@@ -118,7 +137,7 @@ CREATE INDEX IF NOT EXISTS idx_matches_scope ON matches (scope, datum, uur);
 
 CREATE INDEX IF NOT EXISTS idx_matches_bron ON matches (bron, seizoen);
 
--- ===== BLOK 7 van 11 =====
+-- ===== BLOK 8 van 12 =====
 CREATE TABLE IF NOT EXISTS assignments (
   match_guid      TEXT NOT NULL REFERENCES matches (guid) ON DELETE CASCADE,
   user_email      TEXT NOT NULL REFERENCES users (email) ON DELETE CASCADE,
@@ -134,7 +153,7 @@ CREATE INDEX IF NOT EXISTS idx_assignments_user ON assignments (user_email, stat
 
 CREATE INDEX IF NOT EXISTS idx_assignments_match ON assignments (match_guid, status);
 
--- ===== BLOK 8 van 11 =====
+-- ===== BLOK 9 van 12 =====
 CREATE TABLE IF NOT EXISTS problemen (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
   match_guid   TEXT NOT NULL REFERENCES matches (guid) ON DELETE CASCADE,
@@ -146,11 +165,13 @@ CREATE TABLE IF NOT EXISTS problemen (
 
 CREATE INDEX IF NOT EXISTS idx_problemen_open ON problemen (afgehandeld, gemeld_op);
 
--- ===== BLOK 9 van 11 =====
-CREATE TABLE IF NOT EXISTS match_changes (
+-- ===== BLOK 10 van 12 =====
+CREATE TABLE IF NOT EXISTS logboek (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
-  match_guid   TEXT NOT NULL,
-  soort        TEXT NOT NULL CHECK (soort IN ('nieuw', 'gewijzigd', 'verdwenen')),
+  categorie    TEXT NOT NULL CHECK (categorie IN ('wedstrijd', 'aanduiding', 'beheer')),
+  soort        TEXT NOT NULL,
+  match_guid   TEXT,
+  wie          TEXT NOT NULL DEFAULT 'systeem',
   veld         TEXT,
   oud          TEXT,
   nieuw        TEXT,
@@ -158,9 +179,13 @@ CREATE TABLE IF NOT EXISTS match_changes (
   afgehandeld  INTEGER NOT NULL DEFAULT 0
 );
 
-CREATE INDEX IF NOT EXISTS idx_changes_open ON match_changes (afgehandeld, vastgesteld);
+CREATE INDEX IF NOT EXISTS idx_logboek_tijd ON logboek (id DESC);
 
--- ===== BLOK 10 van 11 =====
+CREATE INDEX IF NOT EXISTS idx_logboek_open ON logboek (afgehandeld, categorie);
+
+CREATE INDEX IF NOT EXISTS idx_logboek_match ON logboek (match_guid, id DESC);
+
+-- ===== BLOK 11 van 12 =====
 CREATE TABLE IF NOT EXISTS availability (
   user_email  TEXT NOT NULL REFERENCES users (email) ON DELETE CASCADE,
   match_guid  TEXT NOT NULL REFERENCES matches (guid) ON DELETE CASCADE,
@@ -171,7 +196,7 @@ CREATE TABLE IF NOT EXISTS availability (
 
 CREATE INDEX IF NOT EXISTS idx_availability_match ON availability (match_guid, status);
 
--- ===== BLOK 11 van 11 =====
+-- ===== BLOK 12 van 12 =====
 CREATE TABLE IF NOT EXISTS sync_runs (
   id                INTEGER PRIMARY KEY AUTOINCREMENT,
   gestart           TEXT NOT NULL DEFAULT (datetime('now')),

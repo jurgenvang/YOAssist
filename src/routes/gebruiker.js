@@ -1,7 +1,9 @@
 import { json, fout, leesJson, instelling } from '../lib/http.js';
 import { seizoenLabel, seizoenscode, wedstrijdbladUrl } from '../lib/vbl.js';
 import { aantalNodig, opkomstUur } from '../lib/aanduiding.js';
-import { verstuur, templateProbleem } from '../lib/mailer.js';
+import { templateProbleem } from '../lib/mailer.js';
+import { verwittigAllen } from '../lib/verwittigen.js';
+import { log } from '../lib/logboek.js';
 import { VERSIE } from '../versie.js';
 
 /**
@@ -319,6 +321,15 @@ export async function meldProbleem({ request, env, user }) {
     .bind(guid, user.email, bericht)
     .run();
 
+  await log(env.DB, {
+    categorie: 'aanduiding',
+    soort: 'probleem',
+    matchGuid: guid,
+    wie: user.email,
+    veld: 'gemeld',
+    nieuw: bericht.slice(0, 200),
+  });
+
   // Naar alle actieve beheerders, niet naar één vast adres: wie er dat
   // seizoen ook beheert, moet dit kunnen zien.
   const [wedstrijd, beheerders] = await Promise.all([
@@ -332,11 +343,7 @@ export async function meldProbleem({ request, env, user }) {
       bericht,
       official: user.naam,
     });
-    await Promise.all(
-      beheerders.results.map((b) =>
-        verstuur(env, { naar: b.email, ...mail }).catch(() => ({ verstuurd: false })),
-      ),
-    );
+    await verwittigAllen(env, beheerders.results.map((b) => b.email), mail);
   }
 
   return json({ ok: true, matchGuid: guid });

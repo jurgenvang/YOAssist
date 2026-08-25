@@ -237,11 +237,12 @@ console.log('\n12. De actie komt in het logboek');
   await geefVrij(env, { wat: 'beide', maand: '2026-10', uitvoeren: true });
 
   const regel = await env.DB.prepare(
-    "SELECT * FROM match_changes WHERE veld = 'vrijgegeven in bulk'").first();
+    "SELECT * FROM logboek WHERE soort = 'bulk'").first();
   check('één regel gelogd', Boolean(regel), true);
-  check('met de aantallen', /2 aanduiding\(en\), 3 beschikbaarheid/.test(regel.oud), true);
-  check('en met wie het deed', /baas@club\.be/.test(regel.nieuw), true);
-  check('en welke periode', /2026-10/.test(regel.nieuw), true);
+  check('als beheeractie', regel.categorie, 'beheer');
+  check('met wie het deed', regel.wie, 'baas@club.be');
+  check('welke periode', regel.oud, '2026-10');
+  check('en de aantallen', /2 aanduiding\(en\), 3 beschikbaarheid/.test(regel.nieuw), true);
 }
 
 console.log('\n13. Een lege maand doet niets');
