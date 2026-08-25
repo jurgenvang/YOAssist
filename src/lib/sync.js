@@ -143,7 +143,8 @@ export async function synchroniseer(db, bron) {
           `SELECT guid, wed_id, thuis_guid, thuis_naam, uit_guid, uit_naam, datum, uur,
                   locatie, acc_guid, poule_naam, cat_code, off_aantal, hash, status
              FROM matches
-            WHERE seizoen = ? AND club_guid IN (${placeholders})`,
+            WHERE seizoen = ? AND club_guid IN (${placeholders})
+              AND bron = 'vbl'`,
         )
         .bind(seizoen, ...geslaagdeClubs)
         .all()
@@ -175,10 +176,10 @@ export async function synchroniseer(db, bron) {
               `INSERT INTO matches (guid, wed_id, seizoen, club_guid, thuis_guid, thuis_naam,
                                     uit_guid, uit_naam, datum, uur, locatie, acc_guid, poule_naam,
                                     cat_code, off_namen, off_aantal, off_gewist,
-                                    scope, scope_reden, scope_op, hash,
+                                    scope, scope_reden, scope_op, bron, hash,
                                     status, laatst_gezien)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0,
-                       ?, ?, ?, ?, 'actief', datetime('now'))`,
+                       ?, ?, ?, 'vbl', ?, 'actief', datetime('now'))`,
             )
             .bind(
               w.guid, w.wedId, w.seizoen, w.clubGuid, w.thuisGuid, w.thuisNaam,
@@ -306,6 +307,7 @@ export async function synchroniseer(db, bron) {
             SET off_namen = NULL, off_gewist = 1
           WHERE off_gewist = 0
             AND off_namen IS NOT NULL
+            AND bron = 'vbl'
             AND datum < date('now', '-1 day')`,
       )
       .run();

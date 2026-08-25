@@ -117,12 +117,10 @@ export async function matches({ env, user }) {
 
   const { results } = await env.DB.prepare(
     `SELECT m.guid, m.datum, m.uur, m.thuis_naam, m.uit_naam, m.locatie, m.poule_naam,
-            m.cat_code, m.off_aantal, m.scope_reden,
+            m.cat_code, m.off_aantal, m.off_namen, m.off_gewist, m.scope_reden,
             cat.label AS cat_label, cat.groep AS cat_groep,
             a.status AS beschikbaarheid,
-            eigen.status AS aanduiding,
-            (SELECT COUNT(*) FROM assignments x
-              WHERE x.match_guid = m.guid AND x.status = 'toegewezen') AS bezet
+            eigen.status AS aanduiding
        FROM matches m
        JOIN teams t ON t.guid = m.thuis_guid
        LEFT JOIN categorieen cat ON cat.code = m.cat_code
@@ -140,28 +138,72 @@ export async function matches({ env, user }) {
     .bind(email, email, seizoen, clubGuid, vandaag)
     .all();
 
+  // Wie er van de club is aangeduid, in één query in plaats van per wedstrijd.
+  // Een official wil weten met wie hij aan de tafel staat — ook als hij zelf
+  // (nog) niet is aangeduid.
+  const guids = results.map((r) => r.guid);
+  const perWedstrijd = new Map();
+
+  if (guids.length > 0) {
+    const gaten = guids.map(() => '?').join(',');
+    const { results: aanduidingen } = await env.DB.prepare(
+      `SELECT a.match_guid, u.email, u.voornaam, u.achternaam
+         FROM assignments a
+         JOIN users u ON u.email = a.user_email
+        WHERE a.match_guid IN (${gaten}) AND a.status = 'toegewezen'
+        ORDER BY u.achternaam COLLATE NOCASE, u.voornaam COLLATE NOCASE`,
+    )
+      .bind(...guids)
+      .all();
+
+    for (const a of aanduidingen) {
+      perWedstrijd.set(a.match_guid, [
+        ...(perWedstrijd.get(a.match_guid) ?? []),
+        { naam: `${a.voornaam} ${a.achternaam}`, ikZelf: a.email === email },
+      ]);
+    }
+  }
+
   return json({
     seizoen,
     clubNaam: bijgewerkt.clubNaam,
-    matches: results.map((r) => ({
-      guid: r.guid,
-      datum: r.datum,
-      uur: r.uur,
-      thuis: r.thuis_naam,
-      uit: r.uit_naam,
-      locatie: r.locatie,
-      poule: r.poule_naam,
-      catCode: r.cat_code,
-      catLabel: r.cat_label,
-      wedstrijdblad: wedstrijdbladUrl(r.guid),
-      beschikbaarheid: r.beschikbaarheid ?? null,
-      // Toegewezen aan mij: dan is de beschikbaarheid vergrendeld en kan er
-      // alleen nog een probleem gemeld worden.
-      toegewezen: r.aanduiding === 'toegewezen',
-      nodig: aantalNodig(r.off_aantal),
-      bezet: r.bezet,
-      opkomst: opkomstUur(r.uur),
-    })),
+    matches: results.map((r) => {
+      let vblRefs = [];
+      try {
+        vblRefs = r.off_namen ? JSON.parse(r.off_namen) : [];
+      } catch {
+        vblRefs = [];
+      }
+
+      const club = perWedstrijd.get(r.guid) ?? [];
+
+      return {
+        guid: r.guid,
+        datum: r.datum,
+        uur: r.uur,
+        thuis: r.thuis_naam,
+        uit: r.uit_naam,
+        locatie: r.locatie,
+        poule: r.poule_naam,
+        catCode: r.cat_code,
+        catLabel: r.cat_label,
+        wedstrijdblad: wedstrijdbladUrl(r.guid),
+        beschikbaarheid: r.beschikbaarheid ?? null,
+        // Toegewezen aan mij: dan is de beschikbaarheid vergrendeld en kan er
+        // alleen nog een probleem gemeld worden.
+        toegewezen: r.aanduiding === 'toegewezen',
+        nodig: aantalNodig(r.off_aantal),
+        bezet: club.length,
+        opkomst: opkomstUur(r.uur),
+        // Scheidsrechters van de bond. De namen worden een dag na de wedstrijd
+        // gewist; het aantal blijft, vandaar beide velden.
+        vblRefs,
+        vblAantal: r.off_aantal,
+        vblNamenGewist: r.off_gewist === 1,
+        // Aangeduide officials van de eigen club, met de eigen naam gemarkeerd.
+        clubRefs: club,
+      };
+    }),
   });
 }
 

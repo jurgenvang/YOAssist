@@ -1,4 +1,5 @@
 import { json, fout, leesJson } from '../../lib/http.js';
+import { leesCsv, maakCsv, alsBoolean } from '../../lib/csv.js';
 
 /**
  * Gebruikersbeheer.
@@ -231,5 +232,163 @@ export async function verwijderen({ url, env, user }) {
     email,
     verwijderd: true,
     herinnering: 'Haal dit adres ook uit de Access-policy, anders blijft het een seat innemen.',
+  });
+}
+
+
+// ---------------------------------------------------------------------------
+// Bulk toevoegen via CSV
+// ---------------------------------------------------------------------------
+
+const CSV_KOLOMMEN = ['email', 'voornaam', 'achternaam', 'profiel', 'club_guid', 'is_admin'];
+
+/**
+ * GET /api/admin/users/template — een leeg sjabloon met één voorbeeldregel.
+ *
+ * De voorbeeldregel is er om de vorm te tonen, niet om ingelezen te worden.
+ * Hij wordt bij de import overgeslagen omdat het adres op example.be eindigt.
+ */
+export function template() {
+  const csv = maakCsv(CSV_KOLOMMEN, [
+    {
+      email: 'jan.peeters@example.be',
+      voornaam: 'Jan',
+      achternaam: 'Peeters',
+      profiel: 'YO',
+      club_guid: '',
+      is_admin: '0',
+    },
+  ]);
+
+  return new Response(csv, {
+    headers: {
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': 'attachment; filename="yoassist-gebruikers.csv"',
+      'Cache-Control': 'no-store',
+    },
+  });
+}
+
+/**
+ * POST /api/admin/users/import   { csv: string, uitvoeren?: boolean }
+ *
+ * Standaard een droogloop, net als bij de automatische toewijzing: eerst tonen
+ * wat er zou gebeuren, pas na bevestiging wegschrijven. Bij een bestand met
+ * dertig namen wil je de fouten zien vóór de helft er half in staat.
+ *
+ * Rijen worden per stuk beoordeeld. Eén foute regel blokkeert de rest niet;
+ * die komt in de foutenlijst met het regelnummer erbij.
+ */
+export async function importeer({ request, env }) {
+  const body = await leesJson(request);
+  const uitvoeren = body.uitvoeren === true;
+
+  const { kolommen, rijen } = leesCsv(body.csv);
+
+  if (rijen.length === 0) {
+    return fout(400, 'Leeg bestand', 'Er staan geen gegevensregels in dit bestand.');
+  }
+
+  const ontbrekend = ['email', 'voornaam', 'achternaam'].filter((k) => !kolommen.includes(k));
+  if (ontbrekend.length > 0) {
+    return fout(
+      400,
+      'Kolommen ontbreken',
+      `Deze kolom${ontbrekend.length > 1 ? 'men ontbreken' : ' ontbreekt'}: ${ontbrekend.join(', ')}. ` +
+        `Verwacht: ${CSV_KOLOMMEN.join(', ')}.`,
+    );
+  }
+
+  const bestaand = new Set(
+    (await env.DB.prepare('SELECT email FROM users').all()).results.map((r) => r.email),
+  );
+  const clubs = new Set(
+    (await env.DB.prepare('SELECT guid FROM clubs WHERE actief = 1').all()).results.map((r) => r.guid),
+  );
+
+  const nieuw = [];
+  const overgeslagen = [];
+  const fouten = [];
+  const gezienInBestand = new Set();
+
+  for (const rij of rijen) {
+    const regel = rij._regel;
+    const email = normaliseerEmail(rij.email);
+
+    // De voorbeeldregel uit het sjabloon stilzwijgend negeren.
+    if (email.endsWith('@example.be') || email.endsWith('@example.com')) continue;
+
+    if (!geldigEmail(email)) {
+      fouten.push({ regel, email: rij.email, reden: 'ongeldig e-mailadres' });
+      continue;
+    }
+    if (gezienInBestand.has(email)) {
+      fouten.push({ regel, email, reden: 'komt twee keer voor in dit bestand' });
+      continue;
+    }
+    gezienInBestand.add(email);
+
+    if (bestaand.has(email)) {
+      overgeslagen.push({ regel, email, reden: 'staat al in de lijst' });
+      continue;
+    }
+
+    const voornaam = String(rij.voornaam ?? '').trim();
+    const achternaam = String(rij.achternaam ?? '').trim();
+    if (!voornaam || !achternaam) {
+      fouten.push({ regel, email, reden: 'voornaam of achternaam ontbreekt' });
+      continue;
+    }
+
+    const ruwProfiel = String(rij.profiel ?? '').trim().toUpperCase();
+    const profiel = PROFIELEN.includes(ruwProfiel) ? ruwProfiel : 'YO';
+
+    let clubGuid = null;
+    const ruweClub = String(rij.club_guid ?? '').trim().toUpperCase();
+    if (ruweClub) {
+      if (!clubs.has(ruweClub)) {
+        fouten.push({ regel, email, reden: `club ${ruweClub} bestaat niet of is inactief` });
+        continue;
+      }
+      clubGuid = ruweClub;
+    }
+
+    nieuw.push({
+      regel,
+      email,
+      voornaam,
+      achternaam,
+      naam: `${voornaam} ${achternaam}`,
+      profiel,
+      clubGuid,
+      isAdmin: alsBoolean(rij.is_admin),
+    });
+  }
+
+  if (uitvoeren && nieuw.length > 0) {
+    await env.DB.batch(
+      nieuw.map((g) =>
+        env.DB
+          .prepare(
+            `INSERT INTO users (email, voornaam, achternaam, is_admin, profiel, club_guid, actief)
+             VALUES (?, ?, ?, ?, ?, ?, 1)`,
+          )
+          .bind(g.email, g.voornaam, g.achternaam, g.isAdmin ? 1 : 0, g.profiel, g.clubGuid),
+      ),
+    );
+  }
+
+  return json({
+    uitgevoerd: uitvoeren,
+    aantalNieuw: nieuw.length,
+    aantalOvergeslagen: overgeslagen.length,
+    aantalFouten: fouten.length,
+    nieuw,
+    overgeslagen,
+    fouten,
+    herinnering:
+      nieuw.length > 0
+        ? 'Vergeet deze adressen niet toe te voegen aan de Access-policy in Zero Trust.'
+        : null,
   });
 }

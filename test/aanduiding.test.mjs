@@ -248,5 +248,55 @@ console.log('\n12. Overzicht toont aanduidingen');
   check('telling in scope', o.json.inScope, 4);
 }
 
+console.log('\n13. De officiallijst toont wie er op de wedstrijd staat');
+{
+  const env = nieuweEnv();
+  // Eén wedstrijd met een VBL-ref, en twee eigen aanduidingen op een andere.
+  await wijs(env, 'U12A', 'yo@club.be');
+  await wijs(env, 'U12A', 'plus@club.be');
+
+  const lijst = await vraag(env, '/api/matches', { alsWie: 'yo@club.be' });
+  const u12a = lijst.json.matches.find((m) => m.guid === 'U12A');
+
+  check('clubrefs met naam, gesorteerd op achternaam',
+    u12a.clubRefs.map((p) => p.naam), ['Ann Aerts', 'Bert Bosmans']);
+  check('de eigen naam is gemarkeerd',
+    u12a.clubRefs.find((p) => p.naam === 'Ann Aerts').ikZelf, true);
+  check('die van een ander niet',
+    u12a.clubRefs.find((p) => p.naam === 'Bert Bosmans').ikZelf, false);
+  check('bezet telt de clubrefs', u12a.bezet, 2);
+
+  const plus = await vraag(env, '/api/matches', { alsWie: 'plus@club.be' });
+  const j16b = plus.json.matches.find((m) => m.guid === 'J16B');
+  check('VBL-namen zichtbaar', j16b.vblRefs, ['Yves Knubben']);
+  check('aantal van de bond', j16b.vblAantal, 1);
+  check('namen nog niet gewist', j16b.vblNamenGewist, false);
+}
+
+console.log('\n14. Refs zijn zichtbaar zonder eigen betrokkenheid');
+{
+  const env = nieuweEnv();
+  await wijs(env, 'U12B', 'plus@club.be');
+
+  // Ann staat er zelf niet op en heeft niets geantwoord.
+  const lijst = await vraag(env, '/api/matches', { alsWie: 'yo@club.be' });
+  const u12b = lijst.json.matches.find((m) => m.guid === 'U12B');
+
+  check('ziet toch wie er staat', u12b.clubRefs.map((p) => p.naam), ['Bert Bosmans']);
+  check('en dat het niet zijzelf is', u12b.clubRefs[0].ikZelf, false);
+  check('geen eigen aanduiding', u12b.toegewezen, false);
+}
+
+console.log('\n15. Gewiste VBL-namen tonen enkel nog het aantal');
+{
+  const env = nieuweEnv();
+  env.DB.exec("UPDATE matches SET off_namen = NULL, off_gewist = 1, off_aantal = 2 WHERE guid = 'U12A'");
+  const lijst = await vraag(env, '/api/matches', { alsWie: 'yo@club.be' });
+  const u12a = lijst.json.matches.find((m) => m.guid === 'U12A');
+  check('geen namen meer', u12a.vblRefs, []);
+  check('aantal blijft', u12a.vblAantal, 2);
+  check('als gewist gemarkeerd', u12a.vblNamenGewist, true);
+}
+
 console.log(mislukt === 0 ? '\n=== ALLE AANDUIDINGSTESTS GESLAAGD ===' : `\n=== ${mislukt} TESTS GEFAALD ===`);
 process.exit(mislukt ? 1 : 0);

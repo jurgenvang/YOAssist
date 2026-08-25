@@ -28,6 +28,8 @@ import { overzicht } from './routes/admin/overzicht.js';
 import * as aanduiding from './routes/admin/aanduiding.js';
 import * as mail from './routes/admin/mail.js';
 import { automatisch } from './routes/admin/auto.js';
+import * as wedstrijden from './routes/admin/wedstrijden.js';
+import * as vrijgeven from './routes/admin/vrijgeven.js';
 
 // ---------------------------------------------------------------------------
 // Routetabel. beheer: true betekent dat de route alleen voor admins is.
@@ -49,6 +51,7 @@ const ROUTES = [
   { methode: 'DELETE', pad: '/api/admin/clubs',        handler: admin.clubVerwijderen, beheer: true },
   { methode: 'POST',   pad: '/api/admin/teams',        handler: admin.teamsLaden,      beheer: true },
   { methode: 'PATCH',  pad: '/api/admin/teams',        handler: admin.teamVlaggen,     beheer: true },
+  { methode: 'POST',   pad: '/api/admin/teams/volgen', handler: admin.alleTeamsVolgen, beheer: true },
   { methode: 'GET',    pad: '/api/admin/sync',         handler: admin.syncLogboek,     beheer: true },
   { methode: 'POST',   pad: '/api/admin/sync',         handler: admin.syncNu,          beheer: true },
   { methode: 'GET',    pad: '/api/admin/diagnose-matches', handler: diagnoseMatches,   beheer: true },
@@ -64,10 +67,20 @@ const ROUTES = [
   { methode: 'POST',   pad: '/api/admin/mail/test',    handler: mail.testMail,    beheer: true },
   { methode: 'POST',   pad: '/api/admin/auto',         handler: automatisch,      beheer: true },
 
+  { methode: 'POST',   pad: '/api/admin/wedstrijden',          handler: wedstrijden.voegToe,   beheer: true },
+  { methode: 'DELETE', pad: '/api/admin/wedstrijden',          handler: wedstrijden.verwijder, beheer: true },
+  { methode: 'GET',    pad: '/api/admin/wedstrijden/template', handler: wedstrijden.template,  beheer: true },
+  { methode: 'POST',   pad: '/api/admin/wedstrijden/import',   handler: wedstrijden.importeer, beheer: true },
+
+  { methode: 'GET',    pad: '/api/admin/vrijgeven/maanden', handler: vrijgeven.maanden,   beheer: true },
+  { methode: 'POST',   pad: '/api/admin/vrijgeven',         handler: vrijgeven.vrijgeven, beheer: true },
+
   { methode: 'GET',    pad: '/api/admin/users',        handler: gebruikers.lijst,      beheer: true },
   { methode: 'POST',   pad: '/api/admin/users',        handler: gebruikers.toevoegen,  beheer: true },
   { methode: 'PATCH',  pad: '/api/admin/users',        handler: gebruikers.wijzigen,   beheer: true },
   { methode: 'DELETE', pad: '/api/admin/users',        handler: gebruikers.verwijderen, beheer: true },
+  { methode: 'GET',    pad: '/api/admin/users/template', handler: gebruikers.template,  beheer: true },
+  { methode: 'POST',   pad: '/api/admin/users/import', handler: gebruikers.importeer,  beheer: true },
 ];
 
 /** Zoekt de gebruiker op na een geslaagde identificatie. */

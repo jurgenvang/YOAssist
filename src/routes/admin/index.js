@@ -226,6 +226,7 @@ export async function teamsLaden({ request, env }) {
     totaalNieuw: 0,
     totaalInactief: 0,
     onbekendeCategorieen: [],
+    uitgeschakeld: 0,
   };
 
   const gekend = new Set(
@@ -272,23 +273,34 @@ export async function teamsLaden({ request, env }) {
 
     for (const team of detail.teams) {
       const catCode = categorieUitTeamGuid(team.guid, club.guid);
+      const bekendeCategorie = Boolean(catCode) && gekend.has(catCode);
 
       // Een code die we niet kennen wordt gemeld, niet geraden. Anders belandt
       // een nieuwe reeks stilzwijgend in de verkeerde categorie — en dus aan
       // het verkeerde tarief.
-      if (catCode && !gekend.has(catCode) && !rapport.onbekendeCategorieen.includes(catCode)) {
+      if (catCode && !bekendeCategorie && !rapport.onbekendeCategorieen.includes(catCode)) {
         rapport.onbekendeCategorieen.push(catCode);
+      }
+
+      // Nieuw team met onbekende categorie start uitgeschakeld. Een
+      // waarschuwing tonen én het vinkje intussen aanzetten is tegenstrijdig:
+      // dan wordt er gesynchroniseerd voor een ploeg zonder tarief zonder dat
+      // iemand er bewust ja tegen zei. Bij een bestaand team blijft de keuze
+      // van de beheerder staan.
+      const startVolgen = bekendeCategorie ? 1 : 0;
+      if (!bekendeCategorie && !bestaandeGuids.has(team.guid)) {
+        rapport.uitgeschakeld = (rapport.uitgeschakeld ?? 0) + 1;
       }
 
       opdrachten.push(
         env.DB.prepare(
           `INSERT INTO teams (guid, club_guid, naam, cat_code, cat_label, volgen, actief, laatst_gezien)
-           VALUES (?, ?, ?, ?, ?, 1, 1, datetime('now'))
+           VALUES (?, ?, ?, ?, ?, ?, 1, datetime('now'))
            ON CONFLICT (guid) DO UPDATE
              SET naam = excluded.naam, cat_code = excluded.cat_code,
                  cat_label = COALESCE(excluded.cat_label, teams.cat_label),
                  actief = 1, laatst_gezien = datetime('now')`,
-        ).bind(team.guid, club.guid, team.naam, catCode, team.categorie ?? null),
+        ).bind(team.guid, club.guid, team.naam, catCode, team.categorie ?? null, startVolgen),
       );
     }
 
@@ -313,6 +325,59 @@ export async function teamsLaden({ request, env }) {
   }
 
   return json(rapport);
+}
+
+/**
+ * POST /api/admin/teams/volgen   { volgen: true|false, clubGuid?: string }
+ *
+ * Alle ploegen tegelijk aan- of uitzetten. Bij het instellen van een nieuwe
+ * club is één voor één aanvinken bij dertig ploegen ondoenbaar; dit zet alles
+ * in één keer en daarna vink je de uitzonderingen af.
+ *
+ * Ploegen met een onbekende categorie worden bij een 'alles aan' bewust
+ * overgeslagen — dat is precies de opt-in die we hierboven afdwingen.
+ */
+export async function alleTeamsVolgen({ request, env }) {
+  const body = await leesJson(request);
+  if (typeof body.volgen !== 'boolean') {
+    return fout(400, 'Ongeldige aanvraag', 'volgen moet true of false zijn.');
+  }
+
+  const voorwaarden = ['actief = 1'];
+  const params = [body.volgen ? 1 : 0];
+
+  if (body.clubGuid) {
+    voorwaarden.push('club_guid = ?');
+    params.push(String(body.clubGuid).toUpperCase());
+  }
+
+  if (body.volgen) {
+    voorwaarden.push('cat_code IN (SELECT code FROM categorieen)');
+  }
+
+  const res = await env.DB
+    .prepare(`UPDATE teams SET volgen = ? WHERE ${voorwaarden.join(' AND ')}`)
+    .bind(...params)
+    .run();
+
+  const overgeslagen = body.volgen
+    ? (
+        await env.DB
+          .prepare(
+            `SELECT COUNT(*) AS n FROM teams
+              WHERE actief = 1 AND (cat_code IS NULL OR cat_code NOT IN (SELECT code FROM categorieen))
+                ${body.clubGuid ? 'AND club_guid = ?' : ''}`,
+          )
+          .bind(...(body.clubGuid ? [String(body.clubGuid).toUpperCase()] : []))
+          .first()
+      )?.n ?? 0
+    : 0;
+
+  return json({
+    volgen: body.volgen,
+    gewijzigd: res?.meta?.changes ?? null,
+    overgeslagen,
+  });
 }
 
 /**

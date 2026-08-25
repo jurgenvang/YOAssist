@@ -163,6 +163,13 @@ CREATE TABLE IF NOT EXISTS matches (
   scope_reden   TEXT CHECK (scope_reden IN ('auto', 'admin', 'woensdag')),
   scope_op      TEXT,
   scope_uit     INTEGER NOT NULL DEFAULT 0,
+  -- Waar deze wedstrijd vandaan komt.
+  --   'vbl'       : opgehaald bij Basketbal Vlaanderen
+  --   'handmatig' : door een beheerder toegevoegd (oefenwedstrijd, toernooi)
+  -- Handmatige wedstrijden worden door de synchronisatie met rust gelaten:
+  -- ze staan niet in de API, dus zouden ze anders elke nacht als 'verdwenen'
+  -- gemarkeerd worden.
+  bron          TEXT NOT NULL DEFAULT 'vbl' CHECK (bron IN ('vbl', 'handmatig')),
   hash          TEXT NOT NULL,
   status        TEXT NOT NULL DEFAULT 'actief' CHECK (status IN ('actief', 'verdwenen')),
   laatst_gezien TEXT NOT NULL DEFAULT (datetime('now')),
@@ -174,6 +181,7 @@ CREATE INDEX IF NOT EXISTS idx_matches_team ON matches (thuis_guid, status);
 CREATE INDEX IF NOT EXISTS idx_matches_club ON matches (club_guid, seizoen, status);
 CREATE INDEX IF NOT EXISTS idx_matches_opkuis ON matches (off_gewist, datum);
 CREATE INDEX IF NOT EXISTS idx_matches_scope ON matches (scope, datum, uur);
+CREATE INDEX IF NOT EXISTS idx_matches_bron ON matches (bron, seizoen);
 
 
 -- ---------------------------------------------------------------------------

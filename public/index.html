@@ -273,6 +273,32 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
             letter-spacing: -.02em; line-height: 1.1; }
 .cijfer span { font-size: .72rem; color: var(--grijs); }
 .cijfer.let b { color: var(--amber-diep); }
+.cijfer.klikbaar { cursor: pointer; transition: border-color .12s ease, background .12s ease; }
+.cijfer.klikbaar:hover { border-color: var(--inkt-zacht); }
+.cijfer[aria-pressed="true"] { background: var(--inkt); border-color: var(--inkt); }
+.cijfer[aria-pressed="true"] b,
+.cijfer[aria-pressed="true"] span { color: #fff; }
+.venster-label {
+  font-size: .75rem; color: var(--grijs); margin: -.6rem 0 1rem; text-align: center;
+}
+.groep-kop {
+  display: flex; align-items: baseline; gap: .6rem;
+  margin: 1.6rem 0 .5rem; padding-bottom: .35rem;
+  border-bottom: 2px solid var(--inkt);
+}
+.groep-kop:first-of-type { margin-top: .3rem; }
+.groep-kop h2 { margin: 0; font-size: .82rem; font-weight: 700;
+                text-transform: uppercase; letter-spacing: .1em; }
+.groep-kop .aantal { margin-left: auto; font-size: .75rem; color: var(--grijs);
+                     font-variant-numeric: tabular-nums; }
+.dag-kop {
+  font-size: .72rem; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--grijs); font-weight: 700; margin: .9rem 0 .4rem;
+}
+.ov.probleem { border-left-color: var(--rood); }
+.ov.probleem .ov-uur { color: var(--rood); }
+.meer-knop { margin: 1.2rem 0 .5rem; }
+.geen-treffers { text-align: center; color: var(--grijs); padding: 2rem 1rem; font-size: .9rem; }
 
 .ov {
   background: var(--kaart); border: 1px solid var(--lijn); border-left: 4px solid var(--lijn);
@@ -319,6 +345,11 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
 .voorstel li { padding: .25rem 0; border-top: 1px solid var(--lijn); }
 .voorstel li:first-child { border-top: 0; }
 .voorstel li b { font-weight: 600; }
+.voorstel-wed { font-weight: 600; font-size: .88rem; }
+.voorstel-namen { margin-top: .25rem; display: flex; gap: .3rem; flex-wrap: wrap; align-items: baseline; }
+.voorstel-reden { font-size: .78rem; color: var(--grijs); }
+.voorstel-tussen { margin: .9rem 0 .3rem; font-size: .72rem; text-transform: uppercase;
+                   letter-spacing: .08em; color: var(--grijs); font-weight: 700; }
 .voorstel .knoppen { display: flex; gap: .5rem; }
 .voorstel .knoppen .knop { flex: 1; }
 .ov.compleet { border-left-color: var(--groen); }
@@ -331,6 +362,12 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
   background: var(--inkt); color: #fff; border-radius: 4px; padding: .12rem .35rem;
 }
 .wed[data-toegewezen="1"] { border-left-color: var(--inkt); }
+.wed-refs {
+  grid-column: 2; margin-top: .45rem; display: flex; gap: .35rem;
+  flex-wrap: wrap; align-items: baseline;
+}
+.wed-refs .ov-label { flex-shrink: 0; }
+.chip.ik { background: var(--inkt); color: #fff; font-weight: 600; }
 
 /* ---- Gebruikersbeheer --------------------------------------------------- */
 .gebr-rij {
@@ -344,6 +381,20 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
             background: #fdf4e0; border-radius: 4px; padding: .08rem .3rem; }
 .merk-prof { font-size: .68rem; font-weight: 700; color: var(--inkt-zacht);
              background: #eef0f3; border-radius: 4px; padding: .1rem .3rem; }
+.gebr-groep { margin-top: .9rem; }
+.gebr-groep > h4 {
+  margin: 0 0 .2rem; font-size: .72rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .08em; color: var(--grijs);
+  padding-bottom: .25rem; border-bottom: 1.5px solid var(--lijn);
+  display: flex; align-items: baseline;
+}
+.gebr-groep > h4 .aantal { margin-left: auto; font-variant-numeric: tabular-nums; }
+.gebr-acties { display: flex; gap: .3rem; flex-shrink: 0; }
+.mini.gevaar:hover { color: var(--rood); }
+.import-uitslag ul { list-style: none; margin: .4rem 0 0; padding: 0; font-size: .82rem; }
+.import-uitslag li { padding: .18rem 0; border-top: 1px solid var(--lijn); }
+.import-uitslag li:first-child { border-top: 0; }
+.regelnr { color: var(--grijs); font-variant-numeric: tabular-nums; font-size: .76rem; }
 textarea {
   width: 100%; min-height: 4.5rem; padding: .5rem .6rem; font: inherit; font-size: .82rem;
   border: 1.5px solid var(--lijn); border-radius: 8px; resize: vertical;
@@ -404,7 +455,7 @@ select {
 
 <main>
   <div class="tabs" id="tabs" hidden role="tablist">
-    <button class="tab" id="tab-mijn" role="tab" aria-selected="true">Mijn lijst</button>
+    <button class="tab" id="tab-mijn" role="tab" aria-selected="true">Beschikbaarheden</button>
     <button class="tab" id="tab-club" role="tab" aria-selected="false">Cluboverzicht</button>
   </div>
   <div id="hoofd">
@@ -432,7 +483,7 @@ const MAANDEN = ['januari','februari','maart','april','mei','juni',
 const DAGEN = ['zo','ma','di','wo','do','vr','za'];
 
 const staat = { ik: null, matches: [], config: null, weergave: 'mijn', overzicht: null,
-                teamsRapport: null };
+                teamsRapport: null, teamsMelding: null, filter: null, toonAlles: false };
 
 /* --- kleine hulpjes ----------------------------------------------------- */
 const $ = (id) => document.getElementById(id);
@@ -451,6 +502,67 @@ function toast(boodschap) {
   toastTimer = setTimeout(() => { el.dataset.zichtbaar = '0'; }, 2600);
 }
 
+/* --- Verlopen aanmelding -------------------------------------------------
+   Access-sessies verlopen. Wanneer dat gebeurt, geeft de Worker een 401 terug
+   op de API-aanroep, maar de pagina zelf is al geladen — dus de gebruiker ziet
+   een foutmelding in plaats van het loginscherm. Een gewone herlaadbeurt lost
+   dat op: dan onderschept Access het verzoek en toont het aanmeldscherm.
+
+   De beveiliging eromheen is nodig omdat een 401 ook een andere oorzaak kan
+   hebben, bijvoorbeeld een ontbrekende CF_ACCESS_AUD. Zonder rem zou de pagina
+   dan eindeloos blijven herladen. Daarom hoogstens één herlaadbeurt per
+   tijdvenster; daarna wordt de fout gewoon getoond, en die vermeldt zelf wat
+   er ontbreekt.
+--------------------------------------------------------------------------- */
+const HERLAAD_SLEUTEL = 'yoassist-herlaad';
+const HERLAAD_VENSTER_MS = 20000;
+
+function magHerladenVoorAanmelding() {
+  try {
+    const vorige = Number(sessionStorage.getItem(HERLAAD_SLEUTEL) ?? 0);
+    if (Date.now() - vorige < HERLAAD_VENSTER_MS) return false;
+    sessionStorage.setItem(HERLAAD_SLEUTEL, String(Date.now()));
+    return true;
+  } catch {
+    // Zonder sessionStorage kunnen we geen lus voorkomen; dan liever niet
+    // automatisch herladen dan het risico op een tollende pagina.
+    return false;
+  }
+}
+
+/**
+ * Haalt een bestand op en biedt het lokaal aan. Gaat via fetch en niet via een
+ * gewone link, omdat een link door de Access-laag zou gaan en het loginscherm
+ * kan tonen in plaats van het bestand.
+ */
+async function haalBestand(pad, bestandsnaam) {
+  const res = await fetch(pad);
+
+  if (res.status === 401 && magHerladenVoorAanmelding()) {
+    toonHeraanmelden();
+    location.reload();
+    return;
+  }
+  if (!res.ok) throw new Error(`Kon ${bestandsnaam} niet ophalen (${res.status})`);
+
+  const url = URL.createObjectURL(await res.blob());
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = bestandsnaam;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function toonHeraanmelden() {
+  document.body.innerHTML = `
+    <div style="max-width:22rem;margin:20vh auto;text-align:center;font-family:var(--font);
+                color:var(--inkt);padding:0 1rem">
+      <div class="spinner" style="color:var(--grijs)"></div>
+      <p style="margin-top:.8rem;font-size:.95rem">Je aanmelding is verlopen.<br>
+        Even opnieuw aanmelden…</p>
+    </div>`;
+}
+
 async function api(pad, opties = {}) {
   const res = await fetch(pad, {
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -458,6 +570,14 @@ async function api(pad, opties = {}) {
   });
   let body = null;
   try { body = await res.json(); } catch { /* geen JSON */ }
+
+  if (res.status === 401 && magHerladenVoorAanmelding()) {
+    toonHeraanmelden();
+    location.reload();
+    // De pagina wordt vervangen; niets meer laten afhandelen door de aanroeper.
+    return new Promise(() => {});
+  }
+
   if (!res.ok) {
     const err = new Error(body?.detail || body?.error || `Fout ${res.status}`);
     err.status = res.status;
@@ -582,6 +702,35 @@ function toonMatches(data) {
   doel.innerHTML = delen.join('');
 }
 
+/**
+ * Wie er op deze wedstrijd staat: de scheidsrechters van Basketbal Vlaanderen
+ * en de aangeduide officials van de eigen club. Wordt bij elke wedstrijd
+ * getoond, ook als de gebruiker er zelf niets mee te maken heeft — je wil
+ * weten met wie je aan de tafel staat, en of er nog plaats is.
+ */
+function refsRegel(m) {
+  const delen = [];
+
+  if (m.vblNamenGewist && m.vblAantal > 0) {
+    delen.push(`<span class="chip vbl">${m.vblAantal} van VBL</span>`);
+  } else if (m.vblRefs && m.vblRefs.length) {
+    delen.push(...m.vblRefs.map((n) => `<span class="chip vbl">${tekst(n)}</span>`));
+  }
+
+  if (m.clubRefs && m.clubRefs.length) {
+    delen.push(...m.clubRefs.map((p) =>
+      `<span class="chip ${p.ikZelf ? 'ik' : 'toe'}">${tekst(p.naam)}</span>`));
+  }
+
+  const open = m.nodig - m.bezet;
+  if (open > 0) {
+    delen.push(`<span class="chip geen">nog ${open} gezocht</span>`);
+  }
+
+  if (delen.length === 0) return '';
+  return `<div class="wed-refs"><span class="ov-label">Refs</span>${delen.join('')}</div>`;
+}
+
 function kaart(m) {
   const d = ontleedDatum(m.datum);
   const status = m.beschikbaarheid ?? '';
@@ -617,6 +766,7 @@ function kaart(m) {
         ? `<a class="blad" href="${tekst(m.wedstrijdblad)}" target="_blank" rel="noopener noreferrer">wedstrijdblad &#8599;</a>`
         : ''}
     </div>
+    ${refsRegel(m)}
     ${acties}
   </article>`;
 }
@@ -716,7 +866,7 @@ async function wisselWeergave(welke) {
 
   $('hoofd').innerHTML = '<div class="leeg"><span class="spinner"></span> Overzicht laden…</div>';
   try {
-    staat.overzicht = await api('/api/admin/overzicht?dagen=14');
+    staat.overzicht = await api('/api/admin/overzicht');
     toonOverzicht(staat.overzicht);
   } catch (err) {
     $('hoofd').innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
@@ -730,7 +880,7 @@ async function toonAutoVoorstel() {
   doel.innerHTML = '<div class="melding let"><span class="spinner"></span>Voorstel berekenen…</div>';
 
   try {
-    const r = await api('/api/admin/auto', { method: 'POST', body: JSON.stringify({ dagen: 14 }) });
+    const r = await api('/api/admin/auto', { method: 'POST', body: JSON.stringify({ dagen: 21 }) });
 
     if (r.aantalToegewezen === 0) {
       doel.innerHTML = `<div class="melding let">
@@ -740,16 +890,39 @@ async function toonAutoVoorstel() {
       return;
     }
 
+    // Per wedstrijd groeperen: zo zie je in één oogopslag welke wedstrijd
+    // twee namen krijgt en welke er maar één, in plaats van dat uit een
+    // platte lijst te moeten afleiden.
+    const perWedstrijd = new Map();
+    for (const t of r.toewijzingen) {
+      const lijst = perWedstrijd.get(t.wedstrijd) ?? [];
+      lijst.push(t.naam);
+      perWedstrijd.set(t.wedstrijd, lijst);
+    }
+
+    const gevuld = [...perWedstrijd.entries()].map(([wedstrijd, namen]) => `
+      <li>
+        <div class="voorstel-wed">${tekst(wedstrijd)}</div>
+        <div class="voorstel-namen">${namen.map((n) => `<span class="chip toe">${tekst(n)}</span>`).join('')}</div>
+      </li>`).join('');
+
     const open = r.onvolledig.length
-      ? `<p class="hint" style="margin:.2rem 0 .7rem">${r.onvolledig.length} wedstrijd(en) blijven
-         onvolledig: ${r.onvolledig.map((o) => tekst(o.wedstrijd) + ' (' + tekst(o.reden) + ')').join('; ')}</p>`
+      ? `<h4 class="voorstel-tussen">Blijft onvolledig</h4>
+         <ul>${r.onvolledig.map((o) => `
+           <li>
+             <div class="voorstel-wed">${tekst(o.wedstrijd)}</div>
+             <div class="voorstel-namen">
+               <span class="chip nee">nog ${o.tekort} nodig</span>
+               <span class="voorstel-reden">${tekst(o.reden)}</span>
+             </div>
+           </li>`).join('')}</ul>`
       : '';
 
     doel.innerHTML = `
       <div class="voorstel">
-        <h3>${r.aantalToegewezen} voorgestelde aanduiding${r.aantalToegewezen === 1 ? '' : 'en'}</h3>
-        <ul>${r.toewijzingen.map((t) => `
-          <li><b>${tekst(t.naam)}</b> &rarr; ${tekst(t.wedstrijd)}</li>`).join('')}</ul>
+        <h3>${r.aantalToegewezen} aanduiding${r.aantalToegewezen === 1 ? '' : 'en'}
+          over ${perWedstrijd.size} wedstrijd${perWedstrijd.size === 1 ? '' : 'en'}</h3>
+        <ul>${gevuld}</ul>
         ${open}
         <div class="knoppen">
           <button class="knop" id="auto-bevestig">Bevestigen</button>
@@ -763,7 +936,7 @@ async function toonAutoVoorstel() {
       try {
         const uit = await api('/api/admin/auto', {
           method: 'POST',
-          body: JSON.stringify({ dagen: 14, uitvoeren: true }),
+          body: JSON.stringify({ dagen: 21, uitvoeren: true }),
         });
         toast(`${uit.aantalToegewezen} aanduidingen gezet`);
         doel.innerHTML = '';
@@ -782,38 +955,95 @@ async function toonAutoVoorstel() {
 function toonOverzicht(o) {
   if (o.aantal === 0) {
     $('hoofd').innerHTML =
-      `<div class="leeg">Geen thuiswedstrijden in de komende ${o.dagen} dagen.</div>`;
+      `<div class="leeg">Geen thuiswedstrijden gevonden.</div>`;
     return;
   }
 
+  staat.filter = staat.filter ?? null;
+  staat.toonAlles = staat.toonAlles ?? false;
+
+  const tegel = (sleutel, waarde, label, waarschuw = false) => `
+    <button class="cijfer klikbaar ${waarschuw && waarde ? 'let' : ''}"
+            data-filter="${sleutel}" aria-pressed="${staat.filter === sleutel}">
+      <b>${waarde}</b><span>${label}</span>
+    </button>`;
+
   const delen = [`
     <div class="samenvatting">
-      <div class="cijfer"><b>${o.aantal}</b><span>wedstrijden in ${o.dagen} dagen</span></div>
-      <div class="cijfer"><b>${o.inScope}</b><span>in de aanduidingslijst</span></div>
-      <div class="cijfer ${o.onvolledig ? 'let' : ''}"><b>${o.onvolledig}</b>
-        <span>nog niet volledig aangeduid</span></div>
-      <div class="cijfer ${o.zonderBeschikbaren ? 'let' : ''}"><b>${o.zonderBeschikbaren}</b>
-        <span>zonder enige beschikbare</span></div>
+      ${tegel('alles', o.inVenster, 'wedstrijden')}
+      ${tegel('scope', o.inScope, 'in de beschikbaarheden')}
+      ${tegel('onvolledig', o.onvolledig, 'niet volledig aangeduid', true)}
+      ${tegel('geenvrij', o.zonderBeschikbaren, 'zonder beschikbare', true)}
     </div>
+    <p class="venster-label">Cijfers gelden voor ${tekst(o.venster.label)} &mdash; de twee eerstvolgende weekends</p>
     <button class="knop zacht breed" id="auto-knop" style="margin-bottom:1rem">
       Automatisch aanvullen (voorstel bekijken)
     </button>
     <div id="auto-voorstel"></div>`];
 
-  let vorigeDatum = null;
-  for (const w of o.wedstrijden) {
-    if (w.datum !== vorigeDatum) {
-      const d = ontleedDatum(w.datum);
-      delen.push(`<div class="maand"><h2>${DAGEN[d.getUTCDay()]} ${d.getUTCDate()} ${
-        MAANDEN[d.getUTCMonth()]}</h2></div>`);
-      vorigeDatum = w.datum;
+  // Filteren gebeurt in de browser: de server stuurt alles mee, dus een filter
+  // hoeft geen nieuwe aanroep te kosten.
+  const past = (w) => {
+    if (staat.filter === 'scope') return w.inScope;
+    if (staat.filter === 'onvolledig') return w.inScope && w.toegewezen.length < w.nodig;
+    if (staat.filter === 'geenvrij') return w.inScope && w.beschikbaar.length === 0;
+    return true;
+  };
+
+  const zichtbaar = o.wedstrijden.filter(past).filter((w) => staat.toonAlles || w.inVenster);
+  const verderop = o.wedstrijden.filter(past).filter((w) => !w.inVenster).length;
+
+  if (zichtbaar.length === 0) {
+    delen.push(`<div class="geen-treffers">Geen wedstrijden die aan dit filter voldoen.</div>`);
+  } else {
+    // Eerst U10/U12, dan de rest. Binnen elke groep chronologisch, met een
+    // dagkop zodat een speeldag als geheel leesbaar blijft.
+    const groepen = [
+      { naam: 'U10 / U12', items: zichtbaar.filter((w) => w.catGroep === 'U10U12') },
+      { naam: 'Overige', items: zichtbaar.filter((w) => w.catGroep !== 'U10U12') },
+    ];
+
+    for (const groep of groepen) {
+      if (groep.items.length === 0) continue;
+      delen.push(`<div class="groep-kop"><h2>${tekst(groep.naam)}</h2>
+        <span class="aantal">${groep.items.length}</span></div>`);
+
+      let vorigeDatum = null;
+      for (const w of groep.items) {
+        if (w.datum !== vorigeDatum) {
+          const d = ontleedDatum(w.datum);
+          delen.push(`<div class="dag-kop">${DAGEN[d.getUTCDay()]} ${d.getUTCDate()} ${
+            MAANDEN[d.getUTCMonth()]}</div>`);
+          vorigeDatum = w.datum;
+        }
+        delen.push(overzichtKaart(w));
+      }
     }
-    delen.push(overzichtKaart(w));
+  }
+
+  if (verderop > 0) {
+    delen.push(`<button class="knop zacht breed meer-knop" id="meer-knop">
+      ${staat.toonAlles ? 'Toon enkel de twee eerstvolgende weekends'
+                        : `Toon ook wat later komt (${verderop})`}
+    </button>`);
   }
 
   $('hoofd').innerHTML = delen.join('');
+
   const autoKnop = $('auto-knop');
   if (autoKnop) autoKnop.onclick = toonAutoVoorstel;
+
+  const meerKnop = $('meer-knop');
+  if (meerKnop) meerKnop.onclick = () => { staat.toonAlles = !staat.toonAlles; toonOverzicht(o); };
+
+  document.querySelectorAll('[data-filter]').forEach((knop) => {
+    knop.onclick = () => {
+      const sleutel = knop.dataset.filter;
+      // Nog eens op hetzelfde filter klikken heft het op.
+      staat.filter = sleutel === 'alles' || staat.filter === sleutel ? null : sleutel;
+      toonOverzicht(o);
+    };
+  });
 }
 
 function overzichtKaart(w) {
@@ -848,13 +1078,14 @@ function overzichtKaart(w) {
   const compleet = w.inScope && w.toegewezen.length >= w.nodig;
   const klassen = ['ov'];
   if (!w.inScope) klassen.push('buiten');
+  else if (w.probleem && w.inVenster) klassen.push('probleem');
   else if (compleet) klassen.push('compleet');
   else if (w.nodig > 0) klassen.push('tekort');
 
   const scopeRegels = w.inScope
-    ? `<div class="ov-regel"><span class="ov-label">Wij</span>${toe}
+    ? `<div class="ov-regel"><span class="ov-label">Club</span>${toe}
          <span class="reden">${w.toegewezen.length}/${w.nodig} &middot; ${tekst(w.scopeReden || '')}</span></div>
-       <div class="ov-regel"><span class="ov-label">Vrij</span>${ja}</div>
+       <div class="ov-regel"><span class="ov-label">Beschikbaar</span>${ja}</div>
        ${nee}`
     : '';
 
@@ -875,7 +1106,7 @@ function overzichtKaart(w) {
     ${scopeRegels}
     <div class="ov-actie">
       <button class="mini-knop ${w.inScope ? 'aan' : ''}" data-scope="${w.inScope ? '0' : '1'}">
-        ${w.inScope ? 'In de lijst' : 'In de lijst zetten'}
+        ${w.inScope ? 'In de beschikbaarheden' : 'In de beschikbaarheden zetten'}
       </button>
       ${w.inScope ? `<button class="mini-knop" data-handmatig="1">Iemand anders toewijzen</button>` : ''}
     </div>
@@ -960,7 +1191,9 @@ async function kiesOfficial(guid) {
 }
 
 async function herlaadOverzicht() {
-  staat.overzicht = await api('/api/admin/overzicht?dagen=14');
+  // Filter en uitklapstand blijven bewaard: na een toewijzing wil je verder
+  // werken in dezelfde selectie, niet terug naar het volledige overzicht.
+  staat.overzicht = await api('/api/admin/overzicht');
   toonOverzicht(staat.overzicht);
 }
 
@@ -1046,10 +1279,10 @@ function toonPaneel() {
 
     <section class="blok">
       <h3>Clubs</h3>
-      <p class="hint">Een club-GUID heeft de vorm BVBL gevolgd door vier cijfers.
+      <p class="hint">Vervang XXXX door de vier cijfers van je club-GUID.
         Controleer eerst, voeg daarna toe.</p>
       <div class="veld-rij">
-        <input type="text" id="club-guid" placeholder="BVBL1053" autocapitalize="characters"
+        <input type="text" id="club-guid" placeholder="BVBLXXXX" autocapitalize="characters"
                spellcheck="false" maxlength="8">
         <button class="knop zacht" id="club-check">Controleer</button>
       </div>
@@ -1063,6 +1296,10 @@ function toonPaneel() {
         Of een wedstrijd in de aanduidingslijst komt, hangt af van de categorie
         (U10/U12 gaat automatisch) of van jouw keuze in het cluboverzicht.</p>
       <button class="knop breed" id="teams-laden">Teams laden bij Basketbal Vlaanderen</button>
+      <div class="veld-rij" style="margin-top:.5rem">
+        <button class="knop zacht" id="teams-alles-aan" style="flex:1">Alles volgen</button>
+        <button class="knop zacht" id="teams-alles-uit" style="flex:1">Niets volgen</button>
+      </div>
       <div id="teams-melding"></div>
       ${teamBlokken || '<p class="hint" style="margin:.7rem 0 0">Nog geen teams geladen.</p>'}
     </section>
@@ -1096,6 +1333,39 @@ function toonPaneel() {
       <button class="knop breed zacht" id="gebr-nieuw">Gebruiker toevoegen</button>
       <div id="gebr-formulier"></div>
       <div id="gebr-melding"></div>
+
+      <p class="hint" style="margin-top:1rem">Meerdere tegelijk? Download het sjabloon,
+        vul het in, en plak of kies het bestand hieronder.</p>
+      <div class="veld-rij">
+        <button class="knop zacht" id="gebr-sjabloon" style="flex:1">Sjabloon downloaden</button>
+        <button class="knop zacht" id="gebr-import" style="flex:1">Bestand inlezen</button>
+      </div>
+      <input type="file" id="gebr-bestand" accept=".csv,text/csv" hidden>
+      <div id="gebr-import-uitslag"></div>
+    </section>
+
+    <section class="blok">
+      <h3>Eigen wedstrijden</h3>
+      <p class="hint">Voor wat niet in de kalender van Basketbal Vlaanderen staat:
+        oefenwedstrijden, toernooien. Ze worden bij een synchronisatie met rust gelaten.</p>
+      <button class="knop breed zacht" id="wed-nieuw">Wedstrijd toevoegen</button>
+      <div id="wed-formulier"></div>
+      <div class="veld-rij" style="margin-top:.5rem">
+        <button class="knop zacht" id="wed-sjabloon" style="flex:1">Sjabloon downloaden</button>
+        <button class="knop zacht" id="wed-import" style="flex:1">Bestand inlezen</button>
+      </div>
+      <input type="file" id="wed-bestand" accept=".csv,text/csv" hidden>
+      <div id="wed-uitslag"></div>
+    </section>
+
+    <section class="blok">
+      <h3>Vrijgeven</h3>
+      <p class="hint">Aanduidingen worden op vrijgegeven gezet en blijven zichtbaar
+        in de historiek. Beschikbaarheden worden gewist, want die kennen geen
+        tussentoestand. De betrokken officials krijgen geen bericht; de beheerders
+        wel een overzicht.</p>
+      <div id="vrij-maanden"><span class="spinner"></span> Laden…</div>
+      <div id="vrij-uitslag"></div>
     </section>
 
     <section class="blok">
@@ -1115,9 +1385,72 @@ function bindPaneel() {
   $('seizoen-min').onclick = () => wijzigSeizoen('omlaag');
   $('club-check').onclick = controleerClub;
   $('teams-laden').onclick = laadTeams;
+  $('teams-alles-aan').onclick = () => zetAlleTeams(true);
+  $('teams-alles-uit').onclick = () => zetAlleTeams(false);
   $('sync-nu').onclick = syncNu;
   $('gebr-nieuw').onclick = toonGebruikerFormulier;
   laadGebruikers();
+
+  $('gebr-sjabloon').onclick = async () => {
+    try {
+      await haalBestand('/api/admin/users/template', 'yoassist-gebruikers.csv');
+    } catch (err) {
+      toast(err.message);
+    }
+  };
+
+  $('gebr-import').onclick = () => $('gebr-bestand').click();
+
+  $('wed-nieuw').onclick = toonWedstrijdFormulier;
+  $('wed-import').onclick = () => $('wed-bestand').click();
+
+  $('wed-sjabloon').onclick = async () => {
+    try {
+      await haalBestand('/api/admin/wedstrijden/template', 'yoassist-wedstrijden.csv');
+    } catch (err) {
+      toast(err.message);
+    }
+  };
+
+  $('wed-bestand').onchange = async (e) => {
+    const bestand = e.target.files?.[0];
+    if (!bestand) return;
+    const doel = $('wed-uitslag');
+    doel.innerHTML = '<div class="melding let"><span class="spinner"></span>Bestand lezen…</div>';
+    try {
+      const csv = await bestand.text();
+      const r = await api('/api/admin/wedstrijden/import', {
+        method: 'POST',
+        body: JSON.stringify({ csv }),
+      });
+      toonWedImportUitslag(r, csv);
+    } catch (err) {
+      doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+    } finally {
+      e.target.value = '';
+    }
+  };
+
+  $('gebr-bestand').onchange = async (e) => {
+    const bestand = e.target.files?.[0];
+    if (!bestand) return;
+    const doel = $('gebr-import-uitslag');
+    doel.innerHTML = '<div class="melding let"><span class="spinner"></span>Bestand lezen…</div>';
+
+    try {
+      const csv = await bestand.text();
+      const r = await api('/api/admin/users/import', {
+        method: 'POST',
+        body: JSON.stringify({ csv }),
+      });
+      toonImportUitslag(r, csv);
+    } catch (err) {
+      doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+    } finally {
+      // Leegmaken zodat hetzelfde bestand opnieuw gekozen kan worden.
+      e.target.value = '';
+    }
+  };
   laadMailConfig();
 
   $('mail-bewaar').onclick = async () => {
@@ -1154,8 +1487,9 @@ function bindPaneel() {
     }
   };
 
-  // Het laatste laadrapport opnieuw tonen na het herbouwen van het paneel.
+  // De laatste melding bij Teams opnieuw tonen na het herbouwen van het paneel.
   if (staat.teamsRapport) $('teams-melding').innerHTML = teamsRapportHtml(staat.teamsRapport);
+  else if (staat.teamsMelding) $('teams-melding').innerHTML = staat.teamsMelding;
 
   $('club-guid').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); controleerClub(); }
@@ -1168,6 +1502,225 @@ function bindPaneel() {
   document.querySelectorAll('.team-rij input[type="checkbox"]').forEach((vak) => {
     vak.onchange = () => wijzigTeamVlaggen(vak);
   });
+}
+
+function toonWedstrijdFormulier() {
+  const ploegen = (staat.config.teams ?? []).filter((t) => t.actief);
+
+  $('wed-formulier').innerHTML = `
+    <div style="margin-top:.6rem">
+      <div class="veld-paar">
+        <input type="text" id="w-datum" placeholder="JJJJ-MM-DD" style="flex:1">
+        <input type="text" id="w-uur" placeholder="UU:MM" style="width:6rem">
+      </div>
+      <div class="veld-paar">
+        <select id="w-ploeg" style="flex:1">
+          ${ploegen.map((p) => `<option value="${tekst(p.guid)}">${tekst(p.naam)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="veld-paar">
+        <input type="text" id="w-uit" placeholder="Tegenstander" style="flex:1">
+      </div>
+      <div class="veld-paar">
+        <input type="text" id="w-locatie" placeholder="Locatie" style="flex:1">
+      </div>
+      <button class="knop breed" id="w-bewaar">Toevoegen</button>
+    </div>`;
+
+  $('w-bewaar').onclick = async () => {
+    const knop = $('w-bewaar');
+    knop.disabled = true;
+    try {
+      const r = await api('/api/admin/wedstrijden', {
+        method: 'POST',
+        body: JSON.stringify({
+          datum: $('w-datum').value,
+          uur: $('w-uur').value,
+          thuisTeamGuid: $('w-ploeg').value,
+          uitNaam: $('w-uit').value,
+          locatie: $('w-locatie').value,
+        }),
+      });
+      $('wed-formulier').innerHTML = '';
+      $('wed-uitslag').innerHTML = `<div class="melding ok">
+        ${tekst(r.datum)} ${tekst(r.uur)} &mdash; ${tekst(r.thuis)} - ${tekst(r.uit)} toegevoegd.
+        ${r.inScope ? 'Ze staat meteen in de beschikbaarhedenlijst.'
+                    : 'Zet ze in het cluboverzicht in de beschikbaarhedenlijst als er officials nodig zijn.'}
+      </div>`;
+    } catch (err) {
+      $('wed-uitslag').innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+    } finally {
+      knop.disabled = false;
+    }
+  };
+}
+
+/** Uitslag van een wedstrijdimport: eerst wat misging, dan wat er zou gebeuren. */
+function toonWedImportUitslag(r, csv) {
+  const doel = $('wed-uitslag');
+  const blokken = [];
+
+  if (r.aantalFouten > 0) {
+    blokken.push(`<div class="melding fout import-uitslag">
+      <b>${r.aantalFouten} regel(s) met een probleem</b>
+      <ul>${r.fouten.map((x) => `<li><span class="regelnr">regel ${x.regel}</span>
+        ${tekst(x.reden)}</li>`).join('')}</ul>
+    </div>`);
+  }
+
+  if (r.aantalBotsingen > 0) {
+    blokken.push(`<div class="melding let import-uitslag">
+      <b>${r.aantalBotsingen} bestaan al</b>
+      <ul>${r.botsingen.map((x) => `<li><span class="regelnr">regel ${x.regel}</span>
+        ${tekst(x.omschrijving)} — ${tekst(x.reden)}</li>`).join('')}</ul>
+    </div>`);
+  }
+
+  const totaal = r.aantalNieuw + r.aantalVervangen;
+  if (totaal === 0) {
+    blokken.push(`<div class="melding let">Er blijft niets over om toe te voegen.</div>`);
+    doel.innerHTML = blokken.join('');
+    return;
+  }
+
+  blokken.push(`<div class="melding ok import-uitslag">
+    <b>${r.aantalNieuw} nieuw${r.aantalVervangen ? `, ${r.aantalVervangen} vervangen` : ''}</b>
+    <ul>${r.nieuw.map((w) => `<li>${tekst(w.omschrijving)}
+      <span class="regelnr">${tekst(w.catCode || '')}${w.vervangt ? ' · vervangt' : ''}${
+        w.inScope ? ' · komt in de lijst' : ''}</span></li>`).join('')}</ul>
+  </div>
+  <div class="veld-rij" style="margin-top:.5rem">
+    <button class="knop" id="wed-bevestig" style="flex:1">Toevoegen</button>
+    <button class="knop zacht" id="wed-annuleer" style="flex:1">Annuleren</button>
+  </div>`);
+
+  doel.innerHTML = blokken.join('');
+  $('wed-annuleer').onclick = () => { doel.innerHTML = ''; };
+  $('wed-bevestig').onclick = async () => {
+    $('wed-bevestig').disabled = true;
+    try {
+      const uit = await api('/api/admin/wedstrijden/import', {
+        method: 'POST',
+        body: JSON.stringify({ csv, uitvoeren: true }),
+      });
+      doel.innerHTML = `<div class="melding ok">
+        ${uit.aantalNieuw} toegevoegd${uit.aantalVervangen ? `, ${uit.aantalVervangen} vervangen` : ''}.
+      </div>`;
+    } catch (err) {
+      doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+    }
+  };
+}
+
+const MAAND_NAMEN = ['januari','februari','maart','april','mei','juni',
+                     'juli','augustus','september','oktober','november','december'];
+
+function maandLabelUitSleutel(sleutel) {
+  const [j, m] = sleutel.split('-').map(Number);
+  return `${MAAND_NAMEN[m - 1]} ${j}`;
+}
+
+async function laadVrijgeven() {
+  const doel = $('vrij-maanden');
+  try {
+    const data = await api('/api/admin/vrijgeven/maanden');
+    staat.vrijMaanden = data;
+
+    if (data.maanden.length === 0) {
+      doel.innerHTML = '<p class="hint" style="margin:0">Nog geen wedstrijden dit seizoen.</p>';
+      return;
+    }
+
+    doel.innerHTML = `
+      <div class="veld-paar">
+        <select id="vrij-maand" style="flex:1">
+          <option value="">Heel seizoen ${tekst(data.seizoen)}</option>
+          ${data.maanden.map((m) => `<option value="${tekst(m.maand)}">
+            ${tekst(maandLabelUitSleutel(m.maand))} &mdash;
+            ${m.aanduidingen} aanduiding${m.aanduidingen === 1 ? '' : 'en'},
+            ${m.beschikbaarheden} beschikbaar
+          </option>`).join('')}
+        </select>
+      </div>
+      <div class="veld-rij">
+        <button class="knop zacht" data-vrij="aanduidingen" style="flex:1">Aanduidingen</button>
+        <button class="knop zacht" data-vrij="beschikbaarheden" style="flex:1">Beschikbaarheden</button>
+        <button class="knop zacht" data-vrij="beide" style="flex:1">Beide</button>
+      </div>`;
+
+    doel.querySelectorAll('[data-vrij]').forEach((knop) => {
+      knop.onclick = () => toonVrijgeefVoorstel(knop.dataset.vrij, $('vrij-maand').value || null);
+    });
+  } catch (err) {
+    doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+  }
+}
+
+/** Eerst tonen wat er zou gebeuren; pas na bevestiging uitvoeren. */
+async function toonVrijgeefVoorstel(wat, maand) {
+  const doel = $('vrij-uitslag');
+  doel.innerHTML = '<div class="melding let"><span class="spinner"></span>Nakijken…</div>';
+
+  try {
+    const r = await api('/api/admin/vrijgeven', {
+      method: 'POST',
+      body: JSON.stringify({ wat, maand }),
+    });
+
+    if (r.aantalAanduidingen === 0 && r.aantalBeschikbaarheden === 0) {
+      doel.innerHTML = `<div class="melding let">Er valt niets vrij te geven voor
+        ${tekst(r.periode)}.</div>`;
+      return;
+    }
+
+    const stukken = [];
+    if (r.aantalAanduidingen > 0) {
+      stukken.push(`<b>${r.aantalAanduidingen}</b> aanduiding${r.aantalAanduidingen === 1 ? '' : 'en'}
+        van ${r.betrokkenOfficials} official${r.betrokkenOfficials === 1 ? '' : 's'}`);
+    }
+    if (r.aantalBeschikbaarheden > 0) {
+      stukken.push(`<b>${r.aantalBeschikbaarheden}</b> beschikbaarhe${r.aantalBeschikbaarheden === 1 ? 'id' : 'den'}
+        over ${r.wedstrijdenMetBeschikbaarheden} wedstrijd${r.wedstrijdenMetBeschikbaarheden === 1 ? '' : 'en'}`);
+    }
+
+    const voorbeeld = r.aanduidingen.length
+      ? `<ul>${r.aanduidingen.slice(0, 12).map((a) => `<li>${tekst(a.naam)}
+          <span class="regelnr">${tekst(a.wedstrijd)}</span></li>`).join('')}
+         ${r.aanduidingen.length > 12
+            ? `<li class="regelnr">en nog ${r.aantalAanduidingen - 12} andere</li>` : ''}</ul>`
+      : '';
+
+    doel.innerHTML = `
+      <div class="melding let import-uitslag" style="margin-top:.6rem">
+        Voor <b>${tekst(r.periode)}</b>: ${stukken.join(' en ')}.
+        ${voorbeeld}
+      </div>
+      <div class="veld-rij" style="margin-top:.5rem">
+        <button class="knop" id="vrij-bevestig" style="flex:1">Vrijgeven</button>
+        <button class="knop zacht" id="vrij-annuleer" style="flex:1">Annuleren</button>
+      </div>`;
+
+    $('vrij-annuleer').onclick = () => { doel.innerHTML = ''; };
+    $('vrij-bevestig').onclick = async () => {
+      $('vrij-bevestig').disabled = true;
+      try {
+        const uit = await api('/api/admin/vrijgeven', {
+          method: 'POST',
+          body: JSON.stringify({ wat, maand, uitvoeren: true }),
+        });
+        doel.innerHTML = `<div class="melding ok">
+          ${uit.aantalAanduidingen} aanduiding(en) vrijgegeven,
+          ${uit.aantalBeschikbaarheden} beschikbaarhe(i)d(en) gewist voor ${tekst(uit.periode)}.
+          De beheerders kregen een overzicht.
+        </div>`;
+        await laadVrijgeven();
+      } catch (err) {
+        doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+      }
+    };
+  } catch (err) {
+    doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+  }
 }
 
 async function laadMailConfig() {
@@ -1213,17 +1766,38 @@ async function laadGebruikers() {
     const data = await api('/api/admin/users');
     staat.gebruikers = data;
 
-    doel.innerHTML = data.gebruikers.map((g) => `
+    // Gesplitst per rol: een beheerder zoekt meestal binnen één groep, en bij
+    // dertig namen door elkaar is dat zoeken.
+    const groepen = [
+      { naam: 'Beheerders', items: data.gebruikers.filter((g) => g.isAdmin) },
+      { naam: 'YO+', items: data.gebruikers.filter((g) => !g.isAdmin && g.profiel === 'YO+') },
+      { naam: 'YO', items: data.gebruikers.filter((g) => !g.isAdmin && g.profiel === 'YO') },
+    ];
+
+    const rij = (g) => `
       <div class="gebr-rij ${g.actief ? '' : 'inactief'}" data-email="${tekst(g.email)}">
         <span class="gebr-naam">
           ${tekst(g.naam)}
           <small>${tekst(g.email)}${g.clubNaam ? ' &middot; ' + tekst(g.clubNaam) : ''}</small>
         </span>
-        <span class="merk-prof">${tekst(g.profiel)}</span>
-        ${g.isAdmin ? '<span class="merk-adm">ADMIN</span>' : ''}
-        <button class="mini" data-actief="${g.actief ? '0' : '1'}">${g.actief ? 'uit' : 'aan'}</button>
-      </div>`).join('') +
-      `<p class="hint" style="margin:.7rem 0 .3rem">
+        ${g.isAdmin ? `<span class="merk-prof">${tekst(g.profiel)}</span>` : ''}
+        <span class="gebr-acties">
+          <button class="mini" data-actief="${g.actief ? '0' : '1'}">${g.actief ? 'uit' : 'aan'}</button>
+          <button class="mini gevaar" data-verwijder="1"
+            title="${g.aantalAntwoorden ? 'Heeft al antwoorden, gebruik uit' : 'Verwijderen'}">wis</button>
+        </span>
+      </div>`;
+
+    doel.innerHTML =
+      groepen
+        .filter((groep) => groep.items.length > 0)
+        .map((groep) => `
+          <div class="gebr-groep">
+            <h4>${tekst(groep.naam)}<span class="aantal">${groep.items.length}</span></h4>
+            ${groep.items.map(rij).join('')}
+          </div>`)
+        .join('') +
+      `<p class="hint" style="margin:.9rem 0 .3rem">
         ${data.aantalActief} actieve gebruikers. Deze adressen horen in de Access-policy:</p>
       <textarea readonly id="access-lijst">${tekst(data.accessLijst)}</textarea>
       <button class="knop zacht breed" id="kopieer-access">Adressen kopiëren</button>`;
@@ -1254,9 +1828,83 @@ async function laadGebruikers() {
         }
       };
     });
+
+    doel.querySelectorAll('[data-verwijder]').forEach((knop) => {
+      knop.onclick = async () => {
+        const email = knop.closest('.gebr-rij').dataset.email;
+        if (!confirm(`${email} definitief verwijderen?`)) return;
+        try {
+          const res = await api(`/api/admin/users?email=${encodeURIComponent(email)}`,
+            { method: 'DELETE' });
+          $('gebr-melding').innerHTML =
+            `<div class="melding let">${tekst(res.herinnering)}</div>`;
+          await laadGebruikers();
+        } catch (err) {
+          // 409 betekent doorgaans: heeft al antwoorden, dus deactiveren is
+          // de juiste actie. Die uitleg staat in de foutboodschap zelf.
+          $('gebr-melding').innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+        }
+      };
+    });
   } catch (err) {
     doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
   }
+}
+
+/** Toont de uitslag van een import: eerst de fouten, dan wat er zou gebeuren. */
+function toonImportUitslag(r, csv) {
+  const doel = $('gebr-import-uitslag');
+  const blokken = [];
+
+  if (r.aantalFouten > 0) {
+    blokken.push(`<div class="melding fout import-uitslag">
+      <b>${r.aantalFouten} regel(s) met een probleem</b>
+      <ul>${r.fouten.map((f) => `<li><span class="regelnr">regel ${f.regel}</span>
+        ${tekst(f.email || '')} — ${tekst(f.reden)}</li>`).join('')}</ul>
+    </div>`);
+  }
+
+  if (r.aantalOvergeslagen > 0) {
+    blokken.push(`<div class="melding let import-uitslag">
+      <b>${r.aantalOvergeslagen} overgeslagen</b>
+      <ul>${r.overgeslagen.map((o) => `<li><span class="regelnr">regel ${o.regel}</span>
+        ${tekst(o.email)} — ${tekst(o.reden)}</li>`).join('')}</ul>
+    </div>`);
+  }
+
+  if (r.aantalNieuw === 0) {
+    blokken.push(`<div class="melding let">Er blijft niets over om toe te voegen.</div>`);
+    doel.innerHTML = blokken.join('');
+    return;
+  }
+
+  blokken.push(`<div class="melding ok import-uitslag">
+    <b>${r.aantalNieuw} nieuwe gebruiker(s)</b>
+    <ul>${r.nieuw.map((g) => `<li>${tekst(g.naam)} &middot; ${tekst(g.profiel)}
+      <span class="regelnr">${tekst(g.email)}</span></li>`).join('')}</ul>
+  </div>
+  <div class="veld-rij" style="margin-top:.5rem">
+    <button class="knop" id="import-bevestig" style="flex:1">Toevoegen</button>
+    <button class="knop zacht" id="import-annuleer" style="flex:1">Annuleren</button>
+  </div>`);
+
+  doel.innerHTML = blokken.join('');
+
+  $('import-annuleer').onclick = () => { doel.innerHTML = ''; };
+  $('import-bevestig').onclick = async () => {
+    $('import-bevestig').disabled = true;
+    try {
+      const uit = await api('/api/admin/users/import', {
+        method: 'POST',
+        body: JSON.stringify({ csv, uitvoeren: true }),
+      });
+      doel.innerHTML = `<div class="melding ok">${uit.aantalNieuw} gebruiker(s) toegevoegd.
+        ${tekst(uit.herinnering || '')}</div>`;
+      await laadGebruikers();
+    } catch (err) {
+      doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+    }
+  };
 }
 
 function toonGebruikerFormulier() {
@@ -1402,12 +2050,43 @@ function teamsRapportHtml(res) {
     html += `<div class="melding let">
       Onbekende categorie${res.onbekendeCategorieen.length > 1 ? 'ën' : ''}:
       <b>${res.onbekendeCategorieen.map(tekst).join(', ')}</b>.
-      Die ploegen staan rood in de lijst hieronder. Ze krijgen geen tarief en
-      komen niet automatisch in de wedstrijdlijst.
+      Die ploegen staan rood in de lijst hieronder en krijgen geen tarief.
+      ${res.uitgeschakeld
+        ? `${res.uitgeschakeld} nieuwe ploeg(en) staan daarom op niet-volgen; vink ze
+           bewust aan als hun wedstrijden toch opgehaald moeten worden.`
+        : ''}
     </div>`;
   }
 
   return html;
+}
+
+async function zetAlleTeams(volgen) {
+  const melding = $('teams-melding');
+  try {
+    const r = await api('/api/admin/teams/volgen', {
+      method: 'POST',
+      body: JSON.stringify({ volgen }),
+    });
+
+    // Ploegen met een onbekende categorie worden bij 'alles aan' overgeslagen.
+    // Dat expliciet melden, anders lijkt het alsof de knop half gewerkt heeft.
+    const staart = r.overgeslagen
+      ? ` ${r.overgeslagen} ploeg(en) met een onbekende categorie zijn overgeslagen;
+          die moet je bewust zelf aanvinken.`
+      : '';
+
+    // In de staat bewaren: laadConfig() herbouwt het paneel, dus een melding
+    // die enkel in de DOM staat overleeft dat niet.
+    staat.teamsRapport = null;
+    staat.teamsMelding = `<div class="melding ${r.overgeslagen ? 'let' : 'ok'}">
+      ${volgen ? 'Alle ploegen worden nu gevolgd.' : 'Er worden geen ploegen meer gevolgd.'}${staart}
+    </div>`;
+    await laadConfig();
+  } catch (err) {
+    staat.teamsMelding = `<div class="melding fout">${tekst(err.message)}</div>`;
+    melding.innerHTML = staat.teamsMelding;
+  }
 }
 
 async function laadTeams() {
@@ -1425,6 +2104,7 @@ async function laadTeams() {
     // Bewaren in de staat: laadConfig() herbouwt het hele paneel, en zonder dit
     // zou de melding één frame zichtbaar zijn en dan verdwijnen.
     staat.teamsRapport = res;
+    staat.teamsMelding = null;
     await laadConfig();
   } catch (err) {
     melding.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;

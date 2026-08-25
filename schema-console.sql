@@ -11,6 +11,10 @@ CREATE TABLE IF NOT EXISTS settings (
 
 INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('seizoen_start_jaar', '2026');
 
+INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('mail_afzender', '');
+
+INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('mail_afzender_naam', 'YOAssist');
+
 -- ===== BLOK 2 van 11 =====
 CREATE TABLE IF NOT EXISTS categorieen (
   code        TEXT PRIMARY KEY,
@@ -95,6 +99,7 @@ CREATE TABLE IF NOT EXISTS matches (
   scope_reden   TEXT CHECK (scope_reden IN ('auto', 'admin', 'woensdag')),
   scope_op      TEXT,
   scope_uit     INTEGER NOT NULL DEFAULT 0,
+  bron          TEXT NOT NULL DEFAULT 'vbl' CHECK (bron IN ('vbl', 'handmatig')),
   hash          TEXT NOT NULL,
   status        TEXT NOT NULL DEFAULT 'actief' CHECK (status IN ('actief', 'verdwenen')),
   laatst_gezien TEXT NOT NULL DEFAULT (datetime('now')),
@@ -110,6 +115,8 @@ CREATE INDEX IF NOT EXISTS idx_matches_club ON matches (club_guid, seizoen, stat
 CREATE INDEX IF NOT EXISTS idx_matches_opkuis ON matches (off_gewist, datum);
 
 CREATE INDEX IF NOT EXISTS idx_matches_scope ON matches (scope, datum, uur);
+
+CREATE INDEX IF NOT EXISTS idx_matches_bron ON matches (bron, seizoen);
 
 -- ===== BLOK 7 van 11 =====
 CREATE TABLE IF NOT EXISTS assignments (

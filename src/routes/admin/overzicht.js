@@ -1,6 +1,7 @@
 import { json, instelling } from '../../lib/http.js';
 import { seizoenscode, wedstrijdbladUrl } from '../../lib/vbl.js';
 import { aantalNodig } from '../../lib/aanduiding.js';
+import { weekendVenster, vensterLabel } from '../../lib/venster.js';
 
 /**
  * GET /api/admin/overzicht?dagen=14[&club=BVBL1125]
@@ -20,7 +21,13 @@ import { aantalNodig } from '../../lib/aanduiding.js';
  * hieronder houdt daar al plaats voor vrij.
  */
 export async function overzicht({ url, env }) {
-  const dagen = Math.min(Math.max(Number(url.searchParams.get('dagen') ?? 14) || 14, 1), 120);
+  // Het venster waarover de tellers gaan: de eerstvolgende volledige weekends.
+  const weekends = Math.min(Math.max(Number(url.searchParams.get('weekends') ?? 2) || 2, 1), 12);
+  const venster = weekendVenster(new Date(), weekends);
+
+  // Hoe ver de lijst zelf reikt. Standaard ruimer dan het venster, zodat wat
+  // erna komt achter een 'toon meer' beschikbaar is zonder tweede aanroep.
+  const dagen = Math.min(Math.max(Number(url.searchParams.get('dagen') ?? 60) || 60, 1), 365);
   const clubFilter = url.searchParams.get('club');
   const seizoen = seizoenscode(Number(await instelling(env.DB, 'seizoen_start_jaar', '2026')));
 
@@ -57,7 +64,19 @@ export async function overzicht({ url, env }) {
     .all();
 
   if (wedstrijden.length === 0) {
-    return json({ dagen, van: vandaag, tot, wedstrijden: [], aantal: 0 });
+    return json({
+      dagen,
+      van: vandaag,
+      tot,
+      venster: { ...venster, label: vensterLabel(venster) },
+      wedstrijden: [],
+      aantal: 0,
+      inVenster: 0,
+      inScope: 0,
+      onvolledig: 0,
+      zonderBeschikbaren: 0,
+      metProbleem: 0,
+    });
   }
 
   // Beschikbaarheden in één keer ophalen in plaats van per wedstrijd. Bij
@@ -112,6 +131,7 @@ export async function overzicht({ url, env }) {
 
   const uitgewerkt = wedstrijden.map((w) => {
     const antwoord = perWedstrijd.get(w.guid) ?? { ja: [], nee: [] };
+    const toegewezen = perToewijzing.get(w.guid) ?? [];
 
     let vblRefs = [];
     try {
@@ -147,19 +167,35 @@ export async function overzicht({ url, env }) {
       scopeReden: w.scope_reden,
       scopeUit: w.scope_uit === 1,
       nodig: aantalNodig(w.off_aantal),
-      toegewezen: perToewijzing.get(w.guid) ?? [],
+      toegewezen: toegewezen,
+      // Valt deze wedstrijd binnen de weekends waarover de tellers gaan?
+      inVenster: w.datum <= venster.tot,
+      // Een probleem is: ze staat in de lijst, en er is te weinig volk — ofwel
+      // omdat er nog niet genoeg toegewezen zijn, ofwel omdat er niemand
+      // beschikbaar is om uit te kiezen.
+      probleem:
+        w.scope === 1 &&
+        (toegewezen.length < aantalNodig(w.off_aantal) || antwoord.ja.length === 0),
     };
   });
+
+  // Tellers gaan uitsluitend over het weekendvenster, ook als de lijst verder
+  // reikt. Anders klopt het cijfer niet met wat er onder staat zodra iemand
+  // het venster openklapt.
+  const inVenster = uitgewerkt.filter((w) => w.inVenster);
 
   return json({
     dagen,
     van: vandaag,
     tot,
+    venster: { ...venster, label: vensterLabel(venster) },
     aantal: uitgewerkt.length,
-    inScope: uitgewerkt.filter((w) => w.inScope).length,
-    zonderVblRefs: uitgewerkt.filter((w) => w.vblAantal < 2).length,
-    onvolledig: uitgewerkt.filter((w) => w.inScope && w.toegewezen.length < w.nodig).length,
-    zonderBeschikbaren: uitgewerkt.filter((w) => w.inScope && w.beschikbaar.length === 0).length,
+    inVenster: inVenster.length,
+    inScope: inVenster.filter((w) => w.inScope).length,
+    zonderVblRefs: inVenster.filter((w) => w.vblAantal < 2).length,
+    onvolledig: inVenster.filter((w) => w.inScope && w.toegewezen.length < w.nodig).length,
+    zonderBeschikbaren: inVenster.filter((w) => w.inScope && w.beschikbaar.length === 0).length,
+    metProbleem: inVenster.filter((w) => w.probleem).length,
     wedstrijden: uitgewerkt,
   });
 }

@@ -151,8 +151,10 @@ console.log('\n5. Cluboverzicht');
       ('yo@club.be','M1','ja'), ('baas@club.be','M1','nee'), ('baas2@club.be','M1','ja');
   `);
 
-  const r = await vraag(env, '/api/admin/overzicht?dagen=14', { alsWie: 'baas@club.be' });
+  const r = await vraag(env, '/api/admin/overzicht', { alsWie: 'baas@club.be' });
   check('drie wedstrijden', r.json.aantal, 3);
+  check('venster meegestuurd', r.json.venster.weekends.length, 2);
+  check('venster heeft een leesbaar label', typeof r.json.venster.label, 'string');
   check('chronologisch gesorteerd', r.json.wedstrijden.map((w) => w.uur), ['10:00', '14:00', '16:00']);
   check('telling zonder twee VBL-refs', r.json.zonderVblRefs, 2);
   check('telling zonder beschikbaren', r.json.zonderBeschikbaren, 2);
@@ -186,10 +188,12 @@ console.log('\n6. Overzicht respecteert het venster');
   `);
 
   const r = await vraag(env, '/api/admin/overzicht?dagen=14', { alsWie: 'baas@club.be' });
-  check('enkel binnen het venster', r.json.wedstrijden.map((w) => w.guid), ['BINNEN']);
+  check('enkel binnen het dagvenster', r.json.wedstrijden.map((w) => w.guid), ['BINNEN']);
 
   const ruim = await vraag(env, '/api/admin/overzicht?dagen=60', { alsWie: 'baas@club.be' });
-  check('ruimer venster toont meer', ruim.json.wedstrijden.map((w) => w.guid), ['BINNEN', 'BUITEN']);
+  check('ruimer dagvenster toont meer', ruim.json.wedstrijden.map((w) => w.guid), ['BINNEN', 'BUITEN']);
+  check('maar de verre wedstrijd valt buiten het weekendvenster',
+    ruim.json.wedstrijden.find((w) => w.guid === 'BUITEN').inVenster, false);
 }
 
 console.log('\n7. Gewiste namen blijven telbaar');
@@ -205,6 +209,150 @@ console.log('\n7. Gewiste namen blijven telbaar');
   check('aantal bewaard', m.vblAantal, 2);
   check('namen weg', m.vblRefs, []);
   check('als gewist gemarkeerd', m.vblNamenGewist, true);
+}
+
+console.log('\n8. Tellers gaan over het weekendvenster, niet over de hele lijst');
+{
+  const env = nieuweEnv();
+  const overDagen = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+  env.DB.exec(`
+    INSERT INTO matches (guid, seizoen, club_guid, thuis_guid, thuis_naam, uit_naam,
+                         datum, uur, cat_code, off_aantal, scope, scope_reden, hash) VALUES
+      ('DICHTBIJ','2627','${CLUB}','${CLUB}G12  1','A','B','${overDagen(2)}','14:00','G12',0,1,'auto','h1'),
+      ('VERWEG','2627','${CLUB}','${CLUB}G12  1','A','B','${overDagen(50)}','14:00','G12',0,1,'auto','h2');
+  `);
+
+  const r = await vraag(env, '/api/admin/overzicht', { alsWie: 'baas@club.be' });
+  check('beide in de lijst', r.json.aantal, 2);
+  check('maar slechts één in het venster', r.json.inVenster, 1);
+  check('teller in scope telt enkel het venster', r.json.inScope, 1);
+  check('teller onvolledig ook', r.json.onvolledig, 1);
+
+  const dichtbij = r.json.wedstrijden.find((w) => w.guid === 'DICHTBIJ');
+  check('probleemvlag gezet: niemand beschikbaar', dichtbij.probleem, true);
+  check('en het wordt geteld', r.json.metProbleem, 1);
+}
+
+console.log('\n9. Geen probleem zodra er genoeg toegewezen zijn');
+{
+  const env = nieuweEnv();
+  const morgenIso = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
+  env.DB.exec(`
+    INSERT INTO matches (guid, seizoen, club_guid, thuis_guid, thuis_naam, uit_naam,
+                         datum, uur, cat_code, off_aantal, scope, scope_reden, hash)
+      VALUES ('VOL','2627','${CLUB}','${CLUB}G12  1','A','B','${morgenIso}','14:00','G12',0,1,'auto','h');
+    INSERT INTO availability (user_email, match_guid, status) VALUES
+      ('yo@club.be','VOL','ja'), ('baas2@club.be','VOL','ja');
+    INSERT INTO assignments (match_guid, user_email, toegewezen_door) VALUES
+      ('VOL','yo@club.be','baas@club.be'), ('VOL','baas2@club.be','baas@club.be');
+  `);
+
+  const r = await vraag(env, '/api/admin/overzicht', { alsWie: 'baas@club.be' });
+  const vol = r.json.wedstrijden.find((w) => w.guid === 'VOL');
+  check('volledig aangeduid en iemand beschikbaar: geen probleem', vol.probleem, false);
+  check('teller op nul', r.json.metProbleem, 0);
+}
+
+console.log('\n10. Buiten scope is nooit een probleem');
+{
+  const env = nieuweEnv();
+  const d = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
+  env.DB.exec(`
+    INSERT INTO matches (guid, seizoen, club_guid, thuis_guid, thuis_naam, uit_naam,
+                         datum, uur, cat_code, off_aantal, scope, hash)
+      VALUES ('BUITENSCOPE','2627','${CLUB}','${CLUB}J16  1','A','B','${d}','14:00','J16',0,0,'h');
+  `);
+  const r = await vraag(env, '/api/admin/overzicht', { alsWie: 'baas@club.be' });
+  check('geen probleem buiten de beschikbaarhedenlijst',
+    r.json.wedstrijden.find((w) => w.guid === 'BUITENSCOPE').probleem, false);
+  check('teller blijft nul', r.json.metProbleem, 0);
+}
+
+console.log('\n11. Onbekende categorie start uitgeschakeld');
+{
+  const env = nieuweEnv();
+  // Nabootsing van de API: één bekende ploeg (G12) en twee onbekende (ROL, G08).
+  globalThis.fetch = async () => ({
+    ok: true, status: 200,
+    text: async () => JSON.stringify([{
+      guid: CLUB, naam: 'Leuven Bears',
+      teams: [
+        { guid: `${CLUB}G12  9`, naam: 'G12 Z', categorie: 'Meisjes U12' },
+        { guid: `${CLUB}ROL  9`, naam: 'ROL Z', categorie: 'Rolstoel' },
+        { guid: `${CLUB}G08  9`, naam: 'G08 Z', categorie: 'Gemengd U8' },
+      ],
+    }]),
+  });
+
+  const r = await vraag(env, '/api/admin/teams',
+    { methode: 'POST', alsWie: 'baas@club.be', body: { actie: 'laden' } });
+
+  check('onbekende codes gemeld', r.json.onbekendeCategorieen.sort(), ['G08', 'ROL']);
+  check('twee nieuwe ploegen uitgeschakeld', r.json.uitgeschakeld, 2);
+
+  const rijen = (await env.DB.prepare(
+    "SELECT guid, cat_code, volgen FROM teams WHERE guid LIKE '%  9' ORDER BY cat_code").all()).results;
+  check('G08 staat uit', rijen.find((x) => x.cat_code === 'G08').volgen, 0);
+  check('ROL staat uit', rijen.find((x) => x.cat_code === 'ROL').volgen, 0);
+  check('G12 staat aan', rijen.find((x) => x.cat_code === 'G12').volgen, 1);
+}
+
+console.log('\n12. Een bewuste keuze blijft staan bij een tweede laadbeurt');
+{
+  const env = nieuweEnv();
+  env.DB.exec(`INSERT INTO teams (guid, club_guid, naam, cat_code, volgen)
+               VALUES ('${CLUB}ROL  9', '${CLUB}', 'ROL Z', 'ROL', 1)`);
+
+  globalThis.fetch = async () => ({
+    ok: true, status: 200,
+    text: async () => JSON.stringify([{
+      guid: CLUB, naam: 'Leuven Bears',
+      teams: [{ guid: `${CLUB}ROL  9`, naam: 'ROL Z', categorie: 'Rolstoel' }],
+    }]),
+  });
+
+  const r = await vraag(env, '/api/admin/teams',
+    { methode: 'POST', alsWie: 'baas@club.be', body: { actie: 'laden' } });
+  check('bestaand team telt niet als nieuw uitgeschakeld', r.json.uitgeschakeld, 0);
+  check('de keuze van de beheerder blijft',
+    (await env.DB.prepare(`SELECT volgen FROM teams WHERE guid = '${CLUB}ROL  9'`).first()).volgen, 1);
+}
+
+console.log('\n13. Alles volgen, en alles uit');
+{
+  const env = nieuweEnv();
+  env.DB.exec(`
+    INSERT INTO teams (guid, club_guid, naam, cat_code, volgen) VALUES
+      ('${CLUB}J18  1', '${CLUB}', 'J18 A', 'J18', 0),
+      ('${CLUB}ROL  1', '${CLUB}', 'ROL A', 'ROL', 0),
+      ('${CLUB}XXX  1', '${CLUB}', 'Zonder code', NULL, 0);
+  `);
+
+  const aan = await vraag(env, '/api/admin/teams/volgen',
+    { methode: 'POST', alsWie: 'baas@club.be', body: { volgen: true } });
+  check('overgeslagen wordt gemeld', aan.json.overgeslagen, 2);
+
+  const na = (await env.DB.prepare('SELECT cat_code, volgen FROM teams').all()).results;
+  check('bekende categorieën staan aan',
+    na.filter((x) => ['G12', 'J16', 'J18'].includes(x.cat_code)).every((x) => x.volgen === 1), true);
+  check('ROL blijft uit', na.find((x) => x.cat_code === 'ROL').volgen, 0);
+  check('ploeg zonder code blijft uit', na.find((x) => x.cat_code === null).volgen, 0);
+
+  await vraag(env, '/api/admin/teams/volgen',
+    { methode: 'POST', alsWie: 'baas@club.be', body: { volgen: false } });
+  const uit = (await env.DB.prepare('SELECT COUNT(*) AS n FROM teams WHERE volgen = 1').first()).n;
+  check('alles uit zet ook de bekende categorieën uit', uit, 0);
+}
+
+console.log('\n14. Validatie en afscherming van de knop');
+{
+  const env = nieuweEnv();
+  check('volgen moet een boolean zijn',
+    (await vraag(env, '/api/admin/teams/volgen',
+      { methode: 'POST', alsWie: 'baas@club.be', body: { volgen: 'ja' } })).status, 400);
+  check('YO mag dit niet',
+    (await vraag(env, '/api/admin/teams/volgen',
+      { methode: 'POST', alsWie: 'yo@club.be', body: { volgen: true } })).status, 403);
 }
 
 console.log(mislukt === 0 ? '\n=== ALLE BEHEERTESTS GESLAAGD ===' : `\n=== ${mislukt} TESTS GEFAALD ===`);
