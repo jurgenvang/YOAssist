@@ -16,7 +16,7 @@ import { verwittig } from '../lib/verwittigen.js';
 /** GET /api/voorkeuren */
 export async function voorkeuren({ env, user }) {
   const rij = await env.DB.prepare(
-    `SELECT kanaal_mail, kanaal_push, herinner_avond, herinner_ochtend
+    `SELECT kanaal_mail, kanaal_push, herinner_avond, herinner_ochtend, verborgen_tabs
        FROM users WHERE email = ?`,
   )
     .bind(user.email)
@@ -34,6 +34,7 @@ export async function voorkeuren({ env, user }) {
     push: rij.kanaal_push === 1,
     herinnerAvond: rij.herinner_avond === 1,
     herinnerOchtend: rij.herinner_ochtend === 1,
+    verborgenTabs: (rij.verborgen_tabs ?? '').split(',').filter(Boolean),
     toestellen: toestellen.map((t) => ({
       id: t.id,
       toestel: t.toestel,
@@ -65,6 +66,15 @@ export async function zetVoorkeuren({ request, env, user }) {
   zet('push', 'kanaal_push');
   zet('herinnerAvond', 'herinner_avond');
   zet('herinnerOchtend', 'herinner_ochtend');
+
+  // Welke tabbladen iemand wil zien. Puur een weergavevoorkeur: de backend
+  // blijft weigeren wat iemand niet mag, ongeacht wat hier staat.
+  if (Array.isArray(body.verborgenTabs)) {
+    const toegestaan = ['club', 'log', 'geld'];
+    const gekozen = body.verborgenTabs.filter((s) => toegestaan.includes(s));
+    velden.push('verborgen_tabs = ?');
+    waarden.push(gekozen.join(','));
+  }
 
   if (velden.length === 0) {
     return fout(400, 'Niets te wijzigen', 'Geef minstens één voorkeur mee.');

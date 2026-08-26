@@ -298,5 +298,56 @@ console.log('\n15. Gewiste VBL-namen tonen enkel nog het aantal');
   check('als gewist gemarkeerd', u12a.vblNamenGewist, true);
 }
 
+console.log('\n16. Bevestigen dat er twee refs zijn buiten VBL om');
+{
+  const env = nieuweEnv();
+
+  const r = await vraag(env, '/api/admin/refs-bevestigd',
+    { methode: 'PATCH', alsWie: 'baas@club.be', body: { matchGuid: 'J16B', bevestigd: true } });
+  check('gelukt', r.status, 200);
+
+  const rij = await env.DB.prepare(
+    'SELECT refs_bevestigd, refs_bevestigd_door FROM matches WHERE guid = ?').bind('J16B').first();
+  check('vlag staat aan', rij.refs_bevestigd, 1);
+  check('met wie het deed', rij.refs_bevestigd_door, 'baas@club.be');
+
+  // De vlag mag niets veranderen aan hoeveel officials er nodig zijn.
+  const overzicht = await vraag(env, '/api/admin/overzicht', { alsWie: 'baas@club.be' });
+  const j16b = overzicht.json.wedstrijden.find((w) => w.guid === 'J16B');
+  check('aantal nodig ongewijzigd', j16b.nodig, 1);
+  check('wel als bevestigd gemeld', j16b.refsBevestigd, true);
+
+  const uit = await vraag(env, '/api/admin/refs-bevestigd',
+    { methode: 'PATCH', alsWie: 'baas@club.be', body: { matchGuid: 'J16B', bevestigd: false } });
+  check('intrekken lukt', uit.status, 200);
+  check('vlag staat uit', (await env.DB.prepare(
+    'SELECT refs_bevestigd FROM matches WHERE guid = ?').bind('J16B').first()).refs_bevestigd, 0);
+}
+
+console.log('\n17. Bevestigen kan niet als de bond er al twee heeft');
+{
+  const env = nieuweEnv();
+  env.DB.exec("UPDATE matches SET off_aantal = 2 WHERE guid = 'J16B'");
+
+  const r = await vraag(env, '/api/admin/refs-bevestigd',
+    { methode: 'PATCH', alsWie: 'baas@club.be', body: { matchGuid: 'J16B', bevestigd: true } });
+  check('geweigerd', r.status, 409);
+  check('met uitleg', /al twee/.test(r.json.detail), true);
+}
+
+console.log('\n18. Enkel beheerders, en enkel bestaande wedstrijden');
+{
+  const env = nieuweEnv();
+  check('YO mag niet bevestigen',
+    (await vraag(env, '/api/admin/refs-bevestigd',
+      { methode: 'PATCH', alsWie: 'yo@club.be', body: { matchGuid: 'J16B', bevestigd: true } })).status, 403);
+  check('onbekende wedstrijd',
+    (await vraag(env, '/api/admin/refs-bevestigd',
+      { methode: 'PATCH', alsWie: 'baas@club.be', body: { matchGuid: 'BESTAATNIET', bevestigd: true } })).status, 404);
+  check('zonder guid',
+    (await vraag(env, '/api/admin/refs-bevestigd',
+      { methode: 'PATCH', alsWie: 'baas@club.be', body: { bevestigd: true } })).status, 400);
+}
+
 console.log(mislukt === 0 ? '\n=== ALLE AANDUIDINGSTESTS GESLAAGD ===' : `\n=== ${mislukt} TESTS GEFAALD ===`);
 process.exit(mislukt ? 1 : 0);

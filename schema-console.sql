@@ -1,6 +1,5 @@
 -- YOAssist schema, klaar om in de D1-console te plakken.
 -- Geen commentaar binnenin, geen PRAGMA: daar struikelt de console over.
--- Werkt de console alleen met een statement tegelijk, plak dan blok per blok.
 
 -- ===== BLOK 1 van 15 =====
 CREATE TABLE IF NOT EXISTS settings (
@@ -62,7 +61,8 @@ CREATE TABLE IF NOT EXISTS users (
   kanaal_mail INTEGER NOT NULL DEFAULT 1,
   kanaal_push INTEGER NOT NULL DEFAULT 0,
   herinner_avond   INTEGER NOT NULL DEFAULT 1,
-  herinner_ochtend INTEGER NOT NULL DEFAULT 1
+  herinner_ochtend INTEGER NOT NULL DEFAULT 1,
+  verborgen_tabs TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_naam
@@ -120,6 +120,9 @@ CREATE TABLE IF NOT EXISTS matches (
   scope_reden   TEXT CHECK (scope_reden IN ('auto', 'admin', 'woensdag')),
   scope_op      TEXT,
   scope_uit     INTEGER NOT NULL DEFAULT 0,
+  refs_bevestigd INTEGER NOT NULL DEFAULT 0,
+  refs_bevestigd_door TEXT,
+  refs_bevestigd_op   TEXT,
   bron          TEXT NOT NULL DEFAULT 'vbl' CHECK (bron IN ('vbl', 'handmatig')),
   hash          TEXT NOT NULL,
   status        TEXT NOT NULL DEFAULT 'actief' CHECK (status IN ('actief', 'verdwenen')),

@@ -98,7 +98,11 @@ CREATE TABLE IF NOT EXISTS users (
   kanaal_push INTEGER NOT NULL DEFAULT 0,
   -- Herinneringen staan standaard aan. Wie ze niet wil, zet ze zelf af.
   herinner_avond   INTEGER NOT NULL DEFAULT 1,
-  herinner_ochtend INTEGER NOT NULL DEFAULT 1
+  herinner_ochtend INTEGER NOT NULL DEFAULT 1,
+  -- Komma-gescheiden lijst van tabbladen die deze gebruiker niet wil zien.
+  -- Een persoonlijke voorkeur, geen rechten: de backend blijft weigeren wat
+  -- iemand niet mag, ongeacht wat hier staat.
+  verborgen_tabs TEXT NOT NULL DEFAULT ''
 );
 
 -- Officials sorteer je op achternaam. Tussenvoegsels ('Van der Elst') horen bij
@@ -197,6 +201,14 @@ CREATE TABLE IF NOT EXISTS matches (
   scope_reden   TEXT CHECK (scope_reden IN ('auto', 'admin', 'woensdag')),
   scope_op      TEXT,
   scope_uit     INTEGER NOT NULL DEFAULT 0,
+  -- Een beheerder weet dat er twee scheidsrechters zijn terwijl het systeem van
+  -- Basketbal Vlaanderen er nog geen toont. Puur een vlag: ze wijst niemand aan
+  -- en verandert niets aan hoeveel officials er nodig zijn. Enige functie is de
+  -- rode melding onderdrukken, want de situatie is in werkelijkheid in orde.
+  -- Wordt automatisch gewist zodra de bond zelf twee refs invult.
+  refs_bevestigd INTEGER NOT NULL DEFAULT 0,
+  refs_bevestigd_door TEXT,
+  refs_bevestigd_op   TEXT,
   -- Waar deze wedstrijd vandaan komt.
   --   'vbl'       : opgehaald bij Basketbal Vlaanderen
   --   'handmatig' : door een beheerder toegevoegd (oefenwedstrijd, toernooi)

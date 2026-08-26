@@ -318,6 +318,18 @@ export async function synchroniseer(db, bron) {
       .run();
     rapport.namenGewist = opkuis?.meta?.changes ?? 0;
 
+    // Een handmatige bevestiging dat er twee scheidsrechters zijn, is overbodig
+    // zodra de bond ze zelf aanduidt. Laten staan zou een label tonen dat niets
+    // meer toevoegt en dat niemand nog durft weg te halen.
+    const bevestiging = await db
+      .prepare(
+        `UPDATE matches
+            SET refs_bevestigd = 0, refs_bevestigd_door = NULL, refs_bevestigd_op = NULL
+          WHERE refs_bevestigd = 1 AND off_aantal >= 2`,
+      )
+      .run();
+    rapport.bevestigingenGewist = bevestiging?.meta?.changes ?? 0;
+
     await zetInstelling(db, 'laatste_sync', new Date().toISOString());
 
     return await sluitAf(db, runId, rapport, rapport.status, rapport.boodschap);

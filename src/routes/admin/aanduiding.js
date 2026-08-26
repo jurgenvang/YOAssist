@@ -337,3 +337,56 @@ export async function handelProbleemAf({ request, env, user }) {
 
   return json({ id, afgehandeld: body.afgehandeld !== false });
 }
+
+
+/**
+ * PATCH /api/admin/refs-bevestigd   { matchGuid, bevestigd }
+ *
+ * Een beheerder weet dat er twee scheidsrechters komen terwijl Basketbal
+ * Vlaanderen er nog geen toont. Deze vlag wijst niemand aan en verandert niets
+ * aan hoeveel officials er nodig zijn — ze onderdrukt alleen de melding dat er
+ * geen ref is, want dat klopt in werkelijkheid niet.
+ */
+export async function bevestigRefs({ request, env, user }) {
+  const body = await leesJson(request);
+  const guid = String(body.matchGuid ?? '').trim();
+  if (!guid) return fout(400, 'Ongeldige aanvraag', 'matchGuid ontbreekt.');
+
+  const wedstrijd = await env.DB.prepare(
+    'SELECT guid, datum, uur, thuis_naam, uit_naam, off_aantal FROM matches WHERE guid = ?',
+  )
+    .bind(guid)
+    .first();
+  if (!wedstrijd) return fout(404, 'Onbekende wedstrijd', 'Deze wedstrijd bestaat niet.');
+
+  const bevestigd = body.bevestigd !== false;
+
+  if (bevestigd && wedstrijd.off_aantal >= 2) {
+    return fout(
+      409,
+      'Niet nodig',
+      'Basketbal Vlaanderen heeft hier al twee scheidsrechters aangeduid.',
+    );
+  }
+
+  await env.DB.prepare(
+    `UPDATE matches
+        SET refs_bevestigd = ?, refs_bevestigd_door = ?, refs_bevestigd_op = ?
+      WHERE guid = ?`,
+  )
+    .bind(bevestigd ? 1 : 0, bevestigd ? user.email : null,
+      bevestigd ? new Date().toISOString() : null, guid)
+    .run();
+
+  await log(env.DB, {
+    categorie: 'wedstrijd',
+    soort: 'gewijzigd',
+    matchGuid: guid,
+    wie: user.email,
+    veld: 'scheidsrechters buiten VBL',
+    nieuw: bevestigd ? 'bevestigd dat er twee refs zijn' : 'bevestiging ingetrokken',
+    afgehandeld: true,
+  });
+
+  return json({ matchGuid: guid, bevestigd });
+}

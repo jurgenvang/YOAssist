@@ -238,7 +238,8 @@ console.log('\n11. Het naammenu');
     /id="voorkeur-knop"|id="menu-knop"/.test(html), false);
 
   const items = [...html.matchAll(/data-menu="(\w+)"/g)].map((m) => m[1]);
-  check('drie menu-items', [...new Set(items)].sort(), ['beheer', 'rondleiding', 'voorkeuren']);
+  check('vier menu-items', [...new Set(items)].sort(),
+    ['beheer', 'rondleiding', 'vergoeding', 'voorkeuren']);
   check('beheer staat standaard verborgen',
     /data-menu="beheer" hidden/.test(html), true);
 

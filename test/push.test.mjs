@@ -285,5 +285,27 @@ console.log('\n13. Iedereen mag bij zijn eigen voorkeuren');
     (await vraag(env, '/api/voorkeuren', { alsWie: null })).status, 401);
 }
 
+console.log('\n14. Tabbladen verbergen als voorkeur');
+{
+  const env = nieuweEnv();
+  check('standaard niets verborgen',
+    (await vraag(env, '/api/voorkeuren', { alsWie: 'baas@club.be' })).json.verborgenTabs, []);
+
+  await vraag(env, '/api/voorkeuren',
+    { methode: 'PATCH', alsWie: 'baas@club.be', body: { verborgenTabs: ['log'] } });
+  check('bewaard',
+    (await vraag(env, '/api/voorkeuren', { alsWie: 'baas@club.be' })).json.verborgenTabs, ['log']);
+
+  // Onbekende sleutels worden genegeerd: dit is een weergavevoorkeur, geen
+  // plek om willekeurige tekst in de databank te zetten.
+  await vraag(env, '/api/voorkeuren',
+    { methode: 'PATCH', alsWie: 'baas@club.be', body: { verborgenTabs: ['log', 'onzin'] } });
+  check('enkel gekende tabbladen',
+    (await vraag(env, '/api/voorkeuren', { alsWie: 'baas@club.be' })).json.verborgenTabs, ['log']);
+
+  check('per gebruiker apart',
+    (await vraag(env, '/api/voorkeuren', { alsWie: 'ann@club.be' })).json.verborgenTabs, []);
+}
+
 console.log(f === 0 ? '\n=== ALLE PUSHTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);
 process.exit(f ? 1 : 0);

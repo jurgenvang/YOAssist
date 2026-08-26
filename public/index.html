@@ -412,6 +412,7 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
 .chip.ja  { background: var(--groen-zacht); color: var(--groen); }
 .chip.nee { background: var(--rood-zacht);  color: var(--rood); }
 .chip.vbl { background: #e9edf7; color: #2b3f7a; }
+.chip.bevestigd { background: #e6f2ec; color: var(--groen); font-weight: 600; }
 .chip.geen { background: transparent; color: var(--grijs); font-style: italic; padding-left: 0; }
 .chip.toe { background: var(--inkt); color: #fff; }
 .ref-plaats {
@@ -624,6 +625,7 @@ select {
     <div class="merk">YO<span class="accent">Assist</span><span class="versie" id="versie"></span></div>
     <button class="balk-info" id="balk-info" aria-haspopup="menu" aria-expanded="false"></button>
     <div class="naammenu" id="naammenu" role="menu" hidden>
+      <button role="menuitem" data-menu="vergoeding">Mijn vergoeding</button>
       <button role="menuitem" data-menu="voorkeuren">Mijn voorkeuren</button>
       <button role="menuitem" data-menu="rondleiding">Rondleiding</button>
       <button role="menuitem" data-menu="beheer" hidden>Beheer</button>
@@ -636,7 +638,6 @@ select {
     <button class="tab" id="tab-mijn" role="tab" aria-selected="true">Aanduidingen</button>
     <button class="tab" id="tab-club" role="tab" aria-selected="false">Cluboverzicht</button>
     <button class="tab" id="tab-log" role="tab" aria-selected="false">Logboek</button>
-    <button class="tab" id="tab-geld" role="tab" aria-selected="false">Vergoeding</button>
   </div>
   <div id="hoofd">
     <div class="leeg"><span class="spinner"></span> Laden…</div>
@@ -650,6 +651,16 @@ select {
       <button class="sluit" id="paneel-sluit" aria-label="Sluiten">&times;</button>
     </div>
     <div id="paneel-inhoud"><div class="leeg"><span class="spinner"></span> Laden…</div></div>
+  </div>
+</div>
+
+<div class="overlay" id="geld-overlay" role="dialog" aria-modal="true" aria-label="Mijn vergoeding">
+  <div class="paneel">
+    <div class="paneel-kop">
+      <h2>Mijn vergoeding</h2>
+      <button class="sluit" id="geld-sluit" aria-label="Sluiten">&times;</button>
+    </div>
+    <div id="geld-inhoud"><div class="leeg"><span class="spinner"></span> Laden…</div></div>
   </div>
 </div>
 
@@ -913,10 +924,13 @@ async function laadHoofd() {
       `${ik.clubNaam ? ' &middot; ' + tekst(ik.clubNaam) : ''}${beheerRegel}</span>`;
 
     document.querySelector('[data-menu="beheer"]').hidden = !ik.isAdmin;
-    // De tabbalk is er nu voor iedereen: ook een gewone YO heeft Vergoeding.
-    // De beheerderstabbladen blijven wel verborgen.
-    $('tabs').hidden = false;
-    for (const id of ['tab-club', 'tab-log']) $(id).hidden = !ik.isAdmin;
+    // De tabbalk is er alleen voor beheerders: een gewone YO heeft één scherm,
+    // en zijn vergoeding staat in het naammenu.
+    try {
+      const v = await api('/api/voorkeuren');
+      staat.verborgenTabs = v.verborgenTabs ?? [];
+    } catch { /* zonder voorkeuren tonen we gewoon alles */ }
+    pasTabbalkToe();
 
     if (data.clubKeuze) {
       toonClubKeuze(data.clubKeuze, ik.isAdmin);
@@ -993,8 +1007,8 @@ function toonMatches(data) {
           aangeduid.length ? ` &middot; ${aangeduid.length} keer aangeduid` : ''}.</span></div>`,
   );
 
-  const sectie = (sleutel, naam, uitleg, items) => {
-    if (items.length === 0) return;
+  const sectie = (sleutel, naam, uitleg, items, staart = '') => {
+    if (items.length === 0 && !staart) return;
     delen.push(`<div class="groep-kop" data-vouw="yo-${sleutel}"><h2>${tekst(naam)}</h2>
       <span class="aantal">${items.length}</span></div>`);
 
@@ -1011,18 +1025,42 @@ function toonMatches(data) {
       binnen.push(kaart(m));
     }
 
-    delen.push(`<div class="groep-inhoud" data-vouw-inhoud="yo-${sleutel}">${binnen.join('')}</div>`);
+    delen.push(`<div class="groep-inhoud" data-vouw-inhoud="yo-${sleutel}">${
+      binnen.join('')}${staart}</div>`);
   };
 
   sectie('aangeduid', 'Je bent aangeduid',
     'Deze wedstrijden fluit je. Lukt het niet, meld dat dan.', aangeduid);
-  sectie('open', 'Nog te beantwoorden', '', open);
+  // Standaard alleen deze maand en de volgende. Verder vooruit antwoorden heeft
+  // weinig zin: je weet nog niet of je dan kunt, en een lijst van vijf maanden
+  // maakt juist de sectie die actie vraagt onoverzichtelijk.
+  const nu = new Date();
+  const grens = new Date(Date.UTC(nu.getUTCFullYear(), nu.getUTCMonth() + 2, 1))
+    .toISOString().slice(0, 7);
+  const dichtbij = open.filter((m) => maandSleutel(m.datum) < grens);
+  const verderop = open.filter((m) => maandSleutel(m.datum) >= grens);
+
+  sectie('open', 'Nog te beantwoorden', '',
+    staat.openAlles ? open : dichtbij,
+    verderop.length > 0
+      ? `<button class="knop zacht breed meer-knop" id="open-meer">
+           ${staat.openAlles
+             ? 'Toon enkel deze en volgende maand'
+             : `Toon ook wat later komt (${verderop.length})`}
+         </button>`
+      : '');
   sectie('beantwoord', 'Je hebt geantwoord',
     'Je kunt dit nog wijzigen zolang je niet aangeduid bent.', beantwoord);
 
   doel.innerHTML = delen.join('');
   koppelVouwknoppen();
   zorgVoorZichtbareSectie();
+
+  const meer = $('open-meer');
+  if (meer) meer.onclick = () => {
+    staat.openAlles = !staat.openAlles;
+    toonMatches({ matches: staat.matches });
+  };
 }
 
 function refsRegel(m) {
@@ -1173,27 +1211,30 @@ function werkTellerBij() {
 $('tab-mijn').addEventListener('click', () => wisselWeergave('mijn'));
 $('tab-club').addEventListener('click', () => wisselWeergave('club'));
 $('tab-log').addEventListener('click', () => wisselWeergave('log'));
-$('tab-geld').addEventListener('click', () => wisselWeergave('geld'));
+
 
 async function wisselWeergave(welke) {
   staat.weergave = welke;
-  for (const [id, sleutel] of [['tab-mijn', 'mijn'], ['tab-club', 'club'],
-                               ['tab-log', 'log'], ['tab-geld', 'geld']]) {
+  for (const [id, sleutel] of [['tab-mijn', 'mijn'], ['tab-club', 'club'], ['tab-log', 'log']]) {
     $(id).setAttribute('aria-selected', String(welke === sleutel));
   }
 
   if (welke === 'mijn') {
-    toonMatches({ matches: staat.matches });
+    // Altijd opnieuw ophalen. Wie van het cluboverzicht terugkomt, heeft daar
+    // net iets gewijzigd; de lijst uit het geheugen toont dat niet.
+    $('hoofd').innerHTML = '<div class="leeg"><span class="spinner"></span> Laden…</div>';
+    try {
+      const data = await api('/api/matches');
+      staat.matches = data.matches;
+      toonMatches(data);
+    } catch (err) {
+      $('hoofd').innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+    }
     return;
   }
 
   if (welke === 'log') {
     await laadLogboek();
-    return;
-  }
-
-  if (welke === 'geld') {
-    await laadVergoeding();
     return;
   }
 
@@ -1212,17 +1253,17 @@ async function wisselWeergave(welke) {
    'ik heb vorige week gefloten, waarom staat er niets' bij de beheerder terecht.
 ------------------------------------------------------------------------- */
 async function laadVergoeding() {
-  $('hoofd').innerHTML = '<div class="leeg"><span class="spinner"></span> Laden…</div>';
+  $('geld-inhoud').innerHTML = '<div class="leeg"><span class="spinner"></span> Laden…</div>';
   try {
     toonVergoeding(await api('/api/vergoeding'));
   } catch (err) {
-    $('hoofd').innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+    $('geld-inhoud').innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
   }
 }
 
 function toonVergoeding(data) {
   if (data.maanden.length === 0) {
-    $('hoofd').innerHTML = `<div class="leeg">Je hebt dit seizoen nog geen wedstrijden gefloten.<br>
+    $('geld-inhoud').innerHTML = `<div class="leeg">Je hebt dit seizoen nog geen wedstrijden gefloten.<br>
       Zodra je bent aangeduid en de wedstrijd gespeeld is, verschijnt ze hier.</div>`;
     return;
   }
@@ -1263,7 +1304,7 @@ function toonVergoeding(data) {
       </div>`);
   }
 
-  $('hoofd').innerHTML = delen.join('');
+  $('geld-inhoud').innerHTML = delen.join('');
 }
 
 /* --- Logboek ------------------------------------------------------------- */
@@ -1897,6 +1938,22 @@ $('voorkeur-overlay').addEventListener('click', (e) => {
   if (e.target === $('voorkeur-overlay')) sluitVoorkeuren();
 });
 
+$('geld-sluit').addEventListener('click', sluitVergoeding);
+$('geld-overlay').addEventListener('click', (e) => {
+  if (e.target === $('geld-overlay')) sluitVergoeding();
+});
+
+async function openVergoeding() {
+  $('geld-overlay').setAttribute('open', '');
+  document.body.style.overflow = 'hidden';
+  await laadVergoeding();
+}
+
+function sluitVergoeding() {
+  $('geld-overlay').removeAttribute('open');
+  document.body.style.overflow = '';
+}
+
 async function openVoorkeuren() {
   $('voorkeur-overlay').setAttribute('open', '');
   document.body.style.overflow = 'hidden';
@@ -1906,6 +1963,30 @@ async function openVoorkeuren() {
 function sluitVoorkeuren() {
   $('voorkeur-overlay').removeAttribute('open');
   document.body.style.overflow = '';
+}
+
+/**
+ * Toont de tabbladen die deze gebruiker mag en wil zien.
+ *
+ * Verbergen is een weergavevoorkeur, geen recht: de backend weigert onafhankelijk
+ * hiervan wat iemand niet mag.
+ */
+function pasTabbalkToe() {
+  const isAdmin = staat.ik?.isAdmin;
+  const verborgen = staat.verborgenTabs ?? [];
+
+  for (const [id, sleutel] of [['tab-club', 'club'], ['tab-log', 'log']]) {
+    $(id).hidden = !isAdmin || verborgen.includes(sleutel);
+  }
+
+  // Blijft er maar één tabblad over, dan heeft een balk geen zin.
+  const zichtbaar = ['tab-mijn', 'tab-club', 'tab-log'].filter((id) => !$(id).hidden);
+  $('tabs').hidden = zichtbaar.length < 2;
+
+  // Staat de huidige weergave op een verborgen tabblad, ga dan terug.
+  if (staat.weergave !== 'mijn' && $(`tab-${staat.weergave}`)?.hidden) {
+    wisselWeergave('mijn');
+  }
 }
 
 async function laadVoorkeuren() {
@@ -1966,6 +2047,21 @@ function toonVoorkeuren(v) {
       ${rij('herinnerOchtend', 'De ochtend zelf', 'Een korte herinnering.', v.herinnerOchtend)}
     </section>
 
+    ${staat.ik?.isAdmin ? `
+    <section class="blok">
+      <h3>Tabbladen</h3>
+      <p class="hint">Welke schermen je in de balk bovenaan wil zien.
+        Aanduidingen staat er altijd.</p>
+      ${[['club', 'Cluboverzicht'], ['log', 'Logboek']].map(([sleutel, naam]) => `
+        <div class="keuzerij">
+          <span class="tekst"><b>${naam}</b></span>
+          <label class="schakelaar">
+            <input type="checkbox" data-tab="${sleutel}"
+                   ${(v.verborgenTabs ?? []).includes(sleutel) ? '' : 'checked'}>
+          </label>
+        </div>`).join('')}
+    </section>` : ''}
+
     <section class="blok">
       <h3>Rondleiding</h3>
       <p class="hint">Een korte uitleg die de knoppen aanwijst.</p>
@@ -2011,6 +2107,26 @@ function toonVoorkeuren(v) {
 
   const aanKnop = $('push-aan');
   if (aanKnop) aanKnop.onclick = () => zetPushAan(v.vapidPubliek);
+
+  document.querySelectorAll('[data-tab]').forEach((vak) => {
+    vak.onchange = async () => {
+      const verborgen = [...document.querySelectorAll('[data-tab]')]
+        .filter((x) => !x.checked)
+        .map((x) => x.dataset.tab);
+      try {
+        await api('/api/voorkeuren', {
+          method: 'PATCH',
+          body: JSON.stringify({ verborgenTabs: verborgen }),
+        });
+        staat.verborgenTabs = verborgen;
+        pasTabbalkToe();
+        toast('Bewaard');
+      } catch (err) {
+        vak.checked = !vak.checked;
+        toast(err.message);
+      }
+    };
+  });
 
   $('rond-start').onclick = () => {
     sluitVoorkeuren();
@@ -2115,7 +2231,8 @@ $('naammenu').addEventListener('click', (e) => {
   if (!knop) return;
   zetNaammenu(false);
 
-  if (knop.dataset.menu === 'voorkeuren') openVoorkeuren();
+  if (knop.dataset.menu === 'vergoeding') openVergoeding();
+  else if (knop.dataset.menu === 'voorkeuren') openVoorkeuren();
   else if (knop.dataset.menu === 'beheer') openPaneel();
   else if (knop.dataset.menu === 'rondleiding') setTimeout(startRondleiding, 100);
 });
@@ -2125,6 +2242,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   sluitPaneel();
   sluitVoorkeuren();
+  sluitVergoeding();
   zetNaammenu(false);
   if (staat.rond) stopRondleiding();
 });
@@ -2306,7 +2424,7 @@ function toonPaneel() {
     </section>
 
     <section class="blok">
-      <h3 data-vouw="beheer-facturatie">Facturatie</h3>
+      <h3 data-vouw="beheer-facturatie">Vergoeding &mdash; beheer</h3>
       <p class="hint">Afsluiten legt de bedragen vast. Wat er nadien nog wijzigt,
         komt als correctie in de volgende maand.</p>
       <div id="fact-inhoud"><span class="spinner"></span> Laden…</div>
@@ -2317,6 +2435,10 @@ function toonPaneel() {
       <p class="hint" style="margin-top:.3rem">Wie de verzamelstaat krijgt.
         Meerdere adressen gescheiden door komma's.</p>
       <div id="fact-melding"></div>
+      <button class="knop zacht breed" id="fact-officials" style="margin-top:.5rem">
+        Overzicht per official
+      </button>
+      <div id="fact-officials-uitslag"></div>
     </section>
 
     <section class="blok">
@@ -2433,6 +2555,37 @@ function bindPaneel() {
   laadVrijgeven();
   laadFacturatie();
   laadBackup();
+
+  $('fact-officials').onclick = async () => {
+    const doel = $('fact-officials-uitslag');
+    doel.innerHTML = '<div class="melding let"><span class="spinner"></span>Ophalen…</div>';
+    try {
+      const r = await api('/api/admin/facturatie/officials');
+      if (r.officials.length === 0) {
+        doel.innerHTML = '<div class="melding let">Nog geen afgesloten maanden.</div>';
+        return;
+      }
+      doel.innerHTML = `
+        <div class="melding ok">${r.officials.length} officials, samen ${tekst(r.totaal)}
+          over alle afgesloten maanden.</div>
+        ${r.officials.map((o) => `
+          <div class="geld-maand">
+            <div class="geld-kop">
+              <h3>${tekst(o.naam)}</h3>
+              <span class="bedrag">${tekst(o.bedrag)}</span>
+            </div>
+            ${o.perMaand.map((m) => `
+              <div class="geld-regel">
+                <span class="wat">${tekst(maandLabel(m.maand))} &middot; ${m.aantal} wedstrijden</span>
+                <span class="bedrag">${tekst(m.bedrag)}</span>
+              </div>`).join('')}
+          </div>`).join('')}
+        <button class="knop zacht breed" id="fact-officials-sluit">Sluiten</button>`;
+      $('fact-officials-sluit').onclick = () => { doel.innerHTML = ''; };
+    } catch (err) {
+      doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+    }
+  };
 
   $('fact-bewaar').onclick = async () => {
     try {

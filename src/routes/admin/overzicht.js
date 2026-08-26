@@ -52,6 +52,7 @@ export async function overzicht({ url, env }) {
             m.poule_naam, m.cat_code, m.off_namen, m.off_aantal, m.off_gewist,
             m.club_guid, c.naam AS club_naam,
             m.scope, m.scope_reden, m.scope_uit,
+            m.refs_bevestigd, m.refs_bevestigd_door,
             cat.label AS cat_label, cat.groep AS cat_groep, cat.tarief_cent
        FROM matches m
        LEFT JOIN clubs c ON c.guid = m.club_guid
@@ -174,6 +175,11 @@ export async function overzicht({ url, env }) {
       toegewezen: toegewezen,
       // Valt deze wedstrijd binnen de weekends waarover de tellers gaan?
       inVenster: w.datum <= venster.tot,
+      // Een beheerder kan bevestigen dat er twee refs zijn terwijl de bond er
+      // nog geen toont. Dat verandert niets aan de aanduidingen, maar de
+      // wedstrijd is dan wel in orde wat scheidsrechters betreft.
+      refsBevestigd: w.refs_bevestigd === 1,
+      refsBevestigdDoor: w.refs_bevestigd_door,
       // Een probleem is: ze staat in de lijst, en er is te weinig volk — ofwel
       // omdat er nog niet genoeg toegewezen zijn, ofwel omdat er niemand
       // beschikbaar is om uit te kiezen.

@@ -73,6 +73,7 @@ const ROUTES = [
   { methode: 'PATCH',  pad: '/api/admin/scope',        handler: aanduiding.zetScope,   beheer: true },
   { methode: 'POST',   pad: '/api/admin/aanduiding',   handler: aanduiding.wijsToe,    beheer: true },
   { methode: 'DELETE', pad: '/api/admin/aanduiding',   handler: aanduiding.geefVrij,   beheer: true },
+  { methode: 'PATCH',  pad: '/api/admin/refs-bevestigd', handler: aanduiding.bevestigRefs, beheer: true },
   { methode: 'GET',    pad: '/api/admin/problemen',    handler: aanduiding.problemen,  beheer: true },
   { methode: 'PATCH',  pad: '/api/admin/problemen',    handler: aanduiding.handelProbleemAf, beheer: true },
 
@@ -102,6 +103,7 @@ const ROUTES = [
   { methode: 'GET',    pad: '/api/admin/facturatie',            handler: facturatie.overzicht,     beheer: true },
   { methode: 'GET',    pad: '/api/admin/facturatie/voorbeeld',  handler: facturatie.voorbeeld,     beheer: true },
   { methode: 'GET',    pad: '/api/admin/facturatie/staat',      handler: facturatie.staat,         beheer: true },
+  { methode: 'GET',    pad: '/api/admin/facturatie/officials',  handler: facturatie.perOfficialOverzicht, beheer: true },
   { methode: 'POST',   pad: '/api/admin/facturatie/afsluiten',  handler: facturatie.afsluiten,     beheer: true },
   { methode: 'POST',   pad: '/api/admin/facturatie/ontvangers', handler: facturatie.zetOntvangers, beheer: true },
 

@@ -343,5 +343,33 @@ console.log('\n15. Namen worden gewist een dag na de wedstrijd');
   check('niet gemarkeerd', toekomst.off_gewist, 0);
 }
 
+console.log('\nX. Een handmatige bevestiging verdwijnt zodra de bond zelf refs aanduidt');
+{
+  const db = nieuweDb();
+  db.exec(`
+    INSERT INTO matches (guid, seizoen, club_guid, thuis_guid, thuis_naam, uit_naam,
+                         datum, uur, cat_code, off_aantal, scope, refs_bevestigd, hash)
+    VALUES ('BEV','2627','${CLUB}','${CLUB}J16  1','J16 A','Gast','2026-09-12','14:00','J16',
+            2, 1, 1, 'h');
+  `);
+
+  // Een echte respons: bij een leeg antwoord breekt de sync af en wordt er
+  // niets opgekuist.
+  globalThis.fetch = async (url) => ({
+    ok: true, status: 200,
+    text: async () => String(url).includes('OrgMatchesByGuid')
+      ? JSON.stringify([{
+          guid: 'BVBL26279170INJ1621FAA', wedID: 'X', tTGUID: `${CLUB}J16  1`, tTNaam: 'J16 A',
+          tUGUID: 'BVBL2000J16  1', tUNaam: 'Gast', datumString: '19-09-2026',
+          beginTijd: '10.00', accGUID: 'ACC1', accNaam: 'Noord', pouleNaam: 'P', wedOff: [],
+        }])
+      : '{}',
+  });
+  await synchroniseer(db, 'cron');
+
+  const rij = await db.prepare("SELECT refs_bevestigd FROM matches WHERE guid = 'BEV'").first();
+  check('vlag automatisch gewist', rij.refs_bevestigd, 0);
+}
+
 console.log(mislukt === 0 ? '\n=== ALLE SYNCTESTS GESLAAGD ===' : `\n=== ${mislukt} TESTS GEFAALD ===`);
 process.exit(mislukt ? 1 : 0);

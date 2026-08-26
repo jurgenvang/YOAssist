@@ -484,3 +484,54 @@ export async function zetOntvangers({ request, env, user }) {
 
   return json({ ontvangers: adressen });
 }
+
+
+/**
+ * GET /api/admin/facturatie/officials — per official over alle afgesloten maanden.
+ *
+ * De verzamelstaten staan per maand; dit is dezelfde gegevens de andere kant op
+ * bekeken. Handig bij de vraag 'hoeveel heeft die er dit seizoen gefloten', die
+ * anders vijf staten opendoen betekent.
+ */
+export async function perOfficialOverzicht({ env }) {
+  const { results } = await env.DB.prepare(
+    `SELECT user_email, naam,
+            SUM(aantal) AS aantal,
+            SUM(bedrag_cent) AS bedrag_cent,
+            COUNT(DISTINCT maand) AS maanden,
+            MAX(maand) AS laatste_maand
+       FROM vergoeding_regels
+      GROUP BY user_email
+      ORDER BY naam COLLATE NOCASE`,
+  ).all();
+
+  const { results: perMaand } = await env.DB.prepare(
+    `SELECT user_email, maand, SUM(bedrag_cent) AS bedrag_cent, SUM(aantal) AS aantal
+       FROM vergoeding_regels
+      GROUP BY user_email, maand
+      ORDER BY maand DESC`,
+  ).all();
+
+  const maandenPer = new Map();
+  for (const r of perMaand) {
+    maandenPer.set(r.user_email, [
+      ...(maandenPer.get(r.user_email) ?? []),
+      { maand: r.maand, aantal: r.aantal, bedragCent: r.bedrag_cent, bedrag: alsBedrag(r.bedrag_cent) },
+    ]);
+  }
+
+  return json({
+    officials: results.map((r) => ({
+      email: r.user_email,
+      naam: r.naam,
+      aantal: r.aantal,
+      bedragCent: r.bedrag_cent,
+      bedrag: alsBedrag(r.bedrag_cent),
+      maanden: r.maanden,
+      laatsteMaand: r.laatste_maand,
+      perMaand: maandenPer.get(r.user_email) ?? [],
+    })),
+    totaalCent: results.reduce((s, r) => s + r.bedrag_cent, 0),
+    totaal: alsBedrag(results.reduce((s, r) => s + r.bedrag_cent, 0)),
+  });
+}
