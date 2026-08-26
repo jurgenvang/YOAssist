@@ -23,6 +23,10 @@ INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('seizoen_start_jaar', '
 INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('mail_afzender', '');
 INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('mail_afzender_naam', 'YOAssist');
 
+-- Wie de maandelijkse verzamelstaat krijgt. Komma- of nieuweregelgescheiden.
+-- Bewust los van wie beheerder is: de penningmeester hoeft dat niet te zijn.
+INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('facturatie_ontvangers', '');
+
 
 -- ---------------------------------------------------------------------------
 -- categorieen: de drieletterige code uit de ploeg-GUID (BVBL1125J16  1 -> J16)
@@ -251,6 +255,78 @@ CREATE TABLE IF NOT EXISTS problemen (
 );
 
 CREATE INDEX IF NOT EXISTS idx_problemen_open ON problemen (afgehandeld, gemeld_op);
+
+
+-- ---------------------------------------------------------------------------
+-- afgesloten_maanden: de momentopname per maand.
+--
+-- Afsluiten legt de bedragen vast. Zonder die vastlegging zou een vrijgave in
+-- november het bedrag van oktober met terugwerkende kracht veranderen, nadat de
+-- penningmeester al betaald heeft. Vandaar een kopie in plaats van een
+-- berekening die elke keer opnieuw uit de aanduidingen komt.
+--
+-- Deze tabel bestaat ook om resets tegen te houden: zolang er een afgesloten
+-- maand is, mag er niets gewist worden.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS afgesloten_maanden (
+  maand         TEXT PRIMARY KEY,          -- 'JJJJ-MM'
+  seizoen       TEXT NOT NULL,
+  afgesloten_op TEXT NOT NULL DEFAULT (datetime('now')),
+  afgesloten_door TEXT NOT NULL,
+  totaal_cent   INTEGER NOT NULL DEFAULT 0,
+  aantal_officials INTEGER NOT NULL DEFAULT 0,
+  verstuurd_op  TEXT,
+  verstuurd_naar TEXT
+);
+
+-- ---------------------------------------------------------------------------
+-- vergoeding_regels: één regel per official, per maand, per categorie.
+--
+-- soort 'wedstrijd' is werk in de afgesloten maand zelf. Soort 'correctie' is
+-- een rechtzetting van een eerdere maand: die kan niet meer in het overzicht
+-- van toen, dus komt ze in de eerstvolgende afsluiting terecht. Het veld
+-- betreft_maand zegt over welke maand de correctie gaat.
+--
+-- aantal mag negatief zijn: een aanduiding die na de afsluiting is vrijgegeven,
+-- levert een regel van -1 op.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS vergoeding_regels (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  maand         TEXT NOT NULL REFERENCES afgesloten_maanden (maand) ON DELETE CASCADE,
+  user_email    TEXT NOT NULL,
+  naam          TEXT NOT NULL,             -- bewaard, niet opgezocht: een official
+                                           -- kan later verwijderd of hernoemd zijn
+  soort         TEXT NOT NULL DEFAULT 'wedstrijd'
+                  CHECK (soort IN ('wedstrijd', 'correctie')),
+  betreft_maand TEXT,                      -- enkel bij een correctie
+  cat_code      TEXT NOT NULL,
+  cat_label     TEXT,
+  aantal        INTEGER NOT NULL,
+  tarief_cent   INTEGER NOT NULL,
+  bedrag_cent   INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_vergoeding_maand ON vergoeding_regels (maand, user_email);
+CREATE INDEX IF NOT EXISTS idx_vergoeding_user ON vergoeding_regels (user_email, maand DESC);
+
+-- ---------------------------------------------------------------------------
+-- vergoeding_verwerkt: welke aanduidingen al in een afsluiting zijn opgenomen.
+--
+-- Zonder dit spoor kan een correctie niet bepaald worden: je weet dan niet of
+-- een aanduiding al eerder is uitbetaald. De rij blijft bestaan ook nadat de
+-- aanduiding is vrijgegeven — juist dan is ze nodig.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS vergoeding_verwerkt (
+  match_guid   TEXT NOT NULL,
+  user_email   TEXT NOT NULL,
+  maand        TEXT NOT NULL,              -- de maand waarin het is meegeteld
+  cat_code     TEXT NOT NULL,
+  tarief_cent  INTEGER NOT NULL,
+  aantal       INTEGER NOT NULL DEFAULT 1, -- 1 of -1 na een correctie
+  PRIMARY KEY (match_guid, user_email, maand)
+);
+
+CREATE INDEX IF NOT EXISTS idx_verwerkt_user ON vergoeding_verwerkt (user_email);
 
 -- ---------------------------------------------------------------------------
 -- logboek: één chronologisch spoor van alles wat er gebeurt.

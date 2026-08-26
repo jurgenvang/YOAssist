@@ -5,6 +5,13 @@
  */
 import Database from 'better-sqlite3';
 
+/**
+ * D1 laat maximaal honderd gebonden parameters per query toe. better-sqlite3
+ * staat er veel meer toe, dus zonder deze grens zou een query die in productie
+ * breekt hier vrolijk slagen — en dat is precies wat er ooit gebeurd is.
+ */
+const D1_MAX_PARAMETERS = 100;
+
 class Statement {
   constructor(db, sql, params = []) {
     this.db = db;
@@ -13,6 +20,11 @@ class Statement {
   }
 
   bind(...params) {
+    if (params.length > D1_MAX_PARAMETERS) {
+      throw new Error(
+        `too many SQL variables: ${params.length} gebonden, D1 staat er ${D1_MAX_PARAMETERS} toe`,
+      );
+    }
     return new Statement(this.db, this.sql, params);
   }
 

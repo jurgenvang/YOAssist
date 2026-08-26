@@ -61,17 +61,19 @@ export async function automatisch({ request, env, user }) {
     });
   }
 
-  const guids = wedstrijden.map((w) => w.guid);
-  const gaten = guids.map(() => '?').join(',');
-
   // ---- Wie zich beschikbaar zette, met naam en profiel ---------------------
+  // Op de wedstrijdvoorwaarden filteren in plaats van op een lijst GUID's: D1
+  // staat maximaal honderd gebonden parameters per query toe.
   const { results: vrij } = await env.DB.prepare(
     `SELECT v.match_guid, u.email, u.voornaam, u.achternaam, u.profiel, u.club_guid
        FROM availability v
        JOIN users u ON u.email = v.user_email
-      WHERE v.match_guid IN (${gaten}) AND v.status = 'ja' AND u.actief = 1`,
+       JOIN matches m ON m.guid = v.match_guid
+      WHERE v.status = 'ja' AND u.actief = 1
+        AND m.seizoen = ? AND m.status = 'actief' AND m.scope = 1
+        AND m.datum >= ? AND m.datum <= ?`,
   )
-    .bind(...guids)
+    .bind(seizoen, vandaag, tot)
     .all();
 
   const naam = new Map();

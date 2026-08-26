@@ -33,6 +33,10 @@ import { automatisch } from './routes/admin/auto.js';
 import * as wedstrijden from './routes/admin/wedstrijden.js';
 import * as vrijgeven from './routes/admin/vrijgeven.js';
 import * as logboekRoute from './routes/admin/logboek.js';
+import * as resetRoute from './routes/admin/reset.js';
+import * as backupRoute from './routes/admin/backup.js';
+import * as facturatie from './routes/admin/facturatie.js';
+import { vergoeding } from './routes/vergoeding.js';
 
 // ---------------------------------------------------------------------------
 // Routetabel. beheer: true betekent dat de route alleen voor admins is.
@@ -45,6 +49,7 @@ const ROUTES = [
   { methode: 'GET',    pad: '/api/clubs',              handler: clubs },
   { methode: 'POST',   pad: '/api/club',               handler: kiesClub },
   { methode: 'POST',   pad: '/api/probleem',           handler: meldProbleem },
+  { methode: 'GET',    pad: '/api/vergoeding',         handler: vergoeding },
 
   { methode: 'GET',    pad: '/api/voorkeuren',         handler: voorkeuren.voorkeuren },
   { methode: 'PATCH',  pad: '/api/voorkeuren',         handler: voorkeuren.zetVoorkeuren },
@@ -87,6 +92,18 @@ const ROUTES = [
   { methode: 'GET',    pad: '/api/admin/logboek',           handler: logboekRoute.logboek,  beheer: true },
   { methode: 'PATCH',  pad: '/api/admin/logboek',           handler: logboekRoute.handelAf, beheer: true },
   { methode: 'POST',   pad: '/api/admin/logboek/alles',     handler: logboekRoute.handelAllesAf, beheer: true },
+
+  { methode: 'GET',    pad: '/api/admin/reset',             handler: resetRoute.overzichtReset, beheer: true },
+  { methode: 'POST',   pad: '/api/admin/reset',             handler: resetRoute.reset,          beheer: true },
+
+  { methode: 'GET',    pad: '/api/admin/backup',            handler: backupRoute.backup, beheer: true },
+  { methode: 'GET',    pad: '/api/admin/backup/omvang',     handler: backupRoute.omvang, beheer: true },
+
+  { methode: 'GET',    pad: '/api/admin/facturatie',            handler: facturatie.overzicht,     beheer: true },
+  { methode: 'GET',    pad: '/api/admin/facturatie/voorbeeld',  handler: facturatie.voorbeeld,     beheer: true },
+  { methode: 'GET',    pad: '/api/admin/facturatie/staat',      handler: facturatie.staat,         beheer: true },
+  { methode: 'POST',   pad: '/api/admin/facturatie/afsluiten',  handler: facturatie.afsluiten,     beheer: true },
+  { methode: 'POST',   pad: '/api/admin/facturatie/ontvangers', handler: facturatie.zetOntvangers, beheer: true },
 
   { methode: 'GET',    pad: '/api/admin/users',        handler: gebruikers.lijst,      beheer: true },
   { methode: 'POST',   pad: '/api/admin/users',        handler: gebruikers.toevoegen,  beheer: true },

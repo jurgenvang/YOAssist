@@ -114,3 +114,23 @@ export async function verwittigAllen(env, emails, bericht) {
     pushberichten: resultaten.reduce((n, r) => n + r.push, 0),
   };
 }
+
+
+/**
+ * Verstuurt naar een adres dat geen YOAssist-gebruiker is — de penningmeester
+ * die de verzamelstaat krijgt, bijvoorbeeld.
+ *
+ * Zulke ontvangers hebben geen voorkeuren en geen push-abonnement, dus er valt
+ * niets toe te passen. Toch gaat het langs hier en niet rechtstreeks naar
+ * `verstuur()`: dan blijft er één plaats waar berichten het huis verlaten.
+ */
+export async function verwittigExtern(env, emails, bericht) {
+  const resultaten = await Promise.all(
+    emails.map((naar) =>
+      verstuur(env, { naar, onderwerp: bericht.onderwerp, tekst: bericht.tekst })
+        .catch(() => ({ verstuurd: false })),
+    ),
+  );
+
+  return { mails: resultaten.filter((r) => r.verstuurd).length };
+}

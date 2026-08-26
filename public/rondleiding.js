@@ -17,7 +17,7 @@ window.YOASSIST_RONDLEIDING = [
     doel: '#hoofd',
     titel: 'Je wedstrijden',
     tekst:
-      'Hier staan de thuiswedstrijden waarvoor jij aan de tafel kunt staan, ' +
+      'Hier staan de thuiswedstrijden die jij kunt fluiten, ' +
       'gegroepeerd per maand. Bovenaan zie je hoeveel er nog te beantwoorden zijn.',
     plaats: 'onder',
   },
@@ -32,11 +32,11 @@ window.YOASSIST_RONDLEIDING = [
     optioneel: true,
   },
   {
-    doel: '#voorkeur-knop',
-    titel: 'Je voorkeuren',
+    doel: '#balk-info',
+    titel: 'Je eigen menu',
     tekst:
-      'Hier stel je in hoe je bericht wil krijgen: per e-mail, met meldingen op je ' +
-      'toestel, of allebei. Ook de herinneringen voor wedstrijden die je fluit.',
+      'Klik op je naam voor alles wat over jou gaat: hoe je bericht wil krijgen ' +
+      '(per e-mail, met meldingen, of allebei), je herinneringen, en deze rondleiding.',
     plaats: 'onder',
   },
 
@@ -60,11 +60,12 @@ window.YOASSIST_RONDLEIDING = [
     enkelAdmin: true,
   },
   {
-    doel: '#menu-knop',
+    doel: '#balk-info',
     titel: 'Beheer',
     tekst:
-      'Achter de drie puntjes: clubs en ploegen, gebruikers, mailinstellingen, ' +
-      'synchronisatie en vrijgeven. Alles wat over de club gaat in plaats van over jou.',
+      'In datzelfde menu staat voor jou ook Beheer: clubs en ploegen, gebruikers, ' +
+      'mailinstellingen, synchronisatie, vrijgeven en backup. Alles wat over de club ' +
+      'gaat in plaats van over jou.',
     plaats: 'onder',
     enkelAdmin: true,
   },

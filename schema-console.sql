@@ -2,7 +2,7 @@
 -- Geen commentaar binnenin, geen PRAGMA: daar struikelt de console over.
 -- Werkt de console alleen met een statement tegelijk, plak dan blok per blok.
 
--- ===== BLOK 1 van 12 =====
+-- ===== BLOK 1 van 15 =====
 CREATE TABLE IF NOT EXISTS settings (
   sleutel  TEXT PRIMARY KEY,
   waarde   TEXT NOT NULL,
@@ -15,7 +15,9 @@ INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('mail_afzender', '');
 
 INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('mail_afzender_naam', 'YOAssist');
 
--- ===== BLOK 2 van 12 =====
+INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('facturatie_ontvangers', '');
+
+-- ===== BLOK 2 van 15 =====
 CREATE TABLE IF NOT EXISTS categorieen (
   code        TEXT PRIMARY KEY,
   label       TEXT NOT NULL,
@@ -39,7 +41,7 @@ INSERT OR IGNORE INTO categorieen (code, label, groep, tarief_cent, auto_scope, 
   ('HSE', 'Heren senioren', 'SEN',    2500, 0, 110),
   ('DSE', 'Dames senioren', 'SEN',    2500, 0, 120);
 
--- ===== BLOK 3 van 12 =====
+-- ===== BLOK 3 van 15 =====
 CREATE TABLE IF NOT EXISTS clubs (
   guid        TEXT PRIMARY KEY,
   naam        TEXT,
@@ -47,7 +49,7 @@ CREATE TABLE IF NOT EXISTS clubs (
   toegevoegd  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- ===== BLOK 4 van 12 =====
+-- ===== BLOK 4 van 15 =====
 CREATE TABLE IF NOT EXISTS users (
   email       TEXT PRIMARY KEY,
   voornaam    TEXT NOT NULL,
@@ -66,7 +68,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE INDEX IF NOT EXISTS idx_users_naam
   ON users (achternaam COLLATE NOCASE, voornaam COLLATE NOCASE);
 
--- ===== BLOK 5 van 12 =====
+-- ===== BLOK 5 van 15 =====
 CREATE TABLE IF NOT EXISTS push_abonnementen (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   user_email  TEXT NOT NULL REFERENCES users (email) ON DELETE CASCADE,
@@ -81,7 +83,7 @@ CREATE TABLE IF NOT EXISTS push_abonnementen (
 
 CREATE INDEX IF NOT EXISTS idx_push_user ON push_abonnementen (user_email);
 
--- ===== BLOK 6 van 12 =====
+-- ===== BLOK 6 van 15 =====
 CREATE TABLE IF NOT EXISTS teams (
   guid          TEXT PRIMARY KEY,
   club_guid     TEXT NOT NULL REFERENCES clubs (guid) ON DELETE CASCADE,
@@ -95,7 +97,7 @@ CREATE TABLE IF NOT EXISTS teams (
 
 CREATE INDEX IF NOT EXISTS idx_teams_club ON teams (club_guid, naam);
 
--- ===== BLOK 7 van 12 =====
+-- ===== BLOK 7 van 15 =====
 CREATE TABLE IF NOT EXISTS matches (
   guid          TEXT PRIMARY KEY,
   wed_id        TEXT,
@@ -137,7 +139,7 @@ CREATE INDEX IF NOT EXISTS idx_matches_scope ON matches (scope, datum, uur);
 
 CREATE INDEX IF NOT EXISTS idx_matches_bron ON matches (bron, seizoen);
 
--- ===== BLOK 8 van 12 =====
+-- ===== BLOK 8 van 15 =====
 CREATE TABLE IF NOT EXISTS assignments (
   match_guid      TEXT NOT NULL REFERENCES matches (guid) ON DELETE CASCADE,
   user_email      TEXT NOT NULL REFERENCES users (email) ON DELETE CASCADE,
@@ -153,7 +155,7 @@ CREATE INDEX IF NOT EXISTS idx_assignments_user ON assignments (user_email, stat
 
 CREATE INDEX IF NOT EXISTS idx_assignments_match ON assignments (match_guid, status);
 
--- ===== BLOK 9 van 12 =====
+-- ===== BLOK 9 van 15 =====
 CREATE TABLE IF NOT EXISTS problemen (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
   match_guid   TEXT NOT NULL REFERENCES matches (guid) ON DELETE CASCADE,
@@ -165,7 +167,52 @@ CREATE TABLE IF NOT EXISTS problemen (
 
 CREATE INDEX IF NOT EXISTS idx_problemen_open ON problemen (afgehandeld, gemeld_op);
 
--- ===== BLOK 10 van 12 =====
+-- ===== BLOK 10 van 15 =====
+CREATE TABLE IF NOT EXISTS afgesloten_maanden (
+  maand         TEXT PRIMARY KEY,
+  seizoen       TEXT NOT NULL,
+  afgesloten_op TEXT NOT NULL DEFAULT (datetime('now')),
+  afgesloten_door TEXT NOT NULL,
+  totaal_cent   INTEGER NOT NULL DEFAULT 0,
+  aantal_officials INTEGER NOT NULL DEFAULT 0,
+  verstuurd_op  TEXT,
+  verstuurd_naar TEXT
+);
+
+-- ===== BLOK 11 van 15 =====
+CREATE TABLE IF NOT EXISTS vergoeding_regels (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  maand         TEXT NOT NULL REFERENCES afgesloten_maanden (maand) ON DELETE CASCADE,
+  user_email    TEXT NOT NULL,
+  naam          TEXT NOT NULL,
+  soort         TEXT NOT NULL DEFAULT 'wedstrijd'
+                  CHECK (soort IN ('wedstrijd', 'correctie')),
+  betreft_maand TEXT,
+  cat_code      TEXT NOT NULL,
+  cat_label     TEXT,
+  aantal        INTEGER NOT NULL,
+  tarief_cent   INTEGER NOT NULL,
+  bedrag_cent   INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_vergoeding_maand ON vergoeding_regels (maand, user_email);
+
+CREATE INDEX IF NOT EXISTS idx_vergoeding_user ON vergoeding_regels (user_email, maand DESC);
+
+-- ===== BLOK 12 van 15 =====
+CREATE TABLE IF NOT EXISTS vergoeding_verwerkt (
+  match_guid   TEXT NOT NULL,
+  user_email   TEXT NOT NULL,
+  maand        TEXT NOT NULL,
+  cat_code     TEXT NOT NULL,
+  tarief_cent  INTEGER NOT NULL,
+  aantal       INTEGER NOT NULL DEFAULT 1,
+  PRIMARY KEY (match_guid, user_email, maand)
+);
+
+CREATE INDEX IF NOT EXISTS idx_verwerkt_user ON vergoeding_verwerkt (user_email);
+
+-- ===== BLOK 13 van 15 =====
 CREATE TABLE IF NOT EXISTS logboek (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
   categorie    TEXT NOT NULL CHECK (categorie IN ('wedstrijd', 'aanduiding', 'beheer')),
@@ -185,7 +232,7 @@ CREATE INDEX IF NOT EXISTS idx_logboek_open ON logboek (afgehandeld, categorie);
 
 CREATE INDEX IF NOT EXISTS idx_logboek_match ON logboek (match_guid, id DESC);
 
--- ===== BLOK 11 van 12 =====
+-- ===== BLOK 14 van 15 =====
 CREATE TABLE IF NOT EXISTS availability (
   user_email  TEXT NOT NULL REFERENCES users (email) ON DELETE CASCADE,
   match_guid  TEXT NOT NULL REFERENCES matches (guid) ON DELETE CASCADE,
@@ -196,7 +243,7 @@ CREATE TABLE IF NOT EXISTS availability (
 
 CREATE INDEX IF NOT EXISTS idx_availability_match ON availability (match_guid, status);
 
--- ===== BLOK 12 van 12 =====
+-- ===== BLOK 15 van 15 =====
 CREATE TABLE IF NOT EXISTS sync_runs (
   id                INTEGER PRIMARY KEY AUTOINCREMENT,
   gestart           TEXT NOT NULL DEFAULT (datetime('now')),

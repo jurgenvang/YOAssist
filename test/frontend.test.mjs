@@ -156,7 +156,7 @@ console.log('\n7. De laadfuncties van het beheerpaneel worden aangeroepen');
 
   // Elke functie die een paneelsectie vult, moet in bindPaneel aangeroepen
   // worden. Ontbreekt er één, dan blijft die sectie leeg.
-  for (const naam of ['laadGebruikers', 'laadMailConfig', 'laadVrijgeven']) {
+  for (const naam of ['laadGebruikers', 'laadMailConfig', 'laadVrijgeven', 'laadFacturatie', 'laadBackup', 'laadReset']) {
     check(`${naam} wordt aangeroepen`, new RegExp(`${naam}\\(\\)`).test(bind), true);
   }
 }
@@ -199,6 +199,53 @@ console.log('\n9. De rondleiding is oproepbaar en onthoudt zichzelf');
 
   check('er is een knop om ze opnieuw te tonen', /id="rond-start"/.test(html), true);
   check('en die roept de rondleiding aan', /\$\('rond-start'\)\.onclick/.test(html), true);
+}
+
+console.log('\n10. Samenvouwbare secties');
+{
+  // Elke kop met data-vouw moet gekoppeld worden, anders is ze een dode knop.
+  const koppen = [...html.matchAll(/data-vouw="([\w-]+)"/g)].map((m) => m[1]);
+  const uniek = [...new Set(koppen)];
+  check('er zijn vouwbare secties', uniek.length > 5, true);
+  check('geen dubbele sleutels', koppen.length, uniek.length);
+
+  // Secties met een aparte inhoudscontainer moeten die ook echt hebben.
+  const metInhoud = [...html.matchAll(/data-vouw-inhoud="([^"]+)"/g)].map((m) => m[1]);
+  for (const sleutel of metInhoud) {
+    // De sleutel kan een template-uitdrukking zijn; die slaan we over.
+    if (sleutel.includes('$')) continue;
+    check(`inhoud ${sleutel} heeft een kop`,
+      html.includes(`data-vouw="${sleutel}"`), true);
+  }
+
+  const koppel = haalFunctie('koppelVouwknoppen');
+  check('werkt op beide vormen', /closest\('\.blok'\)/.test(koppel), true);
+  check('onthoudt de stand', /isDicht\(/.test(koppel), true);
+  check('bedienbaar met het toetsenbord', /onkeydown/.test(koppel), true);
+  check('met de juiste rol voor schermlezers', /aria-expanded/.test(koppel), true);
+
+  // Wordt hij ook aangeroepen op elk scherm dat opnieuw tekent?
+  for (const fn of ['toonMatches', 'toonOverzicht', 'toonPaneel']) {
+    check(`${fn} koppelt de vouwknoppen`,
+      /koppelVouwknoppen\(/.test(haalFunctie(fn)), true);
+  }
+}
+
+console.log('\n11. Het naammenu');
+{
+  check('de naam is de menuknop', /id="balk-info"[^>]*aria-haspopup="menu"/.test(html), true);
+  check('geen losse icoonknoppen meer',
+    /id="voorkeur-knop"|id="menu-knop"/.test(html), false);
+
+  const items = [...html.matchAll(/data-menu="(\w+)"/g)].map((m) => m[1]);
+  check('drie menu-items', [...new Set(items)].sort(), ['beheer', 'rondleiding', 'voorkeuren']);
+  check('beheer staat standaard verborgen',
+    /data-menu="beheer" hidden/.test(html), true);
+
+  const zet = haalFunctie('zetNaammenu');
+  check('meldt de stand aan schermlezers', /aria-expanded/.test(zet), true);
+  check('elders klikken sluit het menu',
+    /document\.addEventListener\('click', \(\) => zetNaammenu\(false\)\)/.test(html), true);
 }
 
 console.log(f === 0 ? '\n=== ALLE FRONTENDTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);

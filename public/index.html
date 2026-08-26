@@ -50,7 +50,8 @@ button { font: inherit; cursor: pointer; }
   padding: calc(.9rem + env(safe-area-inset-top)) 1rem .9rem;
   position: sticky; top: 0; z-index: 40;
 }
-.balk-rij { display: flex; align-items: center; gap: .75rem; max-width: 46rem; margin: 0 auto; }
+.balk-rij { display: flex; align-items: center; gap: .75rem; max-width: 46rem;
+            margin: 0 auto; position: relative; }
 .merk { font-size: 1.15rem; font-weight: 700; letter-spacing: -.02em;
          display: flex; align-items: baseline; gap: .4rem; }
 .merk span.accent { color: var(--amber); }
@@ -60,18 +61,39 @@ button { font: inherit; cursor: pointer; }
   padding: .08rem .38rem; font-variant-numeric: tabular-nums;
   position: relative; top: -.1rem;
 }
-.balk-info { margin-left: auto; text-align: right; font-size: .78rem; line-height: 1.3; color: #a8b0bb; }
+/* De naam is zelf de menuknop. Twee naamloze icoontjes naast elkaar dwingen
+   de gebruiker te raden welk van de twee hij nodig heeft; je eigen naam is de
+   plek waar mensen hun eigen dingen verwachten. */
+.balk-info {
+  margin-left: auto; text-align: right; font-size: .78rem; line-height: 1.3;
+  color: #a8b0bb; background: transparent; border: 0; cursor: pointer;
+  padding: .3rem .5rem; border-radius: 8px; font-family: inherit;
+  display: flex; align-items: center; gap: .4rem;
+}
+.balk-info:hover { background: rgba(255,255,255,.1); }
+.balk-info::after {
+  content: '⌄'; font-size: .95em; line-height: 1; color: #a8b0bb;
+  transition: transform .15s ease;
+}
+.balk-info[aria-expanded="true"]::after { transform: rotate(180deg); }
+.balk-info > span { display: block; text-align: right; }
+
+.naammenu {
+  position: absolute; right: 1rem; top: calc(100% - .4rem); z-index: 45;
+  background: var(--kaart); border-radius: 10px; padding: .3rem;
+  box-shadow: 0 8px 30px rgba(18,22,28,.3); min-width: 11rem;
+}
+.naammenu[hidden] { display: none; }
+.naammenu button {
+  display: block; width: 100%; text-align: left; border: 0; background: transparent;
+  padding: .55rem .7rem; border-radius: 7px; font-size: .9rem; color: var(--inkt);
+}
+.naammenu button:hover { background: #eef0f3; }
+.naammenu button[hidden] { display: none; }
 .balk-info strong { display: block; color: #fff; font-weight: 600; font-size: .85rem; }
 .balk-info .beheer { display: block; color: var(--amber); font-size: .7rem;
                      letter-spacing: .04em; font-weight: 600; }
 
-.menu-knop {
-  background: transparent; border: 0; color: #fff;
-  width: 2.2rem; height: 2.2rem; border-radius: 50%;
-  display: grid; place-items: center; font-size: 1.3rem; line-height: 1;
-  flex-shrink: 0;
-}
-.menu-knop:hover { background: rgba(255,255,255,.12); }
 
 /* ---- Layout ------------------------------------------------------------- */
 main { max-width: 46rem; margin: 0 auto; padding: 1rem 1rem 5rem; }
@@ -131,7 +153,8 @@ main { max-width: 46rem; margin: 0 auto; padding: 1rem 1rem 5rem; }
 .wed-datum .uur { display: block; font-size: .8rem; color: var(--inkt-zacht); font-weight: 600; }
 
 .wed-ploegen { font-weight: 600; font-size: .97rem; }
-.wed-ploegen .tegen { color: var(--grijs); font-weight: 400; }
+.wed-ploegen .tegen { color: var(--grijs); font-weight: 400; white-space: nowrap; }
+.wed-ploegen .ploeg { white-space: nowrap; }
 .wed-meta { font-size: .82rem; color: var(--grijs);
             display: flex; align-items: baseline; gap: .45rem; flex-wrap: wrap; }
 .blad {
@@ -281,6 +304,22 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
 .venster-label {
   font-size: .75rem; color: var(--grijs); margin: -.6rem 0 1rem; text-align: center;
 }
+/* ---- Samenvouwen --------------------------------------------------------
+   Eén mechanisme voor de drie plaatsen waar secties onder elkaar staan: de
+   aanduidingenlijst, het cluboverzicht en het beheerpaneel. De kop is de knop;
+   een apart pijltje aanklikken is op een telefoon te fijn mikwerk.
+------------------------------------------------------------------------- */
+.vouw { cursor: pointer; user-select: none; }
+.vouw::after {
+  content: '⌄'; margin-left: .5rem; font-size: .9em; line-height: 1;
+  transition: transform .15s ease; display: inline-block;
+}
+.vouw[aria-expanded="false"]::after { transform: rotate(-90deg); }
+.vouw:hover { color: var(--inkt); }
+.groep-inhoud[hidden] { display: none; }
+/* In het beheerpaneel is de kop een h3 en is de inhoud alles eronder. */
+.blok.dicht > *:not(h3) { display: none; }
+
 .groep-kop {
   display: flex; align-items: baseline; gap: .6rem;
   margin: 1.6rem 0 .5rem; padding-bottom: .35rem;
@@ -291,6 +330,30 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
                 text-transform: uppercase; letter-spacing: .1em; }
 .groep-kop .aantal { margin-left: auto; font-size: .75rem; color: var(--grijs);
                      font-variant-numeric: tabular-nums; }
+.geld-maand {
+  background: var(--kaart); border: 1px solid var(--lijn); border-radius: var(--r);
+  padding: .9rem 1rem; margin-bottom: .7rem; box-shadow: var(--schaduw);
+}
+.geld-kop { display: flex; align-items: baseline; gap: .6rem; margin-bottom: .5rem; }
+.geld-kop h3 { margin: 0; font-size: .95rem; }
+.geld-kop .bedrag { margin-left: auto; font-size: 1.15rem; font-weight: 700;
+                    font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.geld-open { font-size: .68rem; text-transform: uppercase; letter-spacing: .07em;
+             color: var(--amber-diep); background: #fdf4e0; border-radius: 4px;
+             padding: .1rem .35rem; font-weight: 700; }
+.geld-regel { display: flex; gap: .6rem; font-size: .86rem; padding: .22rem 0;
+              border-top: 1px solid var(--lijn); }
+.geld-regel:first-of-type { border-top: 0; }
+.geld-regel .wat { flex: 1; }
+.geld-regel .bedrag { font-variant-numeric: tabular-nums; }
+.geld-regel.correctie .wat { color: var(--grijs); font-style: italic; }
+.geld-regel.correctie .bedrag { color: var(--rood); }
+.geld-regel.correctie.plus .bedrag { color: var(--groen); }
+.geld-totaal { display: flex; margin-top: .5rem; padding-top: .5rem;
+               border-top: 2px solid var(--inkt); font-weight: 600; font-size: .9rem; }
+.geld-totaal .bedrag { margin-left: auto; font-variant-numeric: tabular-nums; }
+
+.sectie-uitleg { font-size: .82rem; color: var(--grijs); margin: -.1rem 0 .6rem; }
 .dag-kop {
   font-size: .72rem; text-transform: uppercase; letter-spacing: .08em;
   color: var(--grijs); font-weight: 700; margin: .9rem 0 .4rem;
@@ -333,7 +396,9 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
 .ov-kop { display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap; }
 .ov-uur { font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
 .ov-ploegen { font-weight: 600; font-size: .95rem; flex: 1; min-width: 10rem; }
-.ov-ploegen .tegen { color: var(--grijs); font-weight: 400; }
+.ov-ploegen .tegen { color: var(--grijs); font-weight: 400; white-space: nowrap; }
+/* De naam van een ploeg mag intern niet afbreken; vóór de naam mag wel. */
+.ov-ploegen .ploeg { white-space: nowrap; }
 .ov-regel { font-size: .82rem; color: var(--grijs); margin-top: .3rem;
             display: flex; gap: .4rem; flex-wrap: wrap; align-items: baseline; }
 .ov-label { font-size: .68rem; text-transform: uppercase; letter-spacing: .07em;
@@ -347,6 +412,21 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
 .chip.vbl { background: #e9edf7; color: #2b3f7a; }
 .chip.geen { background: transparent; color: var(--grijs); font-style: italic; padding-left: 0; }
 .chip.toe { background: var(--inkt); color: #fff; }
+.ref-plaats {
+  display: inline-flex; align-items: center; gap: .3rem; font-size: .78rem;
+  border-radius: 5px; padding: .14rem .4rem .14rem .16rem; white-space: nowrap;
+}
+.ref-plaats.gevuld { background: var(--inkt); color: #fff; }
+.ref-plaats.leeg { border: 1px dashed var(--lijn); color: var(--grijs); font-style: italic; }
+.ref-nr {
+  font-size: .6rem; font-weight: 700; letter-spacing: .06em;
+  border-radius: 3px; padding: .1rem .25rem;
+}
+.ref-plaats.gevuld .ref-nr { background: rgba(255,255,255,.2); }
+.ref-plaats.leeg .ref-nr { background: #eef0f3; color: var(--inkt-zacht); font-style: normal; }
+.ref-plaats button { background: none; border: 0; color: #aab3c0; padding: 0 0 0 .1rem;
+                     font-size: .95em; line-height: 1; }
+.ref-plaats button:hover { color: #fff; }
 .chip.toe button { background: none; border: 0; color: #aab3c0; margin-left: .25rem;
                    padding: 0 0 0 .1rem; font-size: .9em; line-height: 1; }
 .chip.toe button:hover { color: #fff; }
@@ -470,6 +550,18 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
 .gebr-acties { display: flex; gap: .3rem; flex-shrink: 0; }
 .mini.gevaar:hover { color: var(--rood); }
 .import-uitslag ul { list-style: none; margin: .4rem 0 0; padding: 0; font-size: .82rem; }
+.reset-blok { border-color: #f0d5d2; }
+.reset-blok h3 { color: var(--rood); }
+.reset-rij {
+  border-top: 1px solid var(--lijn); padding: .75rem 0;
+}
+.reset-rij:first-of-type { border-top: 0; }
+.reset-rij b { font-size: .92rem; }
+.reset-rij p { margin: .2rem 0 .5rem; font-size: .82rem; color: var(--grijs); line-height: 1.45; }
+.reset-raakt { font-size: .76rem; color: var(--grijs); margin-bottom: .5rem;
+               font-variant-numeric: tabular-nums; }
+.knop.gevaarlijk { background: var(--rood); }
+.knop.gevaarlijk:hover:not(:disabled) { background: #8f1c18; }
 .import-uitslag li { padding: .18rem 0; border-top: 1px solid var(--lijn); }
 .import-uitslag li:first-child { border-top: 0; }
 .regelnr { color: var(--grijs); font-variant-numeric: tabular-nums; font-size: .76rem; }
@@ -526,18 +618,21 @@ select {
 <header class="balk">
   <div class="balk-rij">
     <div class="merk">YO<span class="accent">Assist</span><span class="versie" id="versie"></span></div>
-    <div class="balk-info" id="balk-info"></div>
-    <button class="menu-knop" id="voorkeur-knop" aria-label="Mijn voorkeuren"
-            title="Mijn voorkeuren">&#9788;</button>
-    <button class="menu-knop" id="menu-knop" hidden aria-label="Beheer" title="Beheer">&#8942;</button>
+    <button class="balk-info" id="balk-info" aria-haspopup="menu" aria-expanded="false"></button>
+    <div class="naammenu" id="naammenu" role="menu" hidden>
+      <button role="menuitem" data-menu="voorkeuren">Mijn voorkeuren</button>
+      <button role="menuitem" data-menu="rondleiding">Rondleiding</button>
+      <button role="menuitem" data-menu="beheer" hidden>Beheer</button>
+    </div>
   </div>
 </header>
 
 <main>
   <div class="tabs" id="tabs" hidden role="tablist">
-    <button class="tab" id="tab-mijn" role="tab" aria-selected="true">Beschikbaarheden</button>
+    <button class="tab" id="tab-mijn" role="tab" aria-selected="true">Aanduidingen</button>
     <button class="tab" id="tab-club" role="tab" aria-selected="false">Cluboverzicht</button>
     <button class="tab" id="tab-log" role="tab" aria-selected="false">Logboek</button>
+    <button class="tab" id="tab-geld" role="tab" aria-selected="false">Vergoeding</button>
   </div>
   <div id="hoofd">
     <div class="leeg"><span class="spinner"></span> Laden…</div>
@@ -599,6 +694,70 @@ const $ = (id) => document.getElementById(id);
 function tekst(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+
+/* --- Samenvouwen ---------------------------------------------------------
+   Onthoudt per sectie of ze open of dicht staat, zodat een beheerder die de
+   helft van het paneel dichtklapt dat niet bij elke keer opnieuw moet doen.
+   Zonder opslag werkt alles gewoon, maar dan staat elke sectie weer open.
+------------------------------------------------------------------------- */
+const VOUW_SLEUTEL = 'yoassist-gevouwen';
+
+function gevouwenSecties() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(VOUW_SLEUTEL) ?? '[]'));
+  } catch {
+    return new Set();
+  }
+}
+
+function bewaarVouwstand(gesloten) {
+  try {
+    localStorage.setItem(VOUW_SLEUTEL, JSON.stringify([...gesloten]));
+  } catch { /* prima zonder */ }
+}
+
+function isDicht(sleutel) {
+  return gevouwenSecties().has(sleutel);
+}
+
+function wisselVouw(sleutel) {
+  const gesloten = gevouwenSecties();
+  if (gesloten.has(sleutel)) gesloten.delete(sleutel);
+  else gesloten.add(sleutel);
+  bewaarVouwstand(gesloten);
+  return !gesloten.has(sleutel);
+}
+
+/**
+ * Koppelt alle koppen met een data-vouw aan hun inhoud.
+ *
+ * Twee vormen: een kop met een bijhorende [data-vouw-inhoud] als broer, of een
+ * h3 in een .blok waar de rest van het blok de inhoud is.
+ */
+function koppelVouwknoppen(wortel = document) {
+  wortel.querySelectorAll('[data-vouw]').forEach((kop) => {
+    const sleutel = kop.dataset.vouw;
+    const inhoud = wortel.querySelector(`[data-vouw-inhoud="${sleutel}"]`);
+    const blok = kop.closest('.blok');
+
+    const pas = (open) => {
+      kop.setAttribute('aria-expanded', String(open));
+      if (inhoud) inhoud.hidden = !open;
+      else if (blok) blok.classList.toggle('dicht', !open);
+    };
+
+    kop.classList.add('vouw');
+    kop.setAttribute('role', 'button');
+    kop.setAttribute('tabindex', '0');
+    pas(!isDicht(sleutel));
+
+    const wissel = () => pas(wisselVouw(sleutel));
+    kop.onclick = wissel;
+    kop.onkeydown = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); wissel(); }
+    };
+  });
 }
 
 let toastTimer;
@@ -722,10 +881,14 @@ async function laadHoofd() {
       : '';
 
     $('balk-info').innerHTML =
-      `<strong>${tekst(ik.naam)}</strong>${tekst(ik.profiel)}` +
-      `${ik.clubNaam ? ' &middot; ' + tekst(ik.clubNaam) : ''}${beheerRegel}`;
-    $('menu-knop').hidden = !ik.isAdmin;
-    $('tabs').hidden = !ik.isAdmin;
+      `<span><strong>${tekst(ik.naam)}</strong>${tekst(ik.profiel)}` +
+      `${ik.clubNaam ? ' &middot; ' + tekst(ik.clubNaam) : ''}${beheerRegel}</span>`;
+
+    document.querySelector('[data-menu="beheer"]').hidden = !ik.isAdmin;
+    // De tabbalk is er nu voor iedereen: ook een gewone YO heeft Vergoeding.
+    // De beheerderstabbladen blijven wel verborgen.
+    $('tabs').hidden = false;
+    for (const id of ['tab-club', 'tab-log']) $(id).hidden = !ik.isAdmin;
 
     if (data.clubKeuze) {
       toonClubKeuze(data.clubKeuze, ik.isAdmin);
@@ -762,7 +925,7 @@ function toonClubKeuze(keuze, isAdmin) {
 
   doel.innerHTML = `
     <div class="keuze-kaart">
-      <h2>Voor welke club sta je aan de tafel?</h2>
+      <h2>Voor welke club fluit je?</h2>
       <p>Je ziet daarna de thuiswedstrijden van die club. Een beheerder kan dit later aanpassen.</p>
       ${keuze.clubs.map((c) => `
         <button class="club-knop" data-club="${tekst(c.guid)}">
@@ -785,38 +948,54 @@ function toonMatches(data) {
     return;
   }
 
-  const onbeantwoord = staat.matches.filter((m) => m.beschikbaarheid === null && !m.toegewezen).length;
+  // Drie secties, in volgorde van wat er van je verwacht wordt: eerst wat
+  // vastligt, dan wat nog een antwoord vraagt, en onderaan wat je al beantwoord
+  // hebt. Dat laatste mag ver weg staan; het vraagt geen actie meer.
+  const aangeduid = staat.matches.filter((m) => m.toegewezen);
+  const open = staat.matches.filter((m) => !m.toegewezen && m.beschikbaarheid === null);
+  const beantwoord = staat.matches.filter((m) => !m.toegewezen && m.beschikbaarheid !== null);
+
   const delen = [];
 
   delen.push(
-    onbeantwoord === 0
-      ? `<div class="teller klaar"><b>&check;</b><span>Alles beantwoord — ${staat.matches.length} wedstrijden.</span></div>`
-      : `<div class="teller open"><b>${onbeantwoord}</b><span>nog te beantwoorden van ${staat.matches.length} wedstrijden.</span></div>`,
+    open.length === 0
+      ? `<div class="teller klaar"><b>&check;</b><span>Alles beantwoord${
+          aangeduid.length ? ` &middot; ${aangeduid.length} keer aangeduid` : ''}.</span></div>`
+      : `<div class="teller open"><b>${open.length}</b><span>nog te beantwoorden${
+          aangeduid.length ? ` &middot; ${aangeduid.length} keer aangeduid` : ''}.</span></div>`,
   );
 
-  let vorigeMaand = null;
-  for (const m of staat.matches) {
-    const sleutel = maandSleutel(m.datum);
-    if (sleutel !== vorigeMaand) {
-      const aantal = staat.matches.filter((x) => maandSleutel(x.datum) === sleutel).length;
-      delen.push(
-        `<div class="maand"><h2>${tekst(maandLabel(sleutel))}</h2>
-         <span class="aantal">${aantal}</span></div>`,
-      );
-      vorigeMaand = sleutel;
+  const sectie = (sleutel, naam, uitleg, items) => {
+    if (items.length === 0) return;
+    delen.push(`<div class="groep-kop" data-vouw="yo-${sleutel}"><h2>${tekst(naam)}</h2>
+      <span class="aantal">${items.length}</span></div>`);
+
+    const binnen = [];
+    if (uitleg) binnen.push(`<p class="sectie-uitleg">${tekst(uitleg)}</p>`);
+
+    let vorigeMaand = null;
+    for (const m of items) {
+      const maand = maandSleutel(m.datum);
+      if (maand !== vorigeMaand) {
+        binnen.push(`<div class="dag-kop">${tekst(maandLabel(maand))}</div>`);
+        vorigeMaand = maand;
+      }
+      binnen.push(kaart(m));
     }
-    delen.push(kaart(m));
-  }
+
+    delen.push(`<div class="groep-inhoud" data-vouw-inhoud="yo-${sleutel}">${binnen.join('')}</div>`);
+  };
+
+  sectie('aangeduid', 'Je bent aangeduid',
+    'Deze wedstrijden fluit je. Lukt het niet, meld dat dan.', aangeduid);
+  sectie('open', 'Nog te beantwoorden', '', open);
+  sectie('beantwoord', 'Je hebt geantwoord',
+    'Je kunt dit nog wijzigen zolang je niet aangeduid bent.', beantwoord);
 
   doel.innerHTML = delen.join('');
+  koppelVouwknoppen();
 }
 
-/**
- * Wie er op deze wedstrijd staat: de scheidsrechters van Basketbal Vlaanderen
- * en de aangeduide officials van de eigen club. Wordt bij elke wedstrijd
- * getoond, ook als de gebruiker er zelf niets mee te maken heeft — je wil
- * weten met wie je aan de tafel staat, en of er nog plaats is.
- */
 function refsRegel(m) {
   const delen = [];
 
@@ -867,7 +1046,8 @@ function kaart(m) {
       <span class="nr">${d.getUTCDate()}</span>
       <span class="uur">${tekst(m.uur)}</span>
     </div>
-    <div class="wed-ploegen">${tekst(m.thuis)} <span class="tegen">&ndash; ${tekst(m.uit)}</span></div>
+    <div class="wed-ploegen"><span class="ploeg">${tekst(m.thuis)}</span>
+      <span class="tegen">&ndash; ${tekst(m.uit)}</span></div>
     <div class="wed-meta">
       ${m.catLabel ? `<span class="cat">${tekst(m.catCode)}</span>` : ''}
       <span>${tekst(m.locatie || 'locatie onbekend')}</span>
@@ -948,25 +1128,22 @@ $('hoofd').addEventListener('click', async (e) => {
 });
 
 function werkTellerBij() {
-  const teller = document.querySelector('.teller');
-  if (!teller) return;
-  const open = staat.matches.filter((m) => m.beschikbaarheid === null && !m.toegewezen).length;
-  const totaal = staat.matches.length;
-  teller.className = 'teller ' + (open === 0 ? 'klaar' : 'open');
-  teller.innerHTML =
-    open === 0
-      ? `<b>&check;</b><span>Alles beantwoord — ${totaal} wedstrijden.</span>`
-      : `<b>${open}</b><span>nog te beantwoorden van ${totaal} wedstrijden.</span>`;
+  // De secties verschuiven zodra iemand antwoordt, dus het hele scherm
+  // opnieuw tekenen in plaats van enkel de teller bij te werken. Anders staat
+  // een net beantwoorde wedstrijd nog onder 'nog te beantwoorden'.
+  toonMatches({ matches: staat.matches });
 }
 
 /* --- weergaveschakelaar en cluboverzicht -------------------------------- */
 $('tab-mijn').addEventListener('click', () => wisselWeergave('mijn'));
 $('tab-club').addEventListener('click', () => wisselWeergave('club'));
 $('tab-log').addEventListener('click', () => wisselWeergave('log'));
+$('tab-geld').addEventListener('click', () => wisselWeergave('geld'));
 
 async function wisselWeergave(welke) {
   staat.weergave = welke;
-  for (const [id, sleutel] of [['tab-mijn', 'mijn'], ['tab-club', 'club'], ['tab-log', 'log']]) {
+  for (const [id, sleutel] of [['tab-mijn', 'mijn'], ['tab-club', 'club'],
+                               ['tab-log', 'log'], ['tab-geld', 'geld']]) {
     $(id).setAttribute('aria-selected', String(welke === sleutel));
   }
 
@@ -980,6 +1157,11 @@ async function wisselWeergave(welke) {
     return;
   }
 
+  if (welke === 'geld') {
+    await laadVergoeding();
+    return;
+  }
+
   $('hoofd').innerHTML = '<div class="leeg"><span class="spinner"></span> Overzicht laden…</div>';
   try {
     staat.overzicht = await api('/api/admin/overzicht');
@@ -987,6 +1169,66 @@ async function wisselWeergave(welke) {
   } catch (err) {
     $('hoofd').innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
   }
+}
+
+/* --- Vergoeding ----------------------------------------------------------
+   Recentste maand bovenaan. De lopende maand staat er ook bij, met de
+   vermelding dat er nog niets vastligt: zonder die regel komt de vraag
+   'ik heb vorige week gefloten, waarom staat er niets' bij de beheerder terecht.
+------------------------------------------------------------------------- */
+async function laadVergoeding() {
+  $('hoofd').innerHTML = '<div class="leeg"><span class="spinner"></span> Laden…</div>';
+  try {
+    toonVergoeding(await api('/api/vergoeding'));
+  } catch (err) {
+    $('hoofd').innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+  }
+}
+
+function toonVergoeding(data) {
+  if (data.maanden.length === 0) {
+    $('hoofd').innerHTML = `<div class="leeg">Je hebt dit seizoen nog geen wedstrijden gefloten.<br>
+      Zodra je bent aangeduid en de wedstrijd gespeeld is, verschijnt ze hier.</div>`;
+    return;
+  }
+
+  const delen = [`
+    <div class="teller klaar">
+      <b>${tekst(data.seizoenTotaal)}</b>
+      <span>dit seizoen, over ${data.aantalAfgesloten} afgesloten maand${
+        data.aantalAfgesloten === 1 ? '' : 'en'}.</span>
+    </div>`];
+
+  for (const m of data.maanden) {
+    const regels = m.regels.map((r) => {
+      const isCorrectie = r.soort === 'correctie';
+      const wat = isCorrectie
+        ? `Correctie ${tekst(r.betreftMaand)}: ${r.aantal > 0 ? '+' : ''}${r.aantal} × ${
+            tekst(r.catLabel || r.catCode)}`
+        : `${r.aantal} × ${tekst(r.catLabel || r.catCode)}`;
+      return `<div class="geld-regel ${isCorrectie ? 'correctie' : ''} ${
+        isCorrectie && r.aantal > 0 ? 'plus' : ''}">
+        <span class="wat">${wat}</span>
+        <span class="bedrag">${tekst(r.bedrag)}</span>
+      </div>`;
+    }).join('');
+
+    delen.push(`
+      <div class="geld-maand">
+        <div class="geld-kop">
+          <h3>${tekst(maandLabel(m.maand))}</h3>
+          ${m.afgesloten ? '' : '<span class="geld-open">nog niet afgesloten</span>'}
+          <span class="bedrag">${tekst(m.totaal)}</span>
+        </div>
+        ${regels}
+        ${m.afgesloten
+          ? ''
+          : `<p class="hint" style="margin:.6rem 0 0">Deze maand loopt nog.
+             Het bedrag kan nog wijzigen tot de beheerder ze afsluit.</p>`}
+      </div>`);
+  }
+
+  $('hoofd').innerHTML = delen.join('');
 }
 
 /* --- Logboek ------------------------------------------------------------- */
@@ -1262,25 +1504,31 @@ function toonOverzicht(o) {
     // Eerst U10/U12, dan de rest. Binnen elke groep chronologisch, met een
     // dagkop zodat een speeldag als geheel leesbaar blijft.
     const groepen = [
-      { naam: 'U10 / U12', items: zichtbaar.filter((w) => w.catGroep === 'U10U12') },
-      { naam: 'Overige', items: zichtbaar.filter((w) => w.catGroep !== 'U10U12') },
+      { sleutel: 'u10u12', naam: 'U10 / U12',
+        items: zichtbaar.filter((w) => w.catGroep === 'U10U12') },
+      { sleutel: 'overige', naam: 'Overige',
+        items: zichtbaar.filter((w) => w.catGroep !== 'U10U12') },
     ];
 
     for (const groep of groepen) {
       if (groep.items.length === 0) continue;
-      delen.push(`<div class="groep-kop"><h2>${tekst(groep.naam)}</h2>
+      const sleutel = `club-${groep.sleutel}`;
+      delen.push(`<div class="groep-kop" data-vouw="${sleutel}"><h2>${tekst(groep.naam)}</h2>
         <span class="aantal">${groep.items.length}</span></div>`);
 
+      const binnen = [];
       let vorigeDatum = null;
       for (const w of groep.items) {
         if (w.datum !== vorigeDatum) {
           const d = ontleedDatum(w.datum);
-          delen.push(`<div class="dag-kop">${DAGEN[d.getUTCDay()]} ${d.getUTCDate()} ${
+          binnen.push(`<div class="dag-kop">${DAGEN[d.getUTCDay()]} ${d.getUTCDate()} ${
             MAANDEN[d.getUTCMonth()]}</div>`);
           vorigeDatum = w.datum;
         }
-        delen.push(overzichtKaart(w));
+        binnen.push(overzichtKaart(w));
       }
+
+      delen.push(`<div class="groep-inhoud" data-vouw-inhoud="${sleutel}">${binnen.join('')}</div>`);
     }
   }
 
@@ -1292,6 +1540,7 @@ function toonOverzicht(o) {
   }
 
   $('hoofd').innerHTML = delen.join('');
+  koppelVouwknoppen();
 
   const autoKnop = $('auto-knop');
   if (autoKnop) autoKnop.onclick = toonAutoVoorstel;
@@ -1316,11 +1565,21 @@ function overzichtKaart(w) {
       ? w.vblRefs.map((n) => `<span class="chip vbl">${tekst(n)}</span>`).join('')
       : '<span class="chip geen">nog niemand</span>';
 
-  // Toegewezen officials, elk met een kruisje om vrij te geven.
-  const toe = w.toegewezen.length
-    ? w.toegewezen.map((p) => `<span class="chip toe">${tekst(p.naam)}<button
-         data-vrij="${tekst(p.email)}" title="Vrijgeven">&times;</button></span>`).join('')
-    : '<span class="chip geen">nog niemand</span>';
+  // Twee gelijkwaardige plaatsen, maar in de praktijk spreekt iedereen over
+  // REF1 en REF2. Beide plaatsen tonen, ook de lege: zo zie je in één oogopslag
+  // of er nog iemand gezocht wordt.
+  const plaatsen = [];
+  for (let i = 0; i < w.nodig; i++) {
+    const official = w.toegewezen[i];
+    plaatsen.push(official
+      ? `<span class="ref-plaats gevuld"><span class="ref-nr">REF${i + 1}</span>${
+          tekst(official.naam)}<button data-vrij="${tekst(official.email)}"
+          title="Vrijgeven">&times;</button></span>`
+      : `<span class="ref-plaats leeg"><span class="ref-nr">REF${i + 1}</span>nog te vullen</span>`);
+  }
+  const toe = plaatsen.length
+    ? plaatsen.join('')
+    : '<span class="chip geen">Basketbal Vlaanderen voorziet er twee</span>';
 
   // Beschikbare officials die nog niet toegewezen zijn, klikbaar om toe te wijzen.
   const alToe = new Set(w.toegewezen.map((p) => p.email));
@@ -1338,6 +1597,14 @@ function overzichtKaart(w) {
              title="Toch toewijzen">${tekst(p.naam)}</span>`).join('')}</div>`
     : '';
 
+  // Bij U10/U12 duidt Basketbal Vlaanderen geen scheidsrechters aan, dus die
+  // regel zou daar altijd 'nog niemand' tonen. Ruis. Staat er tóch iemand op,
+  // dan is dat wél informatie en tonen we het alsnog.
+  const toonVbl = w.catGroep !== 'U10U12' || w.vblAantal > 0;
+  const vblRegel = toonVbl
+    ? `<div class="ov-regel"><span class="ov-label">VBL</span>${refs}</div>`
+    : '';
+
   const compleet = w.inScope && w.toegewezen.length >= w.nodig;
   const klassen = ['ov'];
   if (!w.inScope) klassen.push('buiten');
@@ -1347,7 +1614,7 @@ function overzichtKaart(w) {
 
   const scopeRegels = w.inScope
     ? `<div class="ov-regel"><span class="ov-label">Club</span>${toe}
-         <span class="reden">${w.toegewezen.length}/${w.nodig} &middot; ${tekst(w.scopeReden || '')}</span></div>
+         <span class="reden">${tekst(w.scopeReden || '')}</span></div>
        <div class="ov-regel"><span class="ov-label">Beschikbaar</span>${ja}</div>
        ${nee}`
     : '';
@@ -1357,7 +1624,8 @@ function overzichtKaart(w) {
     <div class="ov-kop">
       <span class="ov-uur">${tekst(w.uur)}</span>
       <span class="cat ${w.catLabel ? '' : 'onbekend'}">${tekst(w.catCode || '??')}</span>
-      <span class="ov-ploegen">${tekst(w.thuis)} <span class="tegen">&ndash; ${tekst(w.uit)}</span></span>
+      <span class="ov-ploegen"><span class="ploeg">${tekst(w.thuis)}</span>
+        <span class="tegen">&ndash; ${tekst(w.uit)}</span></span>
     </div>
     <div class="ov-regel">
       <span>${tekst(w.locatie || 'locatie onbekend')}</span>
@@ -1365,7 +1633,7 @@ function overzichtKaart(w) {
         ? `<a class="blad" href="${tekst(w.wedstrijdblad)}" target="_blank" rel="noopener noreferrer">wedstrijdblad &#8599;</a>`
         : ''}
     </div>
-    <div class="ov-regel"><span class="ov-label">VBL</span>${refs}</div>
+    ${vblRegel}
     ${scopeRegels}
     <div class="ov-actie">
       <button class="mini-knop ${w.inScope ? 'aan' : ''}" data-scope="${w.inScope ? '0' : '1'}">
@@ -1576,7 +1844,7 @@ function misschienRondleiding() {
    beheerder die ook YO+ is, zou anders door clubconfiguratie moeten scrollen
    op zoek naar zijn eigen pushknop.
 --------------------------------------------------------------------------- */
-$('voorkeur-knop').addEventListener('click', openVoorkeuren);
+
 $('voorkeur-sluit').addEventListener('click', sluitVoorkeuren);
 $('voorkeur-overlay').addEventListener('click', (e) => {
   if (e.target === $('voorkeur-overlay')) sluitVoorkeuren();
@@ -1776,13 +2044,41 @@ async function zetPushAan(vapidPubliek) {
 }
 
 /* --- beheerpaneel ------------------------------------------------------- */
-$('menu-knop').addEventListener('click', openPaneel);
+/* --- Naammenu ------------------------------------------------------------
+   Eén ingang voor alles wat over jou gaat, plus Beheer voor wie dat mag.
+   Vervangt de twee naamloze icoontjes die je moest raden.
+------------------------------------------------------------------------- */
+function zetNaammenu(open) {
+  $('naammenu').hidden = !open;
+  $('balk-info').setAttribute('aria-expanded', String(open));
+}
+
+$('balk-info').addEventListener('click', (e) => {
+  e.stopPropagation();
+  zetNaammenu($('naammenu').hidden);
+});
+
+// Ergens anders klikken sluit het menu. Zonder dit blijft het openstaan terwijl
+// je al iets anders aan het doen bent.
+document.addEventListener('click', () => zetNaammenu(false));
+$('naammenu').addEventListener('click', (e) => e.stopPropagation());
+
+$('naammenu').addEventListener('click', (e) => {
+  const knop = e.target.closest('[data-menu]');
+  if (!knop) return;
+  zetNaammenu(false);
+
+  if (knop.dataset.menu === 'voorkeuren') openVoorkeuren();
+  else if (knop.dataset.menu === 'beheer') openPaneel();
+  else if (knop.dataset.menu === 'rondleiding') setTimeout(startRondleiding, 100);
+});
 $('paneel-sluit').addEventListener('click', sluitPaneel);
 $('overlay').addEventListener('click', (e) => { if (e.target === $('overlay')) sluitPaneel(); });
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   sluitPaneel();
   sluitVoorkeuren();
+  zetNaammenu(false);
   if (staat.rond) stopRondleiding();
 });
 
@@ -1850,7 +2146,7 @@ function toonPaneel() {
 
   $('paneel-inhoud').innerHTML = `
     <section class="blok">
-      <h3>Seizoen</h3>
+      <h3 data-vouw="beheer-seizoen">Seizoen</h3>
       <p class="hint">Een seizoen loopt van juli tot juni. Volgens de kalender is dat nu
         ${tekst(c.seizoen.voorstelUitDatum)}-${tekst(c.seizoen.voorstelUitDatum + 1)}.</p>
       <div class="seizoen-rij">
@@ -1861,7 +2157,7 @@ function toonPaneel() {
     </section>
 
     <section class="blok">
-      <h3>Clubs</h3>
+      <h3 data-vouw="beheer-clubs">Clubs</h3>
       <p class="hint">Vervang XXXX door de vier cijfers van je club-GUID.
         Controleer eerst, voeg daarna toe.</p>
       <div class="veld-rij">
@@ -1874,7 +2170,7 @@ function toonPaneel() {
     </section>
 
     <section class="blok">
-      <h3>Teams</h3>
+      <h3 data-vouw="beheer-teams">Teams</h3>
       <p class="hint">Vink aan van welke ploegen de wedstrijden opgehaald moeten worden.
         Of een wedstrijd in de aanduidingslijst komt, hangt af van de categorie
         (U10/U12 gaat automatisch) of van jouw keuze in het cluboverzicht.</p>
@@ -1888,7 +2184,7 @@ function toonPaneel() {
     </section>
 
     <section class="blok">
-      <h3>Mail</h3>
+      <h3 data-vouw="beheer-mail">Mail</h3>
       <p class="hint">Het afzenderadres wijzig je hier. De API-sleutel van de
         maildienst is een secret bij de Worker en staat niet in dit scherm.
         <button class="mini" id="mail-zandbak">Testmodus zonder domein</button></p>
@@ -1909,7 +2205,7 @@ function toonPaneel() {
     </section>
 
     <section class="blok">
-      <h3>Gebruikers</h3>
+      <h3 data-vouw="beheer-gebruikers">Gebruikers</h3>
       <p class="hint">Wie hier staat én in de Access-policy, raakt binnen.
         Beide lijsten moeten kloppen.</p>
       <div id="gebruikers-lijst"><span class="spinner"></span> Laden…</div>
@@ -1930,7 +2226,7 @@ function toonPaneel() {
     </section>
 
     <section class="blok">
-      <h3>Eigen wedstrijden</h3>
+      <h3 data-vouw="beheer-wedstrijden">Eigen wedstrijden</h3>
       <p class="hint">Voor wat niet in de kalender van Basketbal Vlaanderen staat:
         oefenwedstrijden, toernooien. Ze worden bij een synchronisatie met rust gelaten.</p>
       <button class="knop breed zacht" id="wed-nieuw">Wedstrijd toevoegen</button>
@@ -1944,7 +2240,7 @@ function toonPaneel() {
     </section>
 
     <section class="blok">
-      <h3>Vrijgeven</h3>
+      <h3 data-vouw="beheer-vrijgeven">Vrijgeven</h3>
       <p class="hint">Aanduidingen worden op vrijgegeven gezet en blijven zichtbaar
         in de historiek. Beschikbaarheden worden gewist, want die kennen geen
         tussentoestand. De betrokken officials krijgen geen bericht; de beheerders
@@ -1954,15 +2250,47 @@ function toonPaneel() {
     </section>
 
     <section class="blok">
-      <h3>Synchronisatie</h3>
+      <h3 data-vouw="beheer-sync">Synchronisatie</h3>
       <p class="hint">Draait automatisch om 6, 12, 18 en 24 uur.
         ${c.openWijzigingen > 0 ? `<b>${c.openWijzigingen} openstaande wijziging(en).</b>` : ''}</p>
       <p class="hint" style="margin-bottom:0">${syncTekst}</p>
       <button class="knop breed" id="sync-nu">Nu synchroniseren</button>
       <div id="sync-melding"></div>
+    </section>
+
+    <section class="blok">
+      <h3 data-vouw="beheer-facturatie">Facturatie</h3>
+      <p class="hint">Afsluiten legt de bedragen vast. Wat er nadien nog wijzigt,
+        komt als correctie in de volgende maand.</p>
+      <div id="fact-inhoud"><span class="spinner"></span> Laden…</div>
+      <div class="veld-rij" style="margin-top:.6rem">
+        <input type="text" id="fact-ontvangers" placeholder="penningmeester@club.be">
+        <button class="knop zacht" id="fact-bewaar">Bewaren</button>
+      </div>
+      <p class="hint" style="margin-top:.3rem">Wie de verzamelstaat krijgt.
+        Meerdere adressen gescheiden door komma's.</p>
+      <div id="fact-melding"></div>
+    </section>
+
+    <section class="blok">
+      <h3 data-vouw="beheer-backup">Backup</h3>
+      <p class="hint">Eén bestand met alles erin. Terugzetten gebeurt handmatig
+        via de D1-console; er is geen knop die een backup terugplaatst.</p>
+      <div id="backup-omvang"><span class="spinner"></span> Laden…</div>
+      <button class="knop breed zacht" id="backup-nu">Backup downloaden</button>
+      <div id="backup-melding"></div>
+    </section>
+
+    <section class="blok reset-blok">
+      <h3 data-vouw="beheer-reset">Opnieuw beginnen</h3>
+      <p class="hint">Wat je hier wist, komt niet terug. Alleen wat opnieuw bij
+        Basketbal Vlaanderen op te halen is, is echt herstelbaar.</p>
+      <div id="reset-lijst"><span class="spinner"></span> Laden…</div>
+      <div id="reset-melding"></div>
     </section>`;
 
   bindPaneel();
+  koppelVouwknoppen($('paneel-inhoud'));
 }
 
 function bindPaneel() {
@@ -1988,6 +2316,23 @@ function bindPaneel() {
 
   $('wed-nieuw').onclick = toonWedstrijdFormulier;
   $('wed-import').onclick = () => $('wed-bestand').click();
+
+  $('backup-nu').onclick = async () => {
+    const knop = $('backup-nu');
+    const melding = $('backup-melding');
+    knop.disabled = true;
+    melding.innerHTML = '<div class="melding let"><span class="spinner"></span>Bestand opbouwen…</div>';
+    try {
+      const naam = `yoassist-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      await haalBestand('/api/admin/backup', naam);
+      melding.innerHTML = `<div class="melding ok">Backup gedownload als ${tekst(naam)}.</div>`;
+      await laadBackup();
+    } catch (err) {
+      melding.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+    } finally {
+      knop.disabled = false;
+    }
+  };
 
   $('wed-sjabloon').onclick = async () => {
     try {
@@ -2039,6 +2384,22 @@ function bindPaneel() {
 
   laadMailConfig();
   laadVrijgeven();
+  laadFacturatie();
+  laadBackup();
+
+  $('fact-bewaar').onclick = async () => {
+    try {
+      const r = await api('/api/admin/facturatie/ontvangers', {
+        method: 'POST',
+        body: JSON.stringify({ ontvangers: $('fact-ontvangers').value }),
+      });
+      $('fact-melding').innerHTML = `<div class="melding ok">
+        Verzamelstaat gaat naar ${r.ontvangers.length} adres(sen).</div>`;
+    } catch (err) {
+      $('fact-melding').innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+    }
+  };
+  laadReset();
 
   $('mail-bewaar').onclick = async () => {
     const melding = $('mail-melding');
@@ -2205,6 +2566,257 @@ const MAAND_NAMEN = ['januari','februari','maart','april','mei','juni',
 function maandLabelUitSleutel(sleutel) {
   const [j, m] = sleutel.split('-').map(Number);
   return `${MAAND_NAMEN[m - 1]} ${j}`;
+}
+
+async function laadFacturatie() {
+  const doel = $('fact-inhoud');
+  try {
+    const data = await api('/api/admin/facturatie');
+    $('fact-ontvangers').value = data.ontvangers;
+
+    const open = data.open.length
+      ? data.open.map((m) => `
+          <div class="reset-rij">
+            <b>${tekst(maandLabel(m.maand))}</b>
+            <p>${m.aanduidingen} aanduiding${m.aanduidingen === 1 ? '' : 'en'}.
+              ${m.mag ? '' : tekst(m.reden ?? '')}</p>
+            <button class="knop ${m.mag ? '' : 'zacht'} breed" data-fact="${tekst(m.maand)}"
+                    ${m.mag ? '' : 'disabled'}>
+              ${m.mag ? 'Bekijken en afsluiten' : 'Nog niet af te sluiten'}
+            </button>
+          </div>`).join('')
+      : '<p class="hint" style="margin:0">Geen openstaande maanden.</p>';
+
+    const historiek = data.afgesloten.length
+      ? `<div class="scheiding"><span>Afgesloten</span></div>` +
+        data.afgesloten.map((a) => `
+          <div class="toestel-rij">
+            <span class="naam">${tekst(maandLabel(a.maand))}
+              <span class="regelnr">${a.aantalOfficials} officials &middot; ${
+                a.verstuurdOp ? 'verstuurd' : 'niet verstuurd'}</span></span>
+            <span class="regelnr">${tekst(a.totaal)}</span>
+            <button class="mini" data-staat="${tekst(a.maand)}">bekijk</button>
+          </div>`).join('')
+      : '';
+
+    doel.innerHTML = open + historiek;
+
+    doel.querySelectorAll('[data-fact]').forEach((knop) => {
+      knop.onclick = () => toonFactVoorbeeld(knop.dataset.fact);
+    });
+    doel.querySelectorAll('[data-staat]').forEach((knop) => {
+      knop.onclick = () => toonFactStaat(knop.dataset.staat);
+    });
+  } catch (err) {
+    doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+  }
+}
+
+/** Regels van één official opmaken, gedeeld door voorbeeld en historiek. */
+function factOfficialHtml(o) {
+  const regels = o.regels.map((r) => `
+    <div class="geld-regel ${r.soort === 'correctie' ? 'correctie' : ''} ${
+      r.soort === 'correctie' && r.aantal > 0 ? 'plus' : ''}">
+      <span class="wat">${r.soort === 'correctie'
+        ? `Correctie ${tekst(r.betreftMaand)}: ${r.aantal > 0 ? '+' : ''}${r.aantal} × ${
+            tekst(r.catLabel || r.catCode)}`
+        : `${r.aantal} × ${tekst(r.catLabel || r.catCode)}`}</span>
+      <span class="bedrag">${tekst(r.bedrag)}</span>
+    </div>`).join('');
+
+  return `
+    <div class="geld-maand">
+      <div class="geld-kop">
+        <h3>${tekst(o.naam)}</h3>
+        <span class="bedrag">${tekst(o.totaal)}</span>
+      </div>
+      ${regels}
+    </div>`;
+}
+
+async function toonFactVoorbeeld(maand) {
+  const doel = $('fact-melding');
+  doel.innerHTML = '<div class="melding let"><span class="spinner"></span>Berekenen…</div>';
+
+  try {
+    const r = await api(`/api/admin/facturatie/voorbeeld?maand=${encodeURIComponent(maand)}`);
+
+    const waarschuwingen = [];
+    if (r.zonderTarief.length) {
+      waarschuwingen.push(`<div class="melding fout">
+        ${r.zonderTarief.length} aanduiding(en) op een categorie zonder tarief:
+        ${r.zonderTarief.map((z) => tekst(z.catCode)).filter((v, i, a) => a.indexOf(v) === i).join(', ')}.
+        Vul eerst een tarief in of geef die aanduidingen vrij.</div>`);
+    }
+    if (r.verdwenen.length) {
+      waarschuwingen.push(`<div class="melding let">
+        ${r.verdwenen.length} aanduiding(en) op een verdwenen wedstrijd. Die tellen niet mee:
+        ${r.verdwenen.map((v) => tekst(v.naam)).join(', ')}.</div>`);
+    }
+
+    doel.innerHTML = `
+      ${waarschuwingen.join('')}
+      <div class="melding ok" style="margin-top:.5rem">
+        ${tekst(maandLabel(maand))}: ${r.aantalOfficials} officials, ${tekst(r.totaal)}
+        ${r.aantalCorrecties ? ` &middot; ${r.aantalCorrecties} correctie(s)` : ''}
+      </div>
+      ${r.officials.map(factOfficialHtml).join('')}
+      <div class="veld-rij" style="margin-top:.5rem">
+        <button class="knop" id="fact-afsluit" style="flex:1" ${r.kanAfsluiten ? '' : 'disabled'}>
+          Afsluiten en versturen
+        </button>
+        <button class="knop zacht" id="fact-annuleer" style="flex:1">Annuleren</button>
+      </div>`;
+
+    $('fact-annuleer').onclick = () => { doel.innerHTML = ''; };
+    $('fact-afsluit').onclick = async () => {
+      if (!confirm(`${maandLabel(maand)} afsluiten?\n\nDe bedragen liggen daarna vast en ` +
+                   'iedereen krijgt zijn overzicht per mail.')) return;
+      $('fact-afsluit').disabled = true;
+      try {
+        const uit = await api('/api/admin/facturatie/afsluiten', {
+          method: 'POST',
+          body: JSON.stringify({ maand }),
+        });
+        doel.innerHTML = `<div class="melding ok">${tekst(maandLabel(maand))} afgesloten:
+          ${uit.aantalOfficials} officials, ${tekst(uit.totaal)}. Overzichten verstuurd.</div>`;
+        await laadFacturatie();
+      } catch (err) {
+        doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+      }
+    };
+  } catch (err) {
+    doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+  }
+}
+
+async function toonFactStaat(maand) {
+  const doel = $('fact-melding');
+  doel.innerHTML = '<div class="melding let"><span class="spinner"></span>Ophalen…</div>';
+  try {
+    const r = await api(`/api/admin/facturatie/staat?maand=${encodeURIComponent(maand)}`);
+    doel.innerHTML = `
+      <div class="melding ok">
+        ${tekst(maandLabel(maand))}: ${tekst(r.totaal)}, afgesloten op ${tekst(r.afgeslotenOp)}
+        door ${tekst(r.afgeslotenDoor)}.
+        ${r.verstuurdNaar ? `Verzamelstaat naar ${tekst(r.verstuurdNaar)}.` : 'Niet verstuurd.'}
+      </div>
+      ${r.officials.map(factOfficialHtml).join('')}
+      <button class="knop zacht breed" id="fact-sluit">Sluiten</button>`;
+    $('fact-sluit').onclick = () => { doel.innerHTML = ''; };
+  } catch (err) {
+    doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+  }
+}
+
+async function laadBackup() {
+  const doel = $('backup-omvang');
+  try {
+    const data = await api('/api/admin/backup/omvang');
+
+    // Alleen tabellen met inhoud opsommen: nullen zeggen niets en maken de
+    // regel onleesbaar.
+    const gevuld = Object.entries(data.tellingen)
+      .filter(([, n]) => n > 0)
+      .sort((a, b) => b[1] - a[1])
+      .map(([tabel, n]) => `${n} ${tekst(tabel)}`);
+
+    doel.innerHTML = `
+      <p class="hint" style="margin:0">
+        ${data.totaalRijen} rijen: ${gevuld.join(', ') || 'nog niets'}.
+        ${data.laatsteBackup
+          ? `Laatste backup: ${tekst(data.laatsteBackup)}.`
+          : 'Er is nog geen backup gemaakt.'}
+      </p>`;
+  } catch (err) {
+    doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+  }
+}
+
+async function laadReset() {
+  const doel = $('reset-lijst');
+  try {
+    const data = await api('/api/admin/reset');
+    staat.reset = data;
+
+    doel.innerHTML = data.niveaus.map((n) => {
+      // Alleen tabellen met inhoud tonen: '0 ploegen' zegt niets en maakt de
+      // waarschuwing juist minder scherp.
+      const raakt = n.raakt.filter((x) => x.aantal > 0);
+      const opsomming = raakt.length
+        ? raakt.map((x) => `${x.aantal} ${tekst(x.tabel)}`).join(', ')
+        : 'niets te wissen';
+
+      return `
+        <div class="reset-rij">
+          <b>${tekst(n.label)}</b>
+          <p>${tekst(n.uitleg)}</p>
+          <div class="reset-raakt">Wist: ${opsomming}</div>
+          <button class="knop ${n.bevestiging === 'naam' ? 'gevaarlijk' : 'zacht'} breed"
+                  data-reset="${tekst(n.sleutel)}" ${n.totaal === 0 ? 'disabled' : ''}>
+            ${n.totaal === 0 ? 'Niets te wissen' : `Wissen (${n.totaal})`}
+          </button>
+        </div>`;
+    }).join('');
+
+    doel.querySelectorAll('[data-reset]').forEach((knop) => {
+      knop.onclick = () => bevestigReset(knop.dataset.reset);
+    });
+  } catch (err) {
+    doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+  }
+}
+
+/**
+ * Twee soorten bevestiging. Voor de lichte niveaus een gewone vraag; voor de
+ * zware moet de clubnaam overgetypt worden. Die extra seconde is precies wat
+ * een verkeerde klik tegenhoudt.
+ */
+async function bevestigReset(sleutel) {
+  const niveau = staat.reset.niveaus.find((n) => n.sleutel === sleutel);
+  const melding = $('reset-melding');
+
+  let bevestiging = null;
+
+  if (niveau.bevestiging === 'naam') {
+    const woord = staat.reset.bevestigWoord;
+    if (!woord) {
+      melding.innerHTML = '<div class="melding let">Er staat geen club ingesteld.</div>';
+      return;
+    }
+    bevestiging = prompt(
+      `${niveau.label}\n\n${niveau.uitleg}\n\n` +
+      `Dit kan niet ongedaan gemaakt worden.\n` +
+      `Typ de naam van de club over om te bevestigen:\n${woord}`,
+    );
+    if (bevestiging === null) return;
+  } else if (!confirm(`${niveau.label}\n\n${niveau.uitleg}\n\nDoorgaan?`)) {
+    return;
+  }
+
+  melding.innerHTML = '<div class="melding let"><span class="spinner"></span>Bezig…</div>';
+
+  try {
+    const r = await api('/api/admin/reset', {
+      method: 'POST',
+      body: JSON.stringify({ niveau: sleutel, bevestiging }),
+    });
+
+    const wat = Object.entries(r.gewist)
+      .filter(([, n]) => n > 0)
+      .map(([tabel, n]) => `${n} ${tekst(tabel)}`)
+      .join(', ');
+
+    melding.innerHTML = `<div class="melding ok">${tekst(r.label)}: ${
+      wat || 'er viel niets te wissen'}.</div>`;
+
+    // Het hele paneel verversen: clubs, teams en gebruikers kunnen zonet
+    // verdwenen zijn, en die lijsten staan er nog van vóór de reset.
+    await laadConfig();
+    await laadHoofd();
+  } catch (err) {
+    melding.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+  }
 }
 
 async function laadVrijgeven() {

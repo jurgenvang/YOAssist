@@ -18,7 +18,10 @@ naast de naam YOAssist. Beheerders zien het ook onder hun eigen naam, want dat
 is de plek waar je kijkt als iemand een probleem meldt. Verhoog het bij elke
 deploy die het gedrag verandert.
 
-**Voor een Youth Official.** Het tabblad heet Beschikbaarheden. Bij elke
+**Voor een Youth Official.** Het tabblad heet Aanduidingen en heeft drie
+secties, in volgorde van wat er van je verwacht wordt: eerst waarvoor je bent
+aangeduid, dan wat nog een antwoord vraagt, en onderaan wat je al beantwoord
+hebt. Bij elke
 wedstrijd staat wie er al op staat: de scheidsrechters die Basketbal Vlaanderen
 aanduidde, de aangeduide officials van de eigen club met de eigen naam
 gemarkeerd, en hoeveel er nog gezocht worden. Ook zichtbaar bij wedstrijden waar
@@ -123,7 +126,13 @@ in plaats van dat er stil een pijl naar het luchtledige wijst. Stappen die naar
 een onzichtbaar element wijzen — een beheerdersknop bij een gewone YO, of een
 wedstrijdkaart in een lege lijst — worden overgeslagen.
 
-**Mijn voorkeuren.** Een eigen paneel naast Beheer, zichtbaar voor iedereen —
+**Het naammenu.** Alles wat over jou gaat zit achter je naam rechtsboven:
+Mijn voorkeuren, de rondleiding, en voor beheerders ook Beheer. Daarvoor stonden
+er twee naamloze icoontjes naast elkaar waarvan je moest raden welk je nodig had.
+Je eigen naam is de plek waar mensen hun eigen dingen verwachten, en het menu
+groeit mee als er later iets bijkomt.
+
+**Mijn voorkeuren.** Zichtbaar voor iedereen —
 ook voor een gewone Youth Official. Mail aan of uit, meldingen aan of uit, en de
 twee herinneringen (de avond ervoor, de ochtend zelf). Bewust gescheiden van het
 beheerpaneel: dit gaat over hoe iemand zelf verwittigd wil worden, niet over de
@@ -146,6 +155,57 @@ omzeilen is.
 
 Sleutels aanmaken: `cd test && node maak-vapid.mjs`. De private sleutel hoort
 als secret bij de Worker, samen met `VAPID_PUBLIEK` en `VAPID_CONTACT`.
+
+**Facturatie.** Tarieven per categorie staan in `categorieen`. Een maand kan
+afgesloten worden vanaf de eerste dag van de volgende maand; dat legt de
+bedragen vast in een momentopname. Elke official krijgt zijn eigen overzicht per
+mail, en een instelbare lijst adressen krijgt de verzamelstaat — de
+penningmeester hoeft geen beheerder te zijn.
+
+Wat er ná een afsluiting nog verandert, raakt het bedrag van toen niet meer maar
+komt als correctieregel in de eerstvolgende afsluiting: `Correctie 2026-09: −1 ×
+U12`. Daarvoor bestaat `vergoeding_verwerkt`, een spoor van wat er al is
+uitbetaald. Zonder dat spoor kun je niet weten of een ontbrekende aanduiding
+nooit is meegeteld of net wel.
+
+Afsluiten wordt geweigerd zolang er aanduidingen op een categorie zonder tarief
+staan. Op nul zetten zou stil verkeerd zijn. Wedstrijden die uit de kalender
+verdwenen tellen niet automatisch mee, maar worden apart getoond zodat een
+beheerder kan oordelen.
+
+Officials zien hun overzicht in het tabblad Vergoeding, recentste maand bovenaan.
+De lopende maand staat er ook bij met de vermelding dat er nog niets vastligt —
+zonder die regel komt de vraag 'ik heb vorige week gefloten, waarom staat er
+niets' bij de beheerder terecht.
+
+**Backup.** Eén JSON-bestand met alles erin, ook de wedstrijden. Die zijn
+weliswaar opnieuw op te halen bij Basketbal Vlaanderen, maar niet zoals ze er
+vorig seizoen bij stonden — en juist dat wil je in een backup terugvinden.
+
+In het bestand staan de schemaversie, het tijdstip, wie het maakte, en het
+aantal rijen per tabel. Een backup zonder die vier is over twee jaar een
+raadsel, en een bestandsnaam overleeft de eerste keer doorsturen niet. Er staat
+ook een `volgorde`-veld in: de tabellen in de volgorde waarin ze bij een herstel
+ingelezen moeten worden, ouders vóór kinderen.
+
+Terugzetten is bewust niet gebouwd. Dat is de gevaarlijke helft: één verkeerde
+klik overschrijft een heel seizoen. Wie moet herstellen, doet dat via de
+D1-console met dit bestand in de hand.
+
+**Opnieuw beginnen.** Vier niveaus, oplopend ingrijpend: enkel wedstrijden,
+ploegen erbij, alles behalve gebruikers, of volledig opnieuw. Wat elk niveau
+wist staat op één plaats in `reset.js`, met de huidige aantallen erbij in de
+interface — '412 rijen' laat een beheerder aarzelen op precies het juiste moment.
+
+De twee zwaarste niveaus vragen dat de clubnaam wordt overgetypt. Bij 'volledig
+opnieuw' blijft het eigen account bewaard, zodat de beheerder zichzelf niet
+buitensluit. Categorieën en tarieven blijven altijd staan: dat zijn geen
+clubgegevens.
+
+Een reset kan niet doorgaan zolang er afgesloten maanden bestaan voor
+facturatie. Die controle zit er nu al in, hoewel de facturatiemodule nog niet
+bestaat — achteraf toevoegen zou betekenen dat er een venster is waarin het wél
+kon.
 
 **Logboek.** Eén chronologisch spoor van alles wat er gebeurt, in drie
 categorieën: wedstrijden (synchronisatie, handmatige toevoegingen), aanduidingen
@@ -221,11 +281,16 @@ src/routes/admin/auto.js        automatische toewijzing
 src/routes/admin/wedstrijden.js eigen wedstrijden toevoegen en importeren
 src/routes/admin/vrijgeven.js   aanduidingen en beschikbaarheden in bulk
 src/routes/admin/logboek.js     het logboek bekijken en afvinken
+src/routes/admin/reset.js       opnieuw beginnen, per onderdeel
+src/routes/admin/backup.js      volledige momentopname als JSON
+src/routes/admin/facturatie.js  maand afsluiten, verzamelstaten
+src/routes/vergoeding.js        het eigen overzicht van een official
+src/lib/vergoeding.js           rekenregels, zuivere functies
 src/routes/admin/mail.js        mailconfiguratie en testmail
 src/routes/admin/diagnose.js    ruwe API-respons bekijken
 public/index.html          de app, geen buildstap
 schema.sql / seed.sql      D1
-test/                      785 tests, draaien zonder netwerk
+test/                      976 tests, draaien zonder netwerk
 ```
 
 Er staat bewust **geen `package.json` in de hoofdmap**. De build zou er anders
@@ -315,3 +380,27 @@ later clubs buiten de jouwe, contacteer dan eerst info@basketbal.vlaanderen.
 
 Het veld `wedOff` bevat namen van scheidsrechters. Die worden hier bewust niet
 opgeslagen.
+
+
+## Samenvouwen
+
+Secties zijn samenvouwbaar op de drie plaatsen waar er meerdere onder elkaar
+staan: de aanduidingenlijst, het cluboverzicht en het beheerpaneel. Eén
+mechanisme, `koppelVouwknoppen()`, bedient twee vormen: een kop met een
+bijhorende inhoudscontainer, of een `h3` in een `.blok` waar de rest van het
+blok de inhoud is.
+
+De kop is zelf de knop. Een apart pijltje aanklikken is op een telefoon te fijn
+mikwerk. De stand wordt per sectie onthouden in localStorage, zodat een
+beheerder die het halve paneel dichtklapt dat niet elke keer opnieuw moet doen.
+
+## Grenzen van D1
+
+D1 laat maximaal honderd gebonden parameters per query toe. Een query die één
+parameter per wedstrijd bindt — bijvoorbeeld `WHERE guid IN (?, ?, ?, ...)` —
+breekt dus zodra de kalender vol staat. Dat is één keer gebeurd, toen het
+cluboverzicht van veertien naar zestig dagen ging.
+
+De testomgeving dwingt diezelfde grens af, zodat zo'n query hier faalt in plaats
+van pas in productie. Filter daarom altijd op de voorwaarden zelf en niet op een
+lijst sleutels.

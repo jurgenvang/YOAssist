@@ -11,7 +11,7 @@ import { VERSIE } from '../versie.js';
  *
  * Is er precies één actieve club geconfigureerd, dan valt er niets te kiezen en
  * koppelen we stilzwijgend. Zijn er meerdere, dan moet de gebruiker zelf
- * kiezen — de app kan niet raden bij welke club iemand aan de tafel staat.
+ * kiezen — de app kan niet raden voor welke club iemand fluit.
  *
  * Geeft de eventueel bijgewerkte gebruiker terug, plus de clubs waaruit gekozen
  * moet worden zolang er geen keuze is.
@@ -141,21 +141,24 @@ export async function matches({ env, user }) {
     .all();
 
   // Wie er van de club is aangeduid, in één query in plaats van per wedstrijd.
-  // Een official wil weten met wie hij aan de tafel staat — ook als hij zelf
+  // Een official wil weten met wie hij samen fluit — ook als hij zelf
   // (nog) niet is aangeduid.
-  const guids = results.map((r) => r.guid);
+  // Niet met een IN-lijst van GUID's: D1 laat maximaal honderd gebonden
+  // parameters per query toe, en een seizoen levert er meer op. Dezelfde
+  // voorwaarden hergebruiken kost er drie.
   const perWedstrijd = new Map();
 
-  if (guids.length > 0) {
-    const gaten = guids.map(() => '?').join(',');
+  if (results.length > 0) {
     const { results: aanduidingen } = await env.DB.prepare(
       `SELECT a.match_guid, u.email, u.voornaam, u.achternaam
          FROM assignments a
          JOIN users u ON u.email = a.user_email
-        WHERE a.match_guid IN (${gaten}) AND a.status = 'toegewezen'
-        ORDER BY u.achternaam COLLATE NOCASE, u.voornaam COLLATE NOCASE`,
+         JOIN matches m ON m.guid = a.match_guid
+        WHERE a.status = 'toegewezen'
+          AND m.seizoen = ? AND m.status = 'actief' AND m.club_guid = ? AND m.datum >= ?
+        ORDER BY a.toegewezen_op, u.achternaam COLLATE NOCASE`,
     )
-      .bind(...guids)
+      .bind(seizoen, clubGuid, vandaag)
       .all();
 
     for (const a of aanduidingen) {

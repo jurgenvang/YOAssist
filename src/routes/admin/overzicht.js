@@ -79,19 +79,22 @@ export async function overzicht({ url, env }) {
     });
   }
 
-  // Beschikbaarheden in één keer ophalen in plaats van per wedstrijd. Bij
-  // veertien dagen en twintig officials scheelt dat honderden queries.
-  const guids = wedstrijden.map((w) => w.guid);
-  const plaatshouders = guids.map(() => '?').join(',');
+  // Beschikbaarheden in één keer ophalen in plaats van per wedstrijd.
+  //
+  // Bewust NIET met een IN-lijst van wedstrijd-GUID's: D1 laat maximaal honderd
+  // gebonden parameters per query toe, en een venster van zestig dagen levert er
+  // makkelijk meer op. Daarom dezelfde voorwaarden als hierboven hergebruiken;
+  // dat kost drie of vier parameters, ongeacht het aantal wedstrijden.
   const { results: antwoorden } = await env.DB.prepare(
     `SELECT a.match_guid, a.status, a.updated_at,
             u.email, u.voornaam, u.achternaam, u.profiel
        FROM availability a
        JOIN users u ON u.email = a.user_email
-      WHERE a.match_guid IN (${plaatshouders})
+       JOIN matches m ON m.guid = a.match_guid
+      WHERE ${voorwaarden.join(' AND ')}
       ORDER BY u.achternaam COLLATE NOCASE, u.voornaam COLLATE NOCASE`,
   )
-    .bind(...guids)
+    .bind(...params)
     .all();
 
   // Eigen aanduidingen, ook in één keer.
@@ -100,10 +103,11 @@ export async function overzicht({ url, env }) {
             u.email, u.voornaam, u.achternaam, u.profiel
        FROM assignments a
        JOIN users u ON u.email = a.user_email
-      WHERE a.match_guid IN (${plaatshouders}) AND a.status = 'toegewezen'
-      ORDER BY u.achternaam COLLATE NOCASE, u.voornaam COLLATE NOCASE`,
+       JOIN matches m ON m.guid = a.match_guid
+      WHERE ${voorwaarden.join(' AND ')} AND a.status = 'toegewezen'
+      ORDER BY a.toegewezen_op, u.achternaam COLLATE NOCASE`,
   )
-    .bind(...guids)
+    .bind(...params)
     .all();
 
   const perToewijzing = new Map();

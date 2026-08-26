@@ -355,5 +355,44 @@ console.log('\n14. Validatie en afscherming van de knop');
       { methode: 'POST', alsWie: 'yo@club.be', body: { volgen: true } })).status, 403);
 }
 
+console.log('\n15. Grote aantallen wedstrijden');
+{
+  // D1 laat maximaal honderd gebonden parameters per query toe. Een query die
+  // één parameter per wedstrijd bindt, breekt dus zodra de kalender vol staat —
+  // en dat gebeurde in de praktijk pas nadat het venster van veertien naar
+  // zestig dagen ging.
+  const env = nieuweEnv();
+  const rijen = [];
+  for (let i = 0; i < 150; i++) {
+    const datum = new Date(Date.now() + (i % 40) * 86400000).toISOString().slice(0, 10);
+    rijen.push(`('M${i}','2627','${CLUB}','${CLUB}G12  1','Ploeg ${i}','Gast','${datum}','14:00','G12',0,1,'h${i}')`);
+  }
+  env.DB.exec(`INSERT INTO matches (guid, seizoen, club_guid, thuis_guid, thuis_naam, uit_naam,
+                                    datum, uur, cat_code, off_aantal, scope, hash)
+               VALUES ${rijen.join(',')}`);
+
+  // Beschikbaarheden en aanduidingen op een deel ervan.
+  for (let i = 0; i < 120; i++) {
+    env.DB.exec(`INSERT INTO availability (user_email, match_guid, status) VALUES ('yo@club.be','M${i}','ja')`);
+    env.DB.exec(`INSERT INTO assignments (match_guid, user_email, toegewezen_door)
+                 VALUES ('M${i}','yo@club.be','baas@club.be')`);
+  }
+
+  const r = await vraag(env, '/api/admin/overzicht?dagen=60', { alsWie: 'baas@club.be' });
+  check('overzicht laadt zonder parameterfout', r.status, 200);
+  check('alle wedstrijden erin', r.json.aantal, 150);
+
+  const metAntwoord = r.json.wedstrijden.filter((w) => w.beschikbaar.length > 0);
+  check('beschikbaarheden gekoppeld', metAntwoord.length, 120);
+
+  const metAanduiding = r.json.wedstrijden.filter((w) => w.toegewezen.length > 0);
+  check('aanduidingen gekoppeld', metAanduiding.length, 120);
+
+  // Dezelfde valstrik zit in de automatische toewijzing.
+  const auto = await vraag(env, '/api/admin/auto',
+    { methode: 'POST', alsWie: 'baas@club.be', body: { dagen: 60 } });
+  check('automaat draait ook', auto.status, 200);
+}
+
 console.log(mislukt === 0 ? '\n=== ALLE BEHEERTESTS GESLAAGD ===' : `\n=== ${mislukt} TESTS GEFAALD ===`);
 process.exit(mislukt ? 1 : 0);
