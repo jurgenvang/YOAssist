@@ -330,6 +330,8 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
                 text-transform: uppercase; letter-spacing: .1em; }
 .groep-kop .aantal { margin-left: auto; font-size: .75rem; color: var(--grijs);
                      font-variant-numeric: tabular-nums; }
+.groep-kop.aandacht { border-bottom-color: var(--rood); }
+.groep-kop.aandacht h2 { color: var(--rood); }
 .geld-maand {
   background: var(--kaart); border: 1px solid var(--lijn); border-radius: var(--r);
   padding: .9rem 1rem; margin-bottom: .7rem; box-shadow: var(--schaduw);
@@ -473,6 +475,8 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
 }
 .wed-refs .ov-label { flex-shrink: 0; }
 .chip.ik { background: var(--inkt); color: #fff; font-weight: 600; }
+.ref-plaats.gevuld.ik { background: var(--groen); }
+.ref-plaats.gevuld.ik .ref-nr { background: rgba(255,255,255,.25); }
 
 /* ---- Gebruikersbeheer --------------------------------------------------- */
 .gebr-rij {
@@ -735,6 +739,30 @@ function wisselVouw(sleutel) {
  * Twee vormen: een kop met een bijhorende [data-vouw-inhoud] als broer, of een
  * h3 in een .blok waar de rest van het blok de inhoud is.
  */
+/**
+ * Zorgt dat er altijd iets te zien is.
+ *
+ * Klap je alle secties dicht en klik je daarna op 'toon ook wat later komt',
+ * dan gebeurt er ogenschijnlijk niets: de nieuwe wedstrijden zitten in een
+ * dichtgeklapte sectie. Daarom de bovenste openen zodra blijkt dat alles dicht
+ * staat.
+ */
+function zorgVoorZichtbareSectie(wortel = document) {
+  const koppen = [...wortel.querySelectorAll('[data-vouw]')];
+  if (koppen.length === 0) return;
+  if (koppen.some((k) => k.getAttribute('aria-expanded') === 'true')) return;
+
+  const eerste = koppen[0];
+  const gesloten = gevouwenSecties();
+  gesloten.delete(eerste.dataset.vouw);
+  bewaarVouwstand(gesloten);
+
+  eerste.setAttribute('aria-expanded', 'true');
+  const inhoud = wortel.querySelector(`[data-vouw-inhoud="${eerste.dataset.vouw}"]`);
+  if (inhoud) inhoud.hidden = false;
+  else eerste.closest('.blok')?.classList.remove('dicht');
+}
+
 function koppelVouwknoppen(wortel = document) {
   wortel.querySelectorAll('[data-vouw]').forEach((kop) => {
     const sleutel = kop.dataset.vouw;
@@ -994,25 +1022,32 @@ function toonMatches(data) {
 
   doel.innerHTML = delen.join('');
   koppelVouwknoppen();
+  zorgVoorZichtbareSectie();
 }
 
 function refsRegel(m) {
   const delen = [];
 
-  if (m.vblNamenGewist && m.vblAantal > 0) {
-    delen.push(`<span class="chip vbl">${m.vblAantal} van VBL</span>`);
-  } else if (m.vblRefs && m.vblRefs.length) {
-    delen.push(...m.vblRefs.map((n) => `<span class="chip vbl">${tekst(n)}</span>`));
+  // Scheidsrechters van de bond. Bij U10/U12 duidt de bond er geen aan, dus die
+  // regel weglaten tenzij er tóch iemand op staat.
+  const toonVbl = m.catGroep !== 'U10U12' || m.vblAantal > 0;
+  if (toonVbl) {
+    if (m.vblNamenGewist && m.vblAantal > 0) {
+      delen.push(`<span class="chip vbl">${m.vblAantal} van VBL</span>`);
+    } else if (m.vblRefs && m.vblRefs.length) {
+      delen.push(...m.vblRefs.map((n) => `<span class="chip vbl">${tekst(n)}</span>`));
+    }
   }
 
-  if (m.clubRefs && m.clubRefs.length) {
-    delen.push(...m.clubRefs.map((p) =>
-      `<span class="chip ${p.ikZelf ? 'ik' : 'toe'}">${tekst(p.naam)}</span>`));
-  }
-
-  const open = m.nodig - m.bezet;
-  if (open > 0) {
-    delen.push(`<span class="chip geen">nog ${open} gezocht</span>`);
+  // De eigen plaatsen als REF1 en REF2, net als in het cluboverzicht. Twee
+  // gelijkwaardige plaatsen, maar iedereen spreekt erover met een nummer.
+  const club = m.clubRefs ?? [];
+  for (let i = 0; i < m.nodig; i++) {
+    const official = club[i];
+    delen.push(official
+      ? `<span class="ref-plaats gevuld ${official.ikZelf ? 'ik' : ''}">
+           <span class="ref-nr">REF${i + 1}</span>${tekst(official.naam)}</span>`
+      : `<span class="ref-plaats leeg"><span class="ref-nr">REF${i + 1}</span>nog gezocht</span>`);
   }
 
   if (delen.length === 0) return '';
@@ -1501,19 +1536,24 @@ function toonOverzicht(o) {
   if (zichtbaar.length === 0) {
     delen.push(`<div class="geen-treffers">Geen wedstrijden die aan dit filter voldoen.</div>`);
   } else {
-    // Eerst U10/U12, dan de rest. Binnen elke groep chronologisch, met een
-    // dagkop zodat een speeldag als geheel leesbaar blijft.
+    // Wat aandacht vraagt bovenaan: een beheerder opent dit scherm om te zien
+    // waar nog werk ligt, niet om de volledige kalender door te nemen. Daarna
+    // U10/U12 en de rest, elk chronologisch met een dagkop.
+    const aandacht = zichtbaar.filter((w) => w.probleem && w.inVenster);
+    const rest = zichtbaar.filter((w) => !(w.probleem && w.inVenster));
+
     const groepen = [
+      { sleutel: 'aandacht', naam: 'Aandacht nodig', items: aandacht },
       { sleutel: 'u10u12', naam: 'U10 / U12',
-        items: zichtbaar.filter((w) => w.catGroep === 'U10U12') },
+        items: rest.filter((w) => w.catGroep === 'U10U12') },
       { sleutel: 'overige', naam: 'Overige',
-        items: zichtbaar.filter((w) => w.catGroep !== 'U10U12') },
+        items: rest.filter((w) => w.catGroep !== 'U10U12') },
     ];
 
     for (const groep of groepen) {
       if (groep.items.length === 0) continue;
       const sleutel = `club-${groep.sleutel}`;
-      delen.push(`<div class="groep-kop" data-vouw="${sleutel}"><h2>${tekst(groep.naam)}</h2>
+      delen.push(`<div class="groep-kop ${groep.sleutel === 'aandacht' ? 'aandacht' : ''}" data-vouw="${sleutel}"><h2>${tekst(groep.naam)}</h2>
         <span class="aantal">${groep.items.length}</span></div>`);
 
       const binnen = [];
@@ -1541,6 +1581,7 @@ function toonOverzicht(o) {
 
   $('hoofd').innerHTML = delen.join('');
   koppelVouwknoppen();
+  zorgVoorZichtbareSectie();
 
   const autoKnop = $('auto-knop');
   if (autoKnop) autoKnop.onclick = toonAutoVoorstel;
@@ -1600,6 +1641,10 @@ function overzichtKaart(w) {
   // Bij U10/U12 duidt Basketbal Vlaanderen geen scheidsrechters aan, dus die
   // regel zou daar altijd 'nog niemand' tonen. Ruis. Staat er tóch iemand op,
   // dan is dat wél informatie en tonen we het alsnog.
+  // U10/U12 komt automatisch in de lijst; een knop om ze toe te voegen of te
+  // verwijderen zou daar alleen verwarring zaaien.
+  const automatisch = w.scopeReden === 'auto';
+
   const toonVbl = w.catGroep !== 'U10U12' || w.vblAantal > 0;
   const vblRegel = toonVbl
     ? `<div class="ov-regel"><span class="ov-label">VBL</span>${refs}</div>`
@@ -1636,9 +1681,11 @@ function overzichtKaart(w) {
     ${vblRegel}
     ${scopeRegels}
     <div class="ov-actie">
-      <button class="mini-knop ${w.inScope ? 'aan' : ''}" data-scope="${w.inScope ? '0' : '1'}">
-        ${w.inScope ? 'In de beschikbaarheden' : 'In de beschikbaarheden zetten'}
-      </button>
+      ${automatisch
+        ? '<span class="reden">staat er automatisch in</span>'
+        : `<button class="mini-knop ${w.inScope ? 'aan' : ''}" data-scope="${w.inScope ? '0' : '1'}">
+             ${w.inScope ? 'In YO-aanduidingen' : 'Toevoegen aan YO-aanduidingen'}
+           </button>`}
       ${w.inScope ? `<button class="mini-knop" data-handmatig="1">Iemand anders toewijzen</button>` : ''}
     </div>
   </article>`;

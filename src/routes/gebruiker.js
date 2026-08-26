@@ -192,6 +192,7 @@ export async function matches({ env, user }) {
         poule: r.poule_naam,
         catCode: r.cat_code,
         catLabel: r.cat_label,
+        catGroep: r.cat_groep,
         wedstrijdblad: wedstrijdbladUrl(r.guid),
         beschikbaarheid: r.beschikbaarheid ?? null,
         // Toegewezen aan mij: dan is de beschikbaarheid vergrendeld en kan er
