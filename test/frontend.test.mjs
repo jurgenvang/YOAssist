@@ -371,6 +371,13 @@ console.log('\n15. Het aanduidingenscherm');
 
   check('aanwezig op het terrein', /Aanwezig op het terrein om/.test(html), true);
   check('niet meer ter plaatse', /ter plaatse/.test(html), false);
+
+  check('aangeduid op groen', /\.aangeduid-merk \{[^}]*background: var\(--groen\)/.test(html), true);
+  check('wedstrijdblad bij de aanduiding', /class="mini" href="\$\{tekst\(m\.wedstrijdblad\)/.test(html), true);
+  check('naast probleem melden', /vergrendeld-knoppen/.test(html), true);
+  // Niet twee keer tonen: staat het bij de aanduiding, dan hoort het niet ook
+  // nog in de metaregel.
+  check('niet dubbel getoond', /m\.wedstrijdblad && !m\.toegewezen/.test(html), true);
 }
 
 console.log(f === 0 ? '\n=== ALLE FRONTENDTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);

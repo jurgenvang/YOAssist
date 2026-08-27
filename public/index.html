@@ -490,11 +490,16 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
 .ov.compleet { border-left-color: var(--groen); }
 .reden { font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; color: var(--grijs); }
 
-.vergrendeld { font-size: .8rem; color: var(--grijs); display: flex; align-items: center;
-               gap: .4rem; flex-wrap: wrap; }
+.vergrendeld { font-size: .8rem; color: var(--grijs); display: flex;
+               flex-direction: column; gap: .45rem; align-items: flex-start; }
+.vergrendeld-kop { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+/* Wedstrijdblad en probleem melden naast elkaar: allebei dingen die je vlak
+   voor een wedstrijd nodig hebt. */
+.vergrendeld-knoppen { display: flex; gap: .4rem; flex-wrap: wrap; }
+.vergrendeld-knoppen .mini { text-decoration: none; }
 .aangeduid-merk {
   font-size: .68rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
-  background: var(--inkt); color: #fff; border-radius: 4px; padding: .12rem .35rem;
+  background: var(--groen); color: #fff; border-radius: 4px; padding: .12rem .35rem;
 }
 
 /* Onder elkaar in plaats van naast elkaar: twee plaatsen met namen, nummers
@@ -1217,12 +1222,24 @@ function kaart(m) {
 
   // Wie is aangeduid, kan zijn antwoord niet meer wijzigen. In plaats van twee
   // knoppen die toch niets doen, komt daar de opkomsttijd en een uitweg.
+  // Bij een aanduiding hoort het wedstrijdblad hier, naast het melden van een
+  // probleem: dat zijn de twee dingen die je vlak voor een wedstrijd nodig hebt.
+  const bladLink = m.wedstrijdblad
+    ? `<a class="mini" href="${tekst(m.wedstrijdblad)}"
+         target="_blank" rel="noopener noreferrer">Wedstrijdblad &#8599;</a>`
+    : '';
+
   const acties = m.toegewezen
     ? `<div class="wed-acties">
          <div class="vergrendeld">
-           <span class="aangeduid-merk">Aangeduid</span>
-           <span>Aanwezig op het terrein om ${tekst(m.opkomst || m.uur)}.</span>
-           <button class="mini" data-probleem="1">Probleem melden</button>
+           <div class="vergrendeld-kop">
+             <span class="aangeduid-merk">Aangeduid</span>
+             <span>Aanwezig op het terrein om ${tekst(m.opkomst || m.uur)}.</span>
+           </div>
+           <div class="vergrendeld-knoppen">
+             ${bladLink}
+             <button class="mini" data-probleem="1">Probleem melden</button>
+           </div>
          </div>
        </div>`
     : `<div class="wed-acties">
@@ -1248,7 +1265,7 @@ function kaart(m) {
              target="_blank" rel="noopener noreferrer"
              title="Openen in Google Maps">${tekst(m.locatie)} &#8599;</a>`
         : '<span>locatie onbekend</span>'}
-      ${m.wedstrijdblad
+      ${m.wedstrijdblad && !m.toegewezen
         ? `<a class="blad" href="${tekst(m.wedstrijdblad)}" target="_blank" rel="noopener noreferrer">wedstrijdblad &#8599;</a>`
         : ''}
     </div>
