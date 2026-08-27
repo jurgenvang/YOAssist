@@ -85,7 +85,7 @@ export function templateAanduiding({ naam, wedstrijd, datum, uur, locatie, opkom
       `Hallo ${naam},\n\n` +
       `Je bent aangeduid voor:\n\n` +
       `${wedstrijd}\n${datum} om ${uur}\n${locatie || 'locatie volgt nog'}\n\n` +
-      `Wees om ${opkomst} ter plaatse.\n\n` +
+      `Aanwezig op het terrein om ${opkomst}.\n\n` +
       `Kan je niet, meld dat dan in YOAssist bij deze wedstrijd — niet door gewoon niet te komen opdagen.`,
   };
 }
@@ -102,7 +102,7 @@ export function templateVrijgegeven({ naam, wedstrijd, datum, uur }) {
 
 export function templateHerinnering({ naam, wedstrijden, wanneer }) {
   const lijst = wedstrijden
-    .map((w) => `- ${w.uur} ${w.wedstrijd} (${w.locatie || 'locatie volgt'}) — aanwezig om ${w.opkomst}`)
+    .map((w) => `- ${w.uur} ${w.wedstrijd} (${w.locatie || 'locatie volgt'}) — op het terrein om ${w.opkomst}`)
     .join('\n');
 
   return {

@@ -304,5 +304,74 @@ console.log('\n12. Icoon en manifest');
   }
 }
 
+console.log('\n13. Rondleiding komt door het menu en de meldingen');
+{
+  const bron = readFileSync(new URL('../public/rondleiding.js', import.meta.url), 'utf8');
+  const window = {};
+  // eslint-disable-next-line no-new-func
+  new Function('window', bron)(window);
+  const reeksen = window.YOASSIST_RONDLEIDING;
+
+  const official = reeksen.official;
+  check('een stap opent het naammenu', official.some((s) => s.opent === 'menu'), true);
+  check('een stap opent de voorkeuren', official.some((s) => s.opent === 'voorkeuren'), true);
+  check('meldingen worden aangewezen',
+    official.some((s) => s.doel.includes('data-voorkeur="push"')), true);
+  check('met de iPhone-uitleg erbij',
+    official.some((s) => /beginscherm/.test(s.tekst)), true);
+  check('herinneringen ook',
+    official.some((s) => s.doel.includes('herinnerAvond')), true);
+
+  const beheer = reeksen.beheerder;
+  check('beheer wordt aangewezen', beheer.some((s) => s.doel.includes('data-menu="beheer"')), true);
+  check('vergoedingen ook', beheer.some((s) => s.doel.includes('clubgeld')), true);
+  check('kijken als official ook', beheer.some((s) => s.doel.includes('alsyo')), true);
+
+  // De motor moet die stappen ook echt kunnen openen.
+  const stap = haalFunctie('toonRondStap');
+  check('opent het menu', /stap\.opent === 'menu'/.test(stap), true);
+  check('opent de voorkeuren', /stap\.opent === 'voorkeuren'/.test(stap), true);
+
+  const stappenFn = haalFunctie('rondStappen');
+  check('zulke stappen worden niet weggefilterd', /if \(stap\.opent\) return/.test(stappenFn), true);
+
+  const stopFn = haalFunctie('stopRondleiding');
+  check('en alles gaat weer dicht bij het stoppen',
+    /zetNaammenu\(false\)/.test(stopFn) && /sluitVoorkeuren\(\)/.test(stopFn), true);
+}
+
+console.log('\n14. Licentie in de app');
+{
+  check('kennisgeving met copyright', /Copyright © 2026/.test(html), true);
+  check('EUPL-1.2 vermeld', /EUPL-1\.2/.test(html), true);
+  check('wat de licentie wel en niet dekt', /class="dekt"/.test(html), true);
+  check('geen garantie, geen aansprakelijkheid',
+    /Geen garantie, geen aansprakelijkheid/.test(html), true);
+  check('copyleft uitgelegd', /Copyleft/.test(html), true);
+  check('link naar de volledige tekst', /joinup\.ec\.europa\.eu/.test(html), true);
+}
+
+console.log('\n15. Het aanduidingenscherm');
+{
+  // De rand vertelt in één blik waar je staat. Aangeduid wint van beschikbaar,
+  // want dat is de eindtoestand.
+  check('rood bij niet beschikbaar',
+    /\.wed\[data-status="nee"\] \{ border-left-color: var\(--rood\)/.test(html), true);
+  check('geel bij beschikbaar',
+    /\.wed\[data-status="ja"\]\s+\{ border-left-color: var\(--amber\)/.test(html), true);
+  check('groen bij aangeduid',
+    /\.wed\[data-toegewezen="1"\] \{ border-left-color: var\(--groen\)/.test(html), true);
+
+  check('locatie is een kaartlink', /google\.com\/maps\/search/.test(html), true);
+  check('met de locatie erin', /encodeURIComponent\(m\.locatie/.test(html), true);
+
+  check('geen Refs-label meer', /<span class="ov-label">Refs<\/span>/.test(html), false);
+  check('plaatsen staan onder elkaar',
+    /\.wed-refs \{[^}]*flex-direction: column/.test(html), true);
+
+  check('aanwezig op het terrein', /Aanwezig op het terrein om/.test(html), true);
+  check('niet meer ter plaatse', /ter plaatse/.test(html), false);
+}
+
 console.log(f === 0 ? '\n=== ALLE FRONTENDTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);
 process.exit(f ? 1 : 0);

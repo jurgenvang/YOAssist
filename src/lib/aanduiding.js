@@ -12,7 +12,7 @@ export const MARGE_ZELFDE_ZAAL = 120;
 /** Extra minuten bovenop de gewone marge bij een verplaatsing. */
 export const MARGE_EXTRA_ANDERE_ZAAL = 30;
 
-/** Hoeveel minuten voor de aanvang een official ter plaatse wordt verwacht. */
+/** Hoeveel minuten voor de aanvang een official op het terrein wordt verwacht. */
 export const OPKOMST_MINUTEN = 20;
 
 /** Een basketbalwedstrijd heeft in principe twee scheidsrechters. */

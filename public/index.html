@@ -149,8 +149,14 @@ main { max-width: 46rem; margin: 0 auto; padding: 1rem 1rem 5rem; }
   display: grid; grid-template-columns: 3.6rem 1fr; gap: .1rem .85rem;
   transition: border-left-color .15s ease;
 }
-.wed[data-status="ja"]  { border-left-color: var(--groen); }
+/* De rand vertelt in één blik waar je staat:
+   rood  = je bent niet beschikbaar
+   geel  = je bent beschikbaar maar nog niet aangeduid
+   groen = je bent aangeduid, het ligt vast
+   Aangeduid wint van beschikbaar, want dat is de eindtoestand. */
+.wed[data-status="ja"]  { border-left-color: var(--amber); }
 .wed[data-status="nee"] { border-left-color: var(--rood); }
+.wed[data-toegewezen="1"] { border-left-color: var(--groen); }
 
 .wed-datum {
   grid-row: 1 / span 2; text-align: center; padding-top: .1rem;
@@ -490,12 +496,23 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
   font-size: .68rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
   background: var(--inkt); color: #fff; border-radius: 4px; padding: .12rem .35rem;
 }
-.wed[data-toegewezen="1"] { border-left-color: var(--inkt); }
+
+/* Onder elkaar in plaats van naast elkaar: twee plaatsen met namen, nummers
+   en contacticoontjes passen op een telefoon niet naast elkaar zonder af te
+   breken op een willekeurige plek. */
 .wed-refs {
-  grid-column: 2; margin-top: .45rem; display: flex; gap: .35rem;
-  flex-wrap: wrap; align-items: baseline;
+  grid-column: 2; margin-top: .5rem; display: flex; flex-direction: column;
+  gap: .25rem; align-items: flex-start;
 }
-.wed-refs .ov-label { flex-shrink: 0; }
+.wed-refs .ref-plaats { align-self: stretch; }
+.vbl-regel { font-size: .76rem; color: var(--grijs); }
+/* Genummerde plaatsen vullen de breedte zodat naam links en contact rechts
+   uitlijnen over beide regels. */
+.wed-refs .ref-plaats.gevuld,
+.wed-refs .ref-plaats.leeg { display: flex; width: 100%; align-items: center; gap: .4rem; }
+.wed-refs .ref-plaats .wa,
+.wed-refs .ref-plaats .bel { margin-left: auto; }
+.wed-refs .ref-plaats .wa { margin-left: .35rem; }
 .chip.ik { background: var(--inkt); color: #fff; font-weight: 600; }
 .ref-plaats.gevuld.ik { background: var(--groen); }
 .ref-plaats.gevuld.ik .ref-nr { background: rgba(255,255,255,.25); }
@@ -601,8 +618,14 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
 }
 .gebr-groep > h4 .aantal { margin-left: auto; font-variant-numeric: tabular-nums; }
 .gebr-naam small.gsm { color: var(--inkt-zacht); font-variant-numeric: tabular-nums; }
-.wa { color: #25d366; vertical-align: -.15em; margin-left: .15rem; }
+.wa { color: #25d366; vertical-align: -.15em; margin-left: .2rem; }
 .wa:hover { color: #128c3e; }
+.bel { color: var(--inkt-zacht); vertical-align: -.15em; margin-left: .25rem; }
+.bel:hover { color: var(--inkt); }
+/* In een gevulde refplaats staat de tekst wit; de icoontjes moeten meelopen. */
+.ref-plaats.gevuld .bel { color: rgba(255,255,255,.75); }
+.ref-plaats.gevuld .bel:hover { color: #fff; }
+.ref-plaats.gevuld .wa { color: #6ee7a0; }
 .gebr-acties { display: flex; gap: .3rem; flex-shrink: 0; }
 .mini.gevaar:hover { color: var(--rood); }
 .import-uitslag ul { list-style: none; margin: .4rem 0 0; padding: 0; font-size: .82rem; }
@@ -1153,10 +1176,14 @@ function refsRegel(m) {
   // regel weglaten tenzij er tóch iemand op staat.
   const toonVbl = m.catGroep !== 'U10U12' || m.vblAantal > 0;
   if (toonVbl) {
-    if (m.vblNamenGewist && m.vblAantal > 0) {
-      delen.push(`<span class="chip vbl">${m.vblAantal} van VBL</span>`);
-    } else if (m.vblRefs && m.vblRefs.length) {
-      delen.push(...m.vblRefs.map((n) => `<span class="chip vbl">${tekst(n)}</span>`));
+    // De scheidsrechters van de bond op één regel; die horen niet in de
+    // genummerde plaatsen thuis, want die tellen alleen de eigen officials.
+    const vbl = m.vblNamenGewist && m.vblAantal > 0
+      ? [`${m.vblAantal} van VBL`]
+      : (m.vblRefs ?? []);
+    if (vbl.length) {
+      delen.push(`<span class="vbl-regel">Basketbal Vlaanderen: ${
+        vbl.map((n) => tekst(n)).join(', ')}</span>`);
     }
   }
 
@@ -1167,8 +1194,10 @@ function refsRegel(m) {
     const official = club[i];
     // Staat er een nummer bij, dan sta ik zelf ook op deze wedstrijd en deelt
     // die collega zijn nummer. De server beslist dat; hier alleen tonen.
-    const contact = official?.whatsapp
-      ? `<a href="${tekst(official.whatsapp)}" target="_blank" rel="noopener noreferrer"
+    const contact = official?.gsm
+      ? `<a href="${tekst(official.bellen)}" class="bel"
+           title="${tekst(official.gsm)} — bellen">${BEL_ICOON}</a>` +
+        `<a href="${tekst(official.whatsapp)}" target="_blank" rel="noopener noreferrer"
            class="wa" title="${tekst(official.gsm)} — bericht via WhatsApp">${WA_ICOON}</a>`
       : '';
 
@@ -1179,7 +1208,7 @@ function refsRegel(m) {
   }
 
   if (delen.length === 0) return '';
-  return `<div class="wed-refs"><span class="ov-label">Refs</span>${delen.join('')}</div>`;
+  return `<div class="wed-refs">${delen.join('')}</div>`;
 }
 
 function kaart(m) {
@@ -1192,7 +1221,7 @@ function kaart(m) {
     ? `<div class="wed-acties">
          <div class="vergrendeld">
            <span class="aangeduid-merk">Aangeduid</span>
-           <span>Wees om ${tekst(m.opkomst || m.uur)} ter plaatse.</span>
+           <span>Aanwezig op het terrein om ${tekst(m.opkomst || m.uur)}.</span>
            <button class="mini" data-probleem="1">Probleem melden</button>
          </div>
        </div>`
@@ -1213,7 +1242,12 @@ function kaart(m) {
       <span class="tegen">&ndash; ${tekst(m.uit)}</span></div>
     <div class="wed-meta">
       ${m.catLabel ? `<span class="cat">${tekst(m.catCode)}</span>` : ''}
-      <span>${tekst(m.locatie || 'locatie onbekend')}</span>
+      ${m.locatie
+        ? `<a class="plek" href="https://www.google.com/maps/search/?api=1&query=${
+             encodeURIComponent(m.locatie + ', ' + (staat.ik?.clubNaam ?? 'België'))}"
+             target="_blank" rel="noopener noreferrer"
+             title="Openen in Google Maps">${tekst(m.locatie)} &#8599;</a>`
+        : '<span>locatie onbekend</span>'}
       ${m.wedstrijdblad
         ? `<a class="blad" href="${tekst(m.wedstrijdblad)}" target="_blank" rel="noopener noreferrer">wedstrijdblad &#8599;</a>`
         : ''}
@@ -3632,10 +3666,12 @@ async function laadGebruikers() {
           ${tekst(g.naam)}
           <small>${tekst(g.email)}${g.clubNaam ? ' &middot; ' + tekst(g.clubNaam) : ''}</small>
           ${g.gsmLeesbaar
-            ? `<small class="gsm">${tekst(g.gsmLeesbaar)}${g.whatsapp
-                ? ` <a href="${tekst(g.whatsapp)}" target="_blank" rel="noopener noreferrer"
-                     class="wa" title="Bericht via WhatsApp">${WA_ICOON}</a>`
-                : ''}</small>`
+            ? `<small class="gsm">${tekst(g.gsmLeesbaar)}
+                ${g.bellen ? `<a href="${tekst(g.bellen)}" class="bel" title="Bellen">${BEL_ICOON}</a>` : ''}
+                ${g.whatsapp
+                  ? `<a href="${tekst(g.whatsapp)}" target="_blank" rel="noopener noreferrer"
+                       class="wa" title="Bericht via WhatsApp">${WA_ICOON}</a>`
+                  : ''}</small>`
             : ''}
         </span>
         ${g.isAdmin ? `<span class="merk-prof">${tekst(g.profiel)}</span>` : ''}
@@ -3723,6 +3759,10 @@ async function laadGebruikers() {
 /** Het WhatsApp-logo, klein en eenkleurig. Geen afbeelding: dit schaalt mee
     met de tekst en heeft geen extra bestand nodig. */
 const WA_ICOON = `<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91C21.96 6.45 17.5 2 12.04 2zm5.8 14.1c-.24.68-1.2 1.26-1.97 1.42-.53.11-1.22.2-3.54-.76-2.97-1.23-4.88-4.25-5.03-4.45-.14-.2-1.2-1.6-1.2-3.05 0-1.45.76-2.16 1.03-2.46.27-.3.58-.37.78-.37.19 0 .39 0 .56.01.18.01.42-.07.66.5.24.58.83 2.02.9 2.17.07.15.12.32.02.52-.1.2-.15.32-.29.5-.15.17-.31.38-.44.51-.15.15-.3.31-.13.6.17.3.76 1.25 1.63 2.03 1.12 1 2.06 1.31 2.35 1.46.29.15.46.12.63-.07.17-.2.73-.85.92-1.14.19-.29.39-.24.66-.15.27.1 1.7.8 1.99.95.29.15.48.22.55.34.07.12.07.7-.17 1.38z"/></svg>`;
+
+/** Een eenvoudige hoorn. Zelfde aanpak als het WhatsApp-logo: inline, schaalt
+    mee met de tekst, geen extra bestand. */
+const BEL_ICOON = `<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.4.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.4 0 .7-.2 1l-2.3 2.2z"/></svg>`;
 
 const AANMELD_NAMEN = {
   pin: 'Code per e-mail',
