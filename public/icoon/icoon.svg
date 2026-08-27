@@ -1,12 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
   <rect width="120" height="120" rx="27" fill="#12161c"/>
-  <text x="33" y="72" text-anchor="middle" font-family="Helvetica,Arial,sans-serif"
-        font-size="50" font-weight="700" fill="#ffffff">Y</text>
-  <circle cx="76" cy="53" r="21" fill="#ffffff"/>
-  <g stroke="#12161c" stroke-width="2.4" fill="none" stroke-linecap="round">
-    <line x1="76" y1="32" x2="76" y2="74"/>
-    <path d="M65.1 34.9 A 39.9 39.9 0 0 0 65.1 71.1"/>
-    <path d="M86.9 34.9 A 39.9 39.9 0 0 1 86.9 71.1"/>
-  </g>
+  <text x="60" y="72" text-anchor="middle" font-family="Helvetica,Arial,sans-serif"
+        font-size="52" font-weight="700" fill="#ffffff" letter-spacing="-1">YO</text>
   <text x="60" y="97" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="17" font-weight="700" fill="#e8a317" letter-spacing="1.6">assist</text>
 </svg>
