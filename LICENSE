@@ -1,0 +1,25 @@
+YOAssist
+Copyright (c) 2026 AB InBev Leuven Bears
+
+Uitgebracht onder de European Union Public Licence, versie 1.2 (EUPL-1.2).
+
+Je mag dit werk gebruiken, kopiëren, aanpassen en verspreiden onder de
+voorwaarden van die licentie. De volledige tekst is beschikbaar in de 23
+officiële talen van de Europese Unie via:
+
+  https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12
+
+Een kopie in de gewenste taal hoort naast dit bestand bewaard te worden, als
+LICENSE-NL.txt of LICENSE-EN.txt. Download ze van bovenstaand adres; ze is te
+lang om hier volledig op te nemen, en een parafrase heeft geen rechtskracht.
+
+Tenzij vereist door toepasselijk recht of schriftelijk overeengekomen, wordt de
+software onder de licentie verspreid "zoals ze is", ZONDER ENIGE GARANTIE OF
+VOORWAARDE, expliciet noch impliciet.
+
+---
+
+Deze applicatie gebruikt geen externe bibliotheken in productie. De volledige
+uitvoering bestaat uit eigen code op de Cloudflare Workers-runtime. Het
+ontwikkelpakket `better-sqlite3` wordt uitsluitend gebruikt om de tests te
+draaien en wordt niet uitgeleverd.

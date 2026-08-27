@@ -307,5 +307,55 @@ console.log('\n14. Tabbladen verbergen als voorkeur');
     (await vraag(env, '/api/voorkeuren', { alsWie: 'ann@club.be' })).json.verborgenTabs, []);
 }
 
+console.log('\n15. Uitleg over meldingen in de mail');
+{
+  const env = nieuweEnv();
+  const verzonden = [];
+  globalThis.fetch = async (url, opties) => {
+    verzonden.push(JSON.parse(opties.body));
+    return { ok: true, json: async () => ({}) };
+  };
+
+  await verwittig(env, 'ann@club.be', { onderwerp: 'Test', tekst: 'Inhoud' });
+  check('uitleg meegestuurd', /Mijn voorkeuren/.test(verzonden[0].text), true);
+  check('met de iPhone-stap', /beginscherm/.test(verzonden[0].text), true);
+  check('en waarom dat nodig is', /regel van Apple/.test(verzonden[0].text), true);
+  check('de eigenlijke inhoud staat er nog', /Inhoud/.test(verzonden[0].text), true);
+}
+
+console.log('\n16. Wie meldingen al aanheeft, krijgt de uitleg niet');
+{
+  const env = nieuweEnv();
+  env.DB.exec("UPDATE users SET kanaal_push = 1 WHERE email = 'ann@club.be'");
+
+  const verzonden = [];
+  globalThis.fetch = async (url, opties) => {
+    verzonden.push(JSON.parse(opties.body));
+    return { ok: true, json: async () => ({}) };
+  };
+
+  await verwittig(env, 'ann@club.be', { onderwerp: 'Test', tekst: 'Inhoud' });
+  const mail = verzonden.find((m) => m.to === 'ann@club.be');
+  check('geen uitleg', /beginscherm/.test(mail.text), false);
+}
+
+console.log('\n17. Wie een toestel heeft maar het kanaal uitzette, ook niet');
+{
+  const env = nieuweEnv();
+  env.DB.exec(`
+    INSERT INTO push_abonnementen (user_email, endpoint, p256dh, auth)
+      VALUES ('ann@club.be','https://fcm.googleapis.com/x/9','a','b');
+  `);
+
+  const verzonden = [];
+  globalThis.fetch = async (url, opties) => {
+    verzonden.push(JSON.parse(opties.body));
+    return { ok: true, json: async () => ({}) };
+  };
+
+  await verwittig(env, 'ann@club.be', { onderwerp: 'Test', tekst: 'Inhoud' });
+  check('die weet hoe het werkt', /beginscherm/.test(verzonden[0].text), false);
+}
+
 console.log(f === 0 ? '\n=== ALLE PUSHTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);
 process.exit(f ? 1 : 0);

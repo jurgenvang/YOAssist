@@ -1,72 +1,93 @@
 /**
  * De stappen van de rondleiding.
  *
- * Apart van de weergave gehouden zodat een test kan controleren dat elk
- * doelelement ook echt in de interface bestaat. Een pijl die naar een
- * verdwenen knop wijst, gaat anders stil kapot: niemand merkt het tot een
- * nieuwe gebruiker zich afvraagt waarom er een pijl in het luchtledige hangt.
+ * Twee reeksen, want twee verhalen. Een Youth Official wil weten wat er van hem
+ * verwacht wordt; een beheerder wil weten hoe hij een weekend rond krijgt. Eén
+ * gedeelde reeks zou voor allebei half kloppen.
  *
- * Dit bestand wordt niet door de Worker geladen maar door de browser, als
- * gewoon script naast index.html. Het staat los omdat een lijst met teksten
- * niet thuishoort tussen de logica.
+ * Apart van de weergavecode gehouden zodat een test kan controleren dat elk
+ * doelelement bestaat. Een pijl naar een verdwenen knop gaat anders stil kapot.
  */
 
-window.YOASSIST_RONDLEIDING = [
-  // ---- Voor iedereen ------------------------------------------------------
-  {
-    doel: '#hoofd',
-    titel: 'Je wedstrijden',
-    tekst:
-      'Hier staan de thuiswedstrijden die jij kunt fluiten, ' +
-      'gegroepeerd per maand. Bovenaan zie je hoeveel er nog te beantwoorden zijn.',
-    plaats: 'onder',
-  },
-  {
-    doel: '.wed-acties',
-    titel: 'Beschikbaar of niet',
-    tekst:
-      'Tik op een van de twee knoppen. Nog eens op dezelfde knop tikken wist je ' +
-      'antwoord, voor als je je vergist. Ben je aangeduid, dan verdwijnen de knoppen ' +
-      'en kun je enkel nog een probleem melden.',
-    plaats: 'boven',
-    optioneel: true,
-  },
-  {
-    doel: '#balk-info',
-    titel: 'Je eigen menu',
-    tekst:
-      'Klik op je naam voor alles wat over jou gaat: hoe je bericht wil krijgen ' +
-      '(per e-mail, met meldingen, of allebei), je herinneringen, en deze rondleiding.',
-    plaats: 'onder',
-  },
+window.YOASSIST_RONDLEIDING = {
+  /** Voor iedereen. Volgorde: wat er van je verwacht wordt, dan de rest. */
+  official: [
+    {
+      doel: '.wed',
+      titel: 'Zeg of je kunt',
+      tekst:
+        'Hier staan de thuiswedstrijden die jij kunt fluiten. Antwoord bij elke ' +
+        'wedstrijd — ook als het nee is. Dan weet de beheerder waar hij aan toe is ' +
+        'en hoeft hij niemand achterna te bellen.',
+      plaats: 'onder',
+    },
+    {
+      doel: '.wed-acties',
+      titel: 'Beschikbaar is nog geen aanduiding',
+      tekst:
+        'Ja zeggen betekent dat je zou kunnen, niet dat je moet komen. De ' +
+        'beheerder kiest daarna wie er effectief fluit. Ben je aangeduid, dan ' +
+        'krijg je daar bericht van en verschijnt de wedstrijd bovenaan.',
+      plaats: 'boven',
+    },
+    {
+      doel: '.groep-kop',
+      titel: 'Wat je zeker moet fluiten',
+      tekst:
+        'De lijst staat in drie delen: waarvoor je bent aangeduid, wat nog een ' +
+        'antwoord vraagt, en wat je al beantwoord hebt. Een kop aantikken klapt ' +
+        'dat deel open of dicht.',
+      plaats: 'onder',
+    },
+    {
+      doel: '#balk-info',
+      titel: 'Kun je toch niet?',
+      tekst:
+        'Ben je aangeduid en lukt het niet meer, meld dat dan in de app bij die ' +
+        'wedstrijd — niet met een berichtje aan je trainer. Hier bij je naam stel ' +
+        'je ook in hoe je bericht wil krijgen: per mail of met meldingen op je gsm. ' +
+        'Op een iPhone moet je de app daarvoor eerst aan je beginscherm toevoegen.',
+      plaats: 'onder',
+    },
+  ],
 
-  // ---- Enkel voor beheerders ---------------------------------------------
-  {
-    doel: '#tab-club',
-    titel: 'Cluboverzicht',
-    tekst:
-      'Alle thuiswedstrijden van de komende twee weekends, met wie er beschikbaar is ' +
-      'en wie er al aangeduid staat. De cijfers bovenaan zijn tegelijk filters.',
-    plaats: 'onder',
-    enkelAdmin: true,
-  },
-  {
-    doel: '#tab-log',
-    titel: 'Logboek',
-    tekst:
-      'Alles wat er gebeurt komt hier terecht: gewijzigde wedstrijden, aanduidingen, ' +
-      'beheeracties. Handig als je je afvraagt waarom iets er anders bij staat.',
-    plaats: 'onder',
-    enkelAdmin: true,
-  },
-  {
-    doel: '#balk-info',
-    titel: 'Beheer',
-    tekst:
-      'In datzelfde menu staat voor jou ook Beheer: clubs en ploegen, gebruikers, ' +
-      'mailinstellingen, synchronisatie, vrijgeven en backup. Alles wat over de club ' +
-      'gaat in plaats van over jou.',
-    plaats: 'onder',
-    enkelAdmin: true,
-  },
-];
+  /** Voor beheerders. Het verhaal is: hoe krijg ik een weekend rond. */
+  beheerder: [
+    {
+      doel: '#tab-club',
+      titel: 'Hier ligt het werk',
+      tekst:
+        'Het cluboverzicht toont de twee eerstvolgende weekends. Bovenaan staat ' +
+        'wat aandacht vraagt: wedstrijden zonder genoeg officials of zonder ' +
+        'iemand die beschikbaar is.',
+      plaats: 'onder',
+    },
+    {
+      doel: '#tab-club',
+      titel: 'Wie er in de lijst komt',
+      tekst:
+        'U10 en U12 staan er automatisch in. Vanaf U14 duidt Basketbal Vlaanderen ' +
+        'zelf scheidsrechters aan; komt er woensdag geen tweede, dan zet de app de ' +
+        'wedstrijd er zelf bij. Je kunt ze ook handmatig toevoegen of net weglaten.',
+      plaats: 'onder',
+    },
+    {
+      doel: '#tab-log',
+      titel: 'Wat er gebeurd is',
+      tekst:
+        'Elke aanduiding, elke wijziging aan de kalender en elke beheeractie komt ' +
+        'hier terecht. Handig als je je afvraagt waarom een wedstrijd er anders ' +
+        'bij staat dan gisteren.',
+      plaats: 'onder',
+    },
+    {
+      doel: '#balk-info',
+      titel: 'Beheer en vergoedingen',
+      tekst:
+        'Achter je naam: Beheer voor clubs, ploegen, gebruikers en synchronisatie. ' +
+        'Vergoedingen club om een maand af te sluiten — dat kan vanaf de eerste ' +
+        'dag van de volgende maand en legt de bedragen vast.',
+      plaats: 'onder',
+    },
+  ],
+};

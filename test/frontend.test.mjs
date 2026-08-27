@@ -156,7 +156,7 @@ console.log('\n7. De laadfuncties van het beheerpaneel worden aangeroepen');
 
   // Elke functie die een paneelsectie vult, moet in bindPaneel aangeroepen
   // worden. Ontbreekt er één, dan blijft die sectie leeg.
-  for (const naam of ['laadGebruikers', 'laadMailConfig', 'laadVrijgeven', 'laadFacturatie', 'laadBackup', 'laadReset']) {
+  for (const naam of ['laadGebruikers', 'laadMailConfig', 'laadVrijgeven', 'laadOntvangers', 'laadBackup', 'laadReset']) {
     check(`${naam} wordt aangeroepen`, new RegExp(`${naam}\\(\\)`).test(bind), true);
   }
 }
@@ -171,19 +171,27 @@ console.log('\n8. De rondleiding wijst naar bestaande elementen');
   const window = {};
   // eslint-disable-next-line no-new-func
   new Function('window', bron)(window);
-  const stappen = window.YOASSIST_RONDLEIDING;
+  const reeksen = window.YOASSIST_RONDLEIDING;
 
-  check('er zijn stappen', stappen.length > 0, true);
+  check('twee reeksen', Object.keys(reeksen).sort(), ['beheerder', 'official']);
+  check('official heeft stappen', reeksen.official.length > 0, true);
+  check('beheerder heeft stappen', reeksen.beheerder.length > 0, true);
 
-  for (const stap of stappen) {
-    check(`doel ${stap.doel} bestaat`, bestaatSelector(stap.doel), true);
-    check(`stap ${stap.doel} heeft een titel`, Boolean(stap.titel), true);
-    check(`stap ${stap.doel} heeft tekst`, stap.tekst.length > 20, true);
+  for (const [naam, stappen] of Object.entries(reeksen)) {
+    for (const stap of stappen) {
+      check(`${naam}: doel ${stap.doel} bestaat`, bestaatSelector(stap.doel), true);
+      check(`${naam}: ${stap.doel} heeft een titel`, Boolean(stap.titel), true);
+      check(`${naam}: ${stap.doel} heeft tekst`, stap.tekst.length > 20, true);
+    }
   }
 
-  const adminStappen = stappen.filter((s) => s.enkelAdmin);
-  check('er zijn beheerdersstappen', adminStappen.length > 0, true);
-  check('en stappen voor iedereen', stappen.length > adminStappen.length, true);
+  // De officialreeks moet uitleggen dat beschikbaar zetten geen aanduiding is;
+  // dat is de meest waarschijnlijke misvatting bij een nieuwe gebruiker.
+  const officialTekst = reeksen.official.map((s) => s.titel + ' ' + s.tekst).join(' ');
+  check('legt uit dat beschikbaar geen aanduiding is',
+    /geen aanduiding|niet dat je moet komen/.test(officialTekst), true);
+  check('vraagt ook om nee te antwoorden', /ook als het nee is/.test(officialTekst), true);
+  check('vermeldt een probleem melden', /meld dat dan/.test(officialTekst), true);
 }
 
 console.log('\n9. De rondleiding is oproepbaar en onthoudt zichzelf');
@@ -196,6 +204,11 @@ console.log('\n9. De rondleiding is oproepbaar en onthoudt zichzelf');
 
   const misschien = haalFunctie('misschienRondleiding');
   check('start enkel bij de eerste keer', /localStorage\.getItem/.test(misschien), true);
+  check('niet bij een lege lijst', /staat\.matches\.length === 0/.test(misschien), true);
+
+  const stappenFn = haalFunctie('rondStappen');
+  check('beheerder krijgt beide reeksen', /'beide'/.test(stappenFn), true);
+  check('en slaat onzichtbare elementen over', /offsetParent/.test(stappenFn), true);
 
   check('er is een knop om ze opnieuw te tonen', /id="rond-start"/.test(html), true);
   check('en die roept de rondleiding aan', /\$\('rond-start'\)\.onclick/.test(html), true);
@@ -238,8 +251,14 @@ console.log('\n11. Het naammenu');
     /id="voorkeur-knop"|id="menu-knop"/.test(html), false);
 
   const items = [...html.matchAll(/data-menu="(\w+)"/g)].map((m) => m[1]);
-  check('vier menu-items', [...new Set(items)].sort(),
-    ['beheer', 'rondleiding', 'vergoeding', 'voorkeuren']);
+  check('zeven menu-items', [...new Set(items)].sort(),
+    ['alsyo', 'beheer', 'clubgeld', 'over', 'rondleiding', 'vergoeding', 'voorkeuren']);
+
+  // De kijkstand mag nooit iets toevoegen, enkel wegnemen.
+  const kijk = haalFunctie('pasTabbalkToe');
+  check('kijkstand verbergt de beheerderstabbladen', /kijktAlsYo\(\)/.test(kijk), true);
+  check('er is een balk die het toont', /id="kijkbalk"/.test(html), true);
+  check('en een knop om terug te gaan', /id="kijk-terug"/.test(html), true);
   check('beheer staat standaard verborgen',
     /data-menu="beheer" hidden/.test(html), true);
 
@@ -247,6 +266,34 @@ console.log('\n11. Het naammenu');
   check('meldt de stand aan schermlezers', /aria-expanded/.test(zet), true);
   check('elders klikken sluit het menu',
     /document\.addEventListener\('click', \(\) => zetNaammenu\(false\)\)/.test(html), true);
+}
+
+console.log('\n12. Icoon en manifest');
+{
+  // Zonder apple-touch-icon maakt Safari bij 'Zet op beginscherm' zelf een
+  // schermafbeelding. Dat is precies wat we wilden vermijden.
+  check('apple-touch-icon aanwezig', /rel="apple-touch-icon"/.test(html), true);
+  check('manifest gekoppeld', /rel="manifest"/.test(html), true);
+  check('favicon aanwezig', /rel="icon"/.test(html), true);
+  check('titel op het beginscherm', /apple-mobile-web-app-title/.test(html), true);
+
+  const manifest = JSON.parse(
+    readFileSync(new URL('../public/manifest.json', import.meta.url), 'utf8'));
+  check('naam', manifest.name, 'YOAssist');
+  check('opent als app', manifest.display, 'standalone');
+
+  const maten = manifest.icons.map((i) => i.sizes).sort();
+  check('192 en 512 aanwezig', maten.includes('192x192') && maten.includes('512x512'), true);
+  check('maskable variant voor Android',
+    manifest.icons.some((i) => i.purpose === 'maskable'), true);
+
+  // Elk bestand waarnaar het manifest verwijst, moet er ook zijn.
+  for (const icoon of manifest.icons) {
+    const pad = new URL('../public' + icoon.src, import.meta.url);
+    let bestaat = true;
+    try { readFileSync(pad); } catch { bestaat = false; }
+    check(`${icoon.src} bestaat`, bestaat, true);
+  }
 }
 
 console.log(f === 0 ? '\n=== ALLE FRONTENDTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);

@@ -44,7 +44,7 @@ export async function verwittig(env, email, bericht, opties = {}) {
     const res = await verstuur(env, {
       naar: email,
       onderwerp: bericht.onderwerp,
-      tekst: bericht.tekst,
+      tekst: bericht.tekst + (await meldingenVoettekst(env, email, gebruiker)),
     }).catch(() => ({ verstuurd: false }));
     uitslag.mail = res.verstuurd;
     if (!res.verstuurd) uitslag.mailReden = res.reden;
@@ -133,4 +133,44 @@ export async function verwittigExtern(env, emails, bericht) {
   );
 
   return { mails: resultaten.filter((r) => r.verstuurd).length };
+}
+
+
+/**
+ * Voettekst die uitlegt hoe je meldingen aanzet.
+ *
+ * Alleen voor wie ze nog niet heeft. In elke mail zetten zou betekenen dat
+ * mensen die ze al maanden gebruiken telkens dezelfde uitleg meekrijgen, en dan
+ * leest niemand de voettekst nog.
+ *
+ * De iPhone-stap staat er expliciet bij omdat het de meest voorkomende reden is
+ * dat meldingen niet werken: op iOS kan een website pas meldingen sturen nadat
+ * ze aan het beginscherm is toegevoegd. Dat is een beperking van Apple die niet
+ * te omzeilen is, en zonder uitleg lijkt het gewoon kapot.
+ */
+async function meldingenVoettekst(env, email, gebruiker) {
+  if (gebruiker.kanaal_push === 1) return '';
+
+  // Heeft iemand al een toestel geregistreerd maar het kanaal uitgezet, dan
+  // weet hij hoe het werkt en is de uitleg overbodig.
+  const toestellen = await env.DB
+    .prepare('SELECT COUNT(*) AS n FROM push_abonnementen WHERE user_email = ?')
+    .bind(email)
+    .first()
+    .catch(() => null);
+
+  if ((toestellen?.n ?? 0) > 0) return '';
+
+  return (
+    '\n\n' +
+    '—\n' +
+    'Liever een melding op je gsm in plaats van een mail?\n' +
+    'Open YOAssist, tik op je naam rechtsboven en kies Mijn voorkeuren. ' +
+    'Zet daar Meldingen aan.\n\n' +
+    'Op een iPhone werkt dat alleen als je de app eerst aan je beginscherm zet: ' +
+    'open YOAssist in Safari, tik op het deelicoon onderaan (het vierkantje met ' +
+    'de pijl omhoog), kies "Zet op beginscherm", en open de app daarna via dat ' +
+    'icoon. Pas dan kun je meldingen aanzetten. Dat is een regel van Apple, niet ' +
+    'van YOAssist.'
+  );
 }

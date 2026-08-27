@@ -104,7 +104,7 @@ export async function kiesClub({ request, env, user }) {
  * staan (YO ziet teams.yo, YO+ ziet teams.yo_plus), niet verdwenen, en vanaf
  * vandaag. Sortering op datum, uur, ploeg; de frontend groepeert per maand.
  */
-export async function matches({ env, user }) {
+export async function matches({ url, env, user }) {
   const seizoen = seizoenscode(Number(await instelling(env.DB, 'seizoen_start_jaar', '2026')));
   const { user: bijgewerkt, keuze } = await zorgVoorClub(env, user);
 
@@ -115,7 +115,15 @@ export async function matches({ env, user }) {
 
   // Een YO ziet alleen U10/U12. Een YO+ ziet alles wat in de aanduidingslijst
   // staat: dus ook wat een beheerder of de woensdagregel erbij heeft gezet.
-  const profielFilter = profiel === 'YO+' ? '' : "AND cat.groep = 'U10U12'";
+  //
+  // Een beheerder kan met ?alsProfiel=YO kijken zoals een gewone official.
+  // Die parameter kan het resultaat alleen versmallen, nooit verbreden: wie
+  // YO is, wordt er geen YO+ mee. Zo blijft de identiteit uit Access leidend
+  // en is de schakelaar geen achterdeur.
+  const gevraagd = url?.searchParams?.get('alsProfiel');
+  const zichtbaarProfiel = gevraagd === 'YO' ? 'YO' : profiel;
+
+  const profielFilter = zichtbaarProfiel === 'YO+' ? '' : "AND cat.groep = 'U10U12'";
 
   const { results } = await env.DB.prepare(
     `SELECT m.guid, m.datum, m.uur, m.thuis_naam, m.uit_naam, m.locatie, m.poule_naam,
@@ -172,6 +180,7 @@ export async function matches({ env, user }) {
   return json({
     seizoen,
     clubNaam: bijgewerkt.clubNaam,
+    profiel: zichtbaarProfiel,
     matches: results.map((r) => {
       let vblRefs = [];
       try {

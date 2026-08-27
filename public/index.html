@@ -3,6 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- Icoon en manifest. apple-touch-icon is wat iOS oppikt bij 'Zet op
+       beginscherm'; zonder die regel maakt Safari zelf een schermafbeelding. -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/icoon/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icoon/favicon-16.png">
+  <link rel="apple-touch-icon" href="/icoon/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#12161c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="YOAssist">
 <meta name="theme-color" content="#12161c">
 <title>YOAssist</title>
 <style>
@@ -276,6 +286,17 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
 .leeg { text-align: center; color: var(--grijs); padding: 2.5rem 1rem; font-size: .92rem; }
 
 /* ---- Weergaveschakelaar voor beheerders --------------------------------- */
+/* Opvallend, niet subtiel. Vergeet je dat dit aanstaat, dan vraag je je een
+   half uur later af waarom het cluboverzicht verdwenen is. */
+.kijkbalk {
+  display: flex; align-items: center; gap: .6rem;
+  background: var(--amber); color: var(--inkt);
+  padding: .5rem 1rem; font-size: .84rem; font-weight: 600;
+  max-width: 46rem; margin: 0 auto;
+}
+.kijkbalk[hidden] { display: none; }
+.kijkbalk .mini-knop { margin-left: auto; background: rgba(0,0,0,.12); border: 0; }
+
 .tabs { display: flex; gap: .3rem; margin-bottom: 1rem;
         background: #ebedf0; padding: .25rem; border-radius: 10px; }
 .tab {
@@ -539,6 +560,9 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
   display: flex; align-items: center; gap: .5rem; padding: .45rem 0;
   border-top: 1px solid var(--lijn); font-size: .85rem;
 }
+.over-rij { display: flex; padding: .4rem 0; border-top: 1px solid var(--lijn); font-size: .88rem; }
+.over-rij span { color: var(--grijs); }
+.over-rij b { margin-left: auto; font-variant-numeric: tabular-nums; }
 .toestel-rij .naam { flex: 1; min-width: 0; overflow: hidden;
                      text-overflow: ellipsis; white-space: nowrap; }
 
@@ -626,14 +650,22 @@ select {
     <button class="balk-info" id="balk-info" aria-haspopup="menu" aria-expanded="false"></button>
     <div class="naammenu" id="naammenu" role="menu" hidden>
       <button role="menuitem" data-menu="vergoeding">Mijn vergoeding</button>
+      <button role="menuitem" data-menu="clubgeld" hidden>Vergoedingen club</button>
       <button role="menuitem" data-menu="voorkeuren">Mijn voorkeuren</button>
       <button role="menuitem" data-menu="rondleiding">Rondleiding</button>
       <button role="menuitem" data-menu="beheer" hidden>Beheer</button>
+      <button role="menuitem" data-menu="alsyo" hidden>Kijken als official</button>
+      <button role="menuitem" data-menu="over">Over YOAssist</button>
     </div>
   </div>
 </header>
 
 <main>
+  <div class="kijkbalk" id="kijkbalk" hidden>
+    <span>Je kijkt als official</span>
+    <button class="mini-knop" id="kijk-terug">Terug naar beheer</button>
+  </div>
+
   <div class="tabs" id="tabs" hidden role="tablist">
     <button class="tab" id="tab-mijn" role="tab" aria-selected="true">Aanduidingen</button>
     <button class="tab" id="tab-club" role="tab" aria-selected="false">Cluboverzicht</button>
@@ -651,6 +683,27 @@ select {
       <button class="sluit" id="paneel-sluit" aria-label="Sluiten">&times;</button>
     </div>
     <div id="paneel-inhoud"><div class="leeg"><span class="spinner"></span> Laden…</div></div>
+  </div>
+</div>
+
+<div class="overlay" id="over-overlay" role="dialog" aria-modal="true" aria-label="Over YOAssist">
+  <div class="paneel">
+    <div class="paneel-kop">
+      <h2>Over YOAssist</h2>
+      <button class="sluit" id="over-sluit" aria-label="Sluiten">&times;</button>
+    </div>
+    <div id="over-inhoud"></div>
+  </div>
+</div>
+
+<div class="overlay" id="clubgeld-overlay" role="dialog" aria-modal="true"
+     aria-label="Vergoedingen club">
+  <div class="paneel">
+    <div class="paneel-kop">
+      <h2>Vergoedingen club</h2>
+      <button class="sluit" id="clubgeld-sluit" aria-label="Sluiten">&times;</button>
+    </div>
+    <div id="clubgeld-inhoud"><div class="leeg"><span class="spinner"></span> Laden…</div></div>
   </div>
 </div>
 
@@ -923,14 +976,16 @@ async function laadHoofd() {
       `<span><strong>${tekst(ik.naam)}</strong>${tekst(ik.profiel)}` +
       `${ik.clubNaam ? ' &middot; ' + tekst(ik.clubNaam) : ''}${beheerRegel}</span>`;
 
-    document.querySelector('[data-menu="beheer"]').hidden = !ik.isAdmin;
+    for (const sleutel of ['beheer', 'clubgeld', 'alsyo']) {
+      document.querySelector(`[data-menu="${sleutel}"]`).hidden = !ik.isAdmin;
+    }
     // De tabbalk is er alleen voor beheerders: een gewone YO heeft één scherm,
     // en zijn vergoeding staat in het naammenu.
     try {
       const v = await api('/api/voorkeuren');
       staat.verborgenTabs = v.verborgenTabs ?? [];
     } catch { /* zonder voorkeuren tonen we gewoon alles */ }
-    pasTabbalkToe();
+    pasKijkstandToe();
 
     if (data.clubKeuze) {
       toonClubKeuze(data.clubKeuze, ik.isAdmin);
@@ -1224,7 +1279,7 @@ async function wisselWeergave(welke) {
     // net iets gewijzigd; de lijst uit het geheugen toont dat niet.
     $('hoofd').innerHTML = '<div class="leeg"><span class="spinner"></span> Laden…</div>';
     try {
-      const data = await api('/api/matches');
+      const data = await api(`/api/matches${kijktAlsYo() ? '?alsProfiel=YO' : ''}`);
       staat.matches = data.matches;
       toonMatches(data);
     } catch (err) {
@@ -1669,7 +1724,7 @@ function overzichtKaart(w) {
   const ja = w.beschikbaar.length
     ? vrij.map((p) => `<span class="chip ja klik" data-wijs="${tekst(p.email)}"
          title="Toewijzen">${tekst(p.naam)}</span>`).join('') ||
-      '<span class="chip geen">allemaal toegewezen</span>'
+      '<span class="chip geen">iedereen beschikbaar toegewezen</span>'
     : '<span class="chip geen">niemand</span>';
 
   const nee = w.nietBeschikbaar.length
@@ -1824,24 +1879,32 @@ async function herlaadOverzicht() {
 ------------------------------------------------------------------------- */
 const ROND_GEZIEN = 'yoassist-rondleiding-gezien';
 
-function rondStappen() {
-  const alles = window.YOASSIST_RONDLEIDING ?? [];
-  return alles.filter((stap) => {
-    if (stap.enkelAdmin && !staat.ik?.isAdmin) return false;
+/**
+ * Bouwt de te tonen reeks.
+ *
+ * Een beheerder krijgt bij de eerste aanmelding beide reeksen achter elkaar:
+ * hij is óók een official, en de helft van de app werkt voor hem net zoals voor
+ * de rest. Later kan hij ze apart oproepen.
+ */
+function rondStappen(welke = 'official') {
+  const alles = window.YOASSIST_RONDLEIDING ?? {};
+  const reeksen = welke === 'beide'
+    ? [...(alles.official ?? []), ...(alles.beheerder ?? [])]
+    : (alles[welke] ?? []);
 
-    // Ontbreekt het element, dan valt er niets aan te wijzen. Overslaan is
-    // beter dan een pijl naar het luchtledige of een rondleiding die strandt.
+  return reeksen.filter((stap) => {
+    // Een stap die naar iets onzichtbaars wijst, overslaan in plaats van de
+    // rondleiding te laten stranden. Dat gebeurt bij een verborgen tabblad of
+    // bij een lege wedstrijdlijst.
     const el = document.querySelector(stap.doel);
-    if (!el) return false;
-
-    // offsetParent is null bij een verborgen element; document.body zou dat ook
-    // zijn, maar daar wijzen we nooit naar.
-    return el.offsetParent !== null;
+    return el !== null && el.offsetParent !== null;
   });
 }
 
-function startRondleiding() {
-  const stappen = rondStappen();
+function startRondleiding(welke) {
+  const soort = welke ?? (staat.ik?.isAdmin ? 'beide' : 'official');
+  const stappen = rondStappen(soort);
+
   if (stappen.length === 0) {
     toast('Er valt nu niets aan te wijzen. Probeer het als er wedstrijden staan.');
     return;
@@ -1876,36 +1939,111 @@ function toonRondStap() {
 
   el.scrollIntoView({ block: 'center', behavior: 'smooth' });
 
-  // Even wachten tot het scrollen klaar is, anders staat het gat naast de knop.
-  setTimeout(() => {
-    const rand = el.getBoundingClientRect();
-    const marge = 6;
+  // Wachten tot het scrollen echt gestopt is. Een vaste vertraging is een gok:
+  // op een traag toestel duurt vloeiend scrollen langer, en dan wordt het gat
+  // gemeten terwijl de pagina nog beweegt.
+  let gedaan = false;
+  const plaats = () => {
+    if (gedaan) return;
+    gedaan = true;
+    window.removeEventListener('scrollend', plaats);
+    plaatsRondKaart(el, stap);
+  };
 
-    const gat = $('rond-gat');
-    gat.style.top = `${rand.top - marge}px`;
-    gat.style.left = `${rand.left - marge}px`;
-    gat.style.width = `${rand.width + marge * 2}px`;
-    gat.style.height = `${rand.height + marge * 2}px`;
+  if ('onscrollend' in window) {
+    window.addEventListener('scrollend', plaats, { once: true });
+    // Terugval: gebeurt er geen scroll omdat het element al in beeld staat,
+    // dan komt scrollend nooit.
+    setTimeout(plaats, 400);
+  } else {
+    setTimeout(plaats, 260);
+  }
+}
 
-    $('rond-titel').textContent = stap.titel;
-    $('rond-tekst').textContent = stap.tekst;
-    $('rond-tel').textContent = `${nummer + 1} van ${stappen.length}`;
-    $('rond-verder').textContent = nummer + 1 === stappen.length ? 'Klaar' : 'Verder';
+/**
+ * Zet gat en kaart op hun plaats.
+ *
+ * De kaart mag nooit over het element vallen dat ze aanwijst — dan wijst de
+ * rondleiding naar iets wat je niet kunt zien. Daarom alle vier de zijden
+ * meten en de kant kiezen waar ze werkelijk past. De `plaats` van een stap is
+ * een voorkeur, geen dwang: is daar geen ruimte, dan wint de ruimte.
+ */
+function plaatsRondKaart(el, stap) {
+  const { stappen, nummer } = staat.rond;
+  const rand = el.getBoundingClientRect();
+  const marge = 6;
+  const tussen = 16;
 
-    // Kaart onder het gat, of erboven als er onderaan geen plaats is.
-    const kaart = $('rond-kaart');
-    const hoogte = kaart.offsetHeight || 180;
-    const onderRuimte = window.innerHeight - rand.bottom;
-    const boven = stap.plaats === 'boven' || onderRuimte < hoogte + 24;
+  const gat = $('rond-gat');
+  gat.style.top = `${rand.top - marge}px`;
+  gat.style.left = `${rand.left - marge}px`;
+  gat.style.width = `${rand.width + marge * 2}px`;
+  gat.style.height = `${rand.height + marge * 2}px`;
 
-    kaart.style.top = boven
-      ? `${Math.max(12, rand.top - hoogte - 16)}px`
-      : `${rand.bottom + 16}px`;
-    kaart.style.left = `${Math.min(
-      Math.max(12, rand.left),
-      window.innerWidth - kaart.offsetWidth - 12,
-    )}px`;
-  }, 220);
+  $('rond-titel').textContent = stap.titel;
+  $('rond-tekst').textContent = stap.tekst;
+  $('rond-tel').textContent = `${nummer + 1} van ${stappen.length}`;
+  $('rond-verder').textContent = nummer + 1 === stappen.length ? 'Klaar' : 'Verder';
+
+  const kaart = $('rond-kaart');
+  // Even zichtbaar maken om de werkelijke afmetingen te kunnen meten.
+  kaart.style.visibility = 'hidden';
+  kaart.style.top = '0px';
+  kaart.style.left = '0px';
+  const breedte = kaart.offsetWidth;
+  const hoogte = kaart.offsetHeight;
+
+  const scherm = { breedte: window.innerWidth, hoogte: window.innerHeight };
+  const rem = 12;
+
+  // Hoeveel plaats is er aan elke kant, en waar zou de kaart dan komen?
+  const kanten = [
+    {
+      naam: 'onder',
+      ruimte: scherm.hoogte - rand.bottom - tussen - rem,
+      nodig: hoogte,
+      top: rand.bottom + tussen,
+      left: Math.min(Math.max(rem, rand.left), scherm.breedte - breedte - rem),
+    },
+    {
+      naam: 'boven',
+      ruimte: rand.top - tussen - rem,
+      nodig: hoogte,
+      top: rand.top - hoogte - tussen,
+      left: Math.min(Math.max(rem, rand.left), scherm.breedte - breedte - rem),
+    },
+    {
+      naam: 'rechts',
+      ruimte: scherm.breedte - rand.right - tussen - rem,
+      nodig: breedte,
+      top: Math.min(Math.max(rem, rand.top), scherm.hoogte - hoogte - rem),
+      left: rand.right + tussen,
+    },
+    {
+      naam: 'links',
+      ruimte: rand.left - tussen - rem,
+      nodig: breedte,
+      top: Math.min(Math.max(rem, rand.top), scherm.hoogte - hoogte - rem),
+      left: rand.left - breedte - tussen,
+    },
+  ];
+
+  const passend = kanten.filter((k) => k.ruimte >= k.nodig);
+
+  // Voorkeur van de stap, maar enkel als daar plaats is.
+  const gekozen =
+    passend.find((k) => k.naam === stap.plaats) ??
+    passend[0] ??
+    // Nergens plaats: tegen de rand het verst van het element vandaan. Beter
+    // een kaart onderaan het scherm dan een kaart over de knop.
+    (rand.top > scherm.hoogte / 2
+      ? { top: rem, left: Math.min(Math.max(rem, rand.left), scherm.breedte - breedte - rem) }
+      : { top: scherm.hoogte - hoogte - rem,
+          left: Math.min(Math.max(rem, rand.left), scherm.breedte - breedte - rem) });
+
+  kaart.style.top = `${Math.round(gekozen.top)}px`;
+  kaart.style.left = `${Math.round(gekozen.left)}px`;
+  kaart.style.visibility = '';
 }
 
 $('rond-verder').addEventListener('click', () => {
@@ -1922,8 +2060,14 @@ function misschienRondleiding() {
   let gezien = true;
   try { gezien = localStorage.getItem(ROND_GEZIEN) === '1'; } catch { /* geen opslag */ }
   if (gezien) return;
-  // Even wachten tot de lijst getekend is: anders valt er niets aan te wijzen.
-  setTimeout(startRondleiding, 600);
+
+  // Niet starten bij een lege lijst: dan wijst de rondleiding naar een leeg
+  // scherm en is de eerste indruk meteen verkeerd. Ze blijft bewaard voor de
+  // volgende keer, wanneer er wel wedstrijden staan.
+  if (staat.matches.length === 0) return;
+
+  // Even wachten tot de lijst getekend is.
+  setTimeout(() => startRondleiding(), 600);
 }
 
 /* --- Mijn voorkeuren -----------------------------------------------------
@@ -1971,8 +2115,43 @@ function sluitVoorkeuren() {
  * Verbergen is een weergavevoorkeur, geen recht: de backend weigert onafhankelijk
  * hiervan wat iemand niet mag.
  */
+/* --- Kijken als official -------------------------------------------------
+   Een beheerder kan de app bekijken zoals een gewone Youth Official ze ziet.
+   Bewust alleen wegnemen, nooit toevoegen: de backend blijft de identiteit uit
+   Access gebruiken en de parameter kan het resultaat enkel versmallen.
+
+   De stand staat in sessionStorage, niet in localStorage: een herlaadbeurt mag
+   je er niet uitgooien, maar volgende week wil je er niet nog in zitten.
+------------------------------------------------------------------------- */
+const KIJK_SLEUTEL = 'yoassist-kijk-als-yo';
+
+function kijktAlsYo() {
+  try { return sessionStorage.getItem(KIJK_SLEUTEL) === '1'; } catch { return false; }
+}
+
+async function zetKijkAlsYo(aan) {
+  try {
+    if (aan) sessionStorage.setItem(KIJK_SLEUTEL, '1');
+    else sessionStorage.removeItem(KIJK_SLEUTEL);
+  } catch { /* zonder opslag werkt het voor deze pagina ook */ }
+
+  pasKijkstandToe();
+  await wisselWeergave('mijn');
+}
+
+function pasKijkstandToe() {
+  const aan = kijktAlsYo();
+  $('kijkbalk').hidden = !aan;
+  document.querySelector('[data-menu="alsyo"]').hidden = !staat.ik?.isAdmin || aan;
+  pasTabbalkToe();
+}
+
+$('kijk-terug').addEventListener('click', () => zetKijkAlsYo(false));
+
 function pasTabbalkToe() {
-  const isAdmin = staat.ik?.isAdmin;
+  // Wie als official kijkt, ziet de beheerderstabbladen niet: dat is precies
+  // wat er gecontroleerd moet worden.
+  const isAdmin = staat.ik?.isAdmin && !kijktAlsYo();
   const verborgen = staat.verborgenTabs ?? [];
 
   for (const [id, sleutel] of [['tab-club', 'club'], ['tab-log', 'log']]) {
@@ -1999,6 +2178,18 @@ async function laadVoorkeuren() {
 }
 
 /** Kan deze browser überhaupt push? Op iOS enkel als de app op het beginscherm staat. */
+/** Draait dit op een iPhone of iPad? */
+function opIphone() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+/** Is de app vanaf het beginscherm geopend in plaats van in de browser? */
+function alsApp() {
+  return window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true;
+}
+
 function pushMogelijk() {
   return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 }
@@ -2037,6 +2228,15 @@ function toonVoorkeuren(v) {
       ${pushKan && !v.push
         ? '<button class="knop breed zacht" id="push-aan">Meldingen op dit toestel aanzetten</button>'
         : ''}
+      ${!v.push && opIphone() && !alsApp()
+        ? `<div class="melding let" style="margin-top:.5rem">
+             <b>Op een iPhone eerst dit</b><br>
+             Meldingen werken pas als YOAssist op je beginscherm staat. Tik in Safari
+             op het deelicoon onderaan (het vierkantje met de pijl omhoog), kies
+             <b>Zet op beginscherm</b>, en open de app daarna via dat icoon.
+             Dat is een regel van Apple, niet van YOAssist.
+           </div>`
+        : ''}
       <div id="voorkeur-melding"></div>
     </section>
 
@@ -2065,7 +2265,12 @@ function toonVoorkeuren(v) {
     <section class="blok">
       <h3>Rondleiding</h3>
       <p class="hint">Een korte uitleg die de knoppen aanwijst.</p>
-      <button class="knop breed zacht" id="rond-start">Rondleiding tonen</button>
+      <button class="knop breed zacht" id="rond-start">
+        ${staat.ik?.isAdmin ? 'Voor officials' : 'Rondleiding tonen'}
+      </button>
+      ${staat.ik?.isAdmin
+        ? '<button class="knop breed zacht" id="rond-start-beheer">Voor beheerders</button>'
+        : ''}
     </section>
 
     <section class="blok">
@@ -2128,12 +2333,16 @@ function toonVoorkeuren(v) {
     };
   });
 
-  $('rond-start').onclick = () => {
+  const startNa = (welke) => {
     sluitVoorkeuren();
     // Even wachten tot het paneel dicht is, anders wijst het gat naar iets
     // dat achter de overlay zit.
-    setTimeout(startRondleiding, 250);
+    setTimeout(() => startRondleiding(welke), 250);
   };
+
+  $('rond-start').onclick = () => startNa('official');
+  const beheerKnop = $('rond-start-beheer');
+  if (beheerKnop) beheerKnop.onclick = () => startNa('beheerder');
 
   $('voorkeur-test').onclick = async () => {
     const doel = $('voorkeur-testmelding');
@@ -2232,9 +2441,12 @@ $('naammenu').addEventListener('click', (e) => {
   zetNaammenu(false);
 
   if (knop.dataset.menu === 'vergoeding') openVergoeding();
+  else if (knop.dataset.menu === 'clubgeld') openClubgeld();
   else if (knop.dataset.menu === 'voorkeuren') openVoorkeuren();
   else if (knop.dataset.menu === 'beheer') openPaneel();
-  else if (knop.dataset.menu === 'rondleiding') setTimeout(startRondleiding, 100);
+  else if (knop.dataset.menu === 'rondleiding') setTimeout(() => startRondleiding(), 100);
+  else if (knop.dataset.menu === 'over') openOver();
+  else if (knop.dataset.menu === 'alsyo') zetKijkAlsYo(true);
 });
 $('paneel-sluit').addEventListener('click', sluitPaneel);
 $('overlay').addEventListener('click', (e) => { if (e.target === $('overlay')) sluitPaneel(); });
@@ -2243,6 +2455,8 @@ document.addEventListener('keydown', (e) => {
   sluitPaneel();
   sluitVoorkeuren();
   sluitVergoeding();
+  sluitClubgeld();
+  sluitOver();
   zetNaammenu(false);
   if (staat.rond) stopRondleiding();
 });
@@ -2424,21 +2638,16 @@ function toonPaneel() {
     </section>
 
     <section class="blok">
-      <h3 data-vouw="beheer-facturatie">Vergoeding &mdash; beheer</h3>
-      <p class="hint">Afsluiten legt de bedragen vast. Wat er nadien nog wijzigt,
-        komt als correctie in de volgende maand.</p>
-      <div id="fact-inhoud"><span class="spinner"></span> Laden…</div>
-      <div class="veld-rij" style="margin-top:.6rem">
+      <h3 data-vouw="beheer-facturatie">Vergoedingen</h3>
+      <p class="hint">Afsluiten en de overzichten staan in het naammenu bij
+        <b>Vergoedingen club</b>. Hier staat alleen wat je één keer instelt.</p>
+      <div class="veld-rij">
         <input type="text" id="fact-ontvangers" placeholder="penningmeester@club.be">
         <button class="knop zacht" id="fact-bewaar">Bewaren</button>
       </div>
       <p class="hint" style="margin-top:.3rem">Wie de verzamelstaat krijgt.
         Meerdere adressen gescheiden door komma's.</p>
-      <div id="fact-melding"></div>
-      <button class="knop zacht breed" id="fact-officials" style="margin-top:.5rem">
-        Overzicht per official
-      </button>
-      <div id="fact-officials-uitslag"></div>
+      <div id="fact-ontvangers-melding"></div>
     </section>
 
     <section class="blok">
@@ -2553,39 +2762,8 @@ function bindPaneel() {
 
   laadMailConfig();
   laadVrijgeven();
-  laadFacturatie();
+  laadOntvangers();
   laadBackup();
-
-  $('fact-officials').onclick = async () => {
-    const doel = $('fact-officials-uitslag');
-    doel.innerHTML = '<div class="melding let"><span class="spinner"></span>Ophalen…</div>';
-    try {
-      const r = await api('/api/admin/facturatie/officials');
-      if (r.officials.length === 0) {
-        doel.innerHTML = '<div class="melding let">Nog geen afgesloten maanden.</div>';
-        return;
-      }
-      doel.innerHTML = `
-        <div class="melding ok">${r.officials.length} officials, samen ${tekst(r.totaal)}
-          over alle afgesloten maanden.</div>
-        ${r.officials.map((o) => `
-          <div class="geld-maand">
-            <div class="geld-kop">
-              <h3>${tekst(o.naam)}</h3>
-              <span class="bedrag">${tekst(o.bedrag)}</span>
-            </div>
-            ${o.perMaand.map((m) => `
-              <div class="geld-regel">
-                <span class="wat">${tekst(maandLabel(m.maand))} &middot; ${m.aantal} wedstrijden</span>
-                <span class="bedrag">${tekst(m.bedrag)}</span>
-              </div>`).join('')}
-          </div>`).join('')}
-        <button class="knop zacht breed" id="fact-officials-sluit">Sluiten</button>`;
-      $('fact-officials-sluit').onclick = () => { doel.innerHTML = ''; };
-    } catch (err) {
-      doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
-    }
-  };
 
   $('fact-bewaar').onclick = async () => {
     try {
@@ -2768,11 +2946,121 @@ function maandLabelUitSleutel(sleutel) {
   return `${MAAND_NAMEN[m - 1]} ${j}`;
 }
 
-async function laadFacturatie() {
-  const doel = $('fact-inhoud');
+$('clubgeld-sluit').addEventListener('click', sluitClubgeld);
+$('clubgeld-overlay').addEventListener('click', (e) => {
+  if (e.target === $('clubgeld-overlay')) sluitClubgeld();
+});
+
+$('over-sluit').addEventListener('click', sluitOver);
+$('over-overlay').addEventListener('click', (e) => {
+  if (e.target === $('over-overlay')) sluitOver();
+});
+
+function openOver() {
+  $('over-inhoud').innerHTML = `
+    <section class="blok">
+      <h3>Wat het is</h3>
+      <p class="hint">Een hulpmiddel om de beschikbaarheden en aanduidingen van
+        Youth Officials te beheren. De wedstrijdkalender komt van Basketbal
+        Vlaanderen; de aanduidingen worden hier gemaakt.</p>
+      <div class="over-rij"><span>Versie</span><b>${tekst(staat.ik?.versie ?? '?')}</b></div>
+      <div class="over-rij"><span>Club</span><b>${tekst(staat.ik?.clubNaam ?? '—')}</b></div>
+    </section>
+
+    <section class="blok">
+      <h3>Licentie</h3>
+      <p class="hint">YOAssist is vrije software, uitgebracht onder de
+        <b>European Union Public Licence v1.2</b>. Je mag ze gebruiken,
+        aanpassen en doorgeven onder de voorwaarden van die licentie.</p>
+      <p class="hint">De volledige tekst bestaat in de 23 officiële talen van de
+        Europese Unie en staat op
+        <a href="https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12"
+           target="_blank" rel="noopener noreferrer">joinup.ec.europa.eu</a>.</p>
+      <p class="hint">De applicatie gebruikt geen externe bibliotheken in
+        productie; alles draait op eigen code op de Cloudflare
+        Workers-runtime.</p>
+    </section>`;
+
+  $('over-overlay').setAttribute('open', '');
+  document.body.style.overflow = 'hidden';
+}
+
+function sluitOver() {
+  $('over-overlay').removeAttribute('open');
+  document.body.style.overflow = '';
+}
+
+async function openClubgeld() {
+  $('clubgeld-overlay').setAttribute('open', '');
+  document.body.style.overflow = 'hidden';
+
+  $('clubgeld-inhoud').innerHTML = `
+    <section class="blok">
+      <h3>Maanden</h3>
+      <p class="hint">Afsluiten legt de bedragen vast. Wat er nadien nog wijzigt,
+        komt als correctie in de volgende maand.</p>
+      <div id="clubgeld-lijst"><span class="spinner"></span> Laden…</div>
+      <div id="clubgeld-melding"></div>
+    </section>
+
+    <section class="blok">
+      <h3>Per official</h3>
+      <p class="hint">Het totaal per persoon over alle afgesloten maanden.</p>
+      <button class="knop zacht breed" id="clubgeld-per-official">Overzicht tonen</button>
+      <div id="clubgeld-officials"></div>
+    </section>`;
+
+  $('clubgeld-per-official').onclick = toonPerOfficial;
+  await laadFacturatie();
+}
+
+function sluitClubgeld() {
+  $('clubgeld-overlay').removeAttribute('open');
+  document.body.style.overflow = '';
+}
+
+/** Het totaal per official over alle afgesloten maanden. */
+async function toonPerOfficial() {
+  const doel = $('clubgeld-officials');
+  doel.innerHTML = '<div class="melding let"><span class="spinner"></span>Ophalen…</div>';
+  try {
+    const r = await api('/api/admin/facturatie/officials');
+    if (r.officials.length === 0) {
+      doel.innerHTML = '<div class="melding let">Nog geen afgesloten maanden.</div>';
+      return;
+    }
+    doel.innerHTML = `
+      <div class="melding ok">${r.officials.length} officials, samen ${tekst(r.totaal)}.</div>
+      ${r.officials.map((o) => `
+        <div class="geld-maand">
+          <div class="geld-kop">
+            <h3>${tekst(o.naam)}</h3>
+            <span class="bedrag">${tekst(o.bedrag)}</span>
+          </div>
+          ${o.perMaand.map((m) => `
+            <div class="geld-regel">
+              <span class="wat">${tekst(maandLabel(m.maand))} &middot; ${m.aantal} wedstrijden</span>
+              <span class="bedrag">${tekst(m.bedrag)}</span>
+            </div>`).join('')}
+        </div>`).join('')}`;
+  } catch (err) {
+    doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+  }
+}
+
+/** Enkel de ontvangers; de rest van de facturatie zit in het naammenu. */
+async function laadOntvangers() {
   try {
     const data = await api('/api/admin/facturatie');
     $('fact-ontvangers').value = data.ontvangers;
+  } catch { /* dan blijft het veld leeg */ }
+}
+
+async function laadFacturatie() {
+  const doel = $('clubgeld-lijst');
+  try {
+    const data = await api('/api/admin/facturatie');
+    
 
     const open = data.open.length
       ? data.open.map((m) => `
@@ -2835,7 +3123,7 @@ function factOfficialHtml(o) {
 }
 
 async function toonFactVoorbeeld(maand) {
-  const doel = $('fact-melding');
+  const doel = $('clubgeld-melding');
   doel.innerHTML = '<div class="melding let"><span class="spinner"></span>Berekenen…</div>';
 
   try {
@@ -2891,7 +3179,7 @@ async function toonFactVoorbeeld(maand) {
 }
 
 async function toonFactStaat(maand) {
-  const doel = $('fact-melding');
+  const doel = $('clubgeld-melding');
   doel.innerHTML = '<div class="melding let"><span class="spinner"></span>Ophalen…</div>';
   try {
     const r = await api(`/api/admin/facturatie/staat?maand=${encodeURIComponent(maand)}`);

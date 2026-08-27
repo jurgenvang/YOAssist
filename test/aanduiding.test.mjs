@@ -349,5 +349,39 @@ console.log('\n18. Enkel beheerders, en enkel bestaande wedstrijden');
       { methode: 'PATCH', alsWie: 'baas@club.be', body: { bevestigd: true } })).status, 400);
 }
 
+console.log('\n19. Een beheerder kan kijken als gewone official');
+{
+  const env = nieuweEnv();
+
+  const volledig = await vraag(env, '/api/matches', { alsWie: 'plus@club.be' });
+  check('een YO+ ziet ook andere categorieën',
+    volledig.json.matches.some((m) => m.catGroep !== 'U10U12'), true);
+  check('profiel gemeld', volledig.json.profiel, 'YO+');
+
+  const alsYo = await vraag(env, '/api/matches?alsProfiel=YO', { alsWie: 'plus@club.be' });
+  check('met de schakelaar enkel U10/U12',
+    [...new Set(alsYo.json.matches.map((m) => m.catGroep))], ['U10U12']);
+  check('en dat wordt gemeld', alsYo.json.profiel, 'YO');
+  check('dus minder wedstrijden',
+    alsYo.json.matches.length < volledig.json.matches.length, true);
+}
+
+console.log('\n20. De schakelaar kan nooit méér tonen');
+{
+  const env = nieuweEnv();
+
+  const eerlijk = await vraag(env, '/api/matches', { alsWie: 'yo@club.be' });
+  const poging = await vraag(env, '/api/matches?alsProfiel=YO%2B', { alsWie: 'yo@club.be' });
+  check('een YO wordt er geen YO+ mee', poging.json.matches.length, eerlijk.json.matches.length);
+  check('nog steeds enkel U10/U12',
+    [...new Set(poging.json.matches.map((m) => m.catGroep))], ['U10U12']);
+  check('en het profiel blijft YO', poging.json.profiel, 'YO');
+
+  const onzin = await vraag(env, '/api/matches?alsProfiel=BEHEERDER', { alsWie: 'plus@club.be' });
+  check('een onbekende waarde verandert niets',
+    onzin.json.matches.length,
+    (await vraag(env, '/api/matches', { alsWie: 'plus@club.be' })).json.matches.length);
+}
+
 console.log(mislukt === 0 ? '\n=== ALLE AANDUIDINGSTESTS GESLAAGD ===' : `\n=== ${mislukt} TESTS GEFAALD ===`);
 process.exit(mislukt ? 1 : 0);
