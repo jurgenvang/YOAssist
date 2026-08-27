@@ -24,6 +24,7 @@ INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('seizoen_start_jaar', '
 INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('mail_afzender', '');
 INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('mail_afzender_naam', 'YOAssist');
 INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('facturatie_ontvangers', '');
+INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('aanmeld_methodes', 'pin');
 CREATE TABLE IF NOT EXISTS categorieen (
   code        TEXT PRIMARY KEY,
   label       TEXT NOT NULL,

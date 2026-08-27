@@ -16,6 +16,8 @@ INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('mail_afzender_naam', '
 
 INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('facturatie_ontvangers', '');
 
+INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('aanmeld_methodes', 'pin');
+
 -- ===== BLOK 2 van 15 =====
 CREATE TABLE IF NOT EXISTS categorieen (
   code        TEXT PRIMARY KEY,

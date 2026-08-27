@@ -3,6 +3,9 @@
 Beschikbaarheden en aanduidingen voor Youth Officials, gekoppeld aan de
 wedstrijdkalender van Basketbal Vlaanderen.
 
+Dit bestand beschrijft de code. Voor uitleg over hoe de app werkt en wat er
+nodig is om ze draaiende te houden: `YOASSIST-DOCUMENTATIE.md`.
+
 Draait als één Cloudflare Worker met static assets: de app, de API en de
 geplande synchronisatie zitten in hetzelfde project.
 
@@ -25,8 +28,8 @@ hebt. Bij elke
 wedstrijd staat wie er al op staat: de scheidsrechters die Basketbal Vlaanderen
 aanduidde, de aangeduide officials van de eigen club met de eigen naam
 gemarkeerd, en hoeveel er nog gezocht worden. Ook zichtbaar bij wedstrijden waar
-de gebruiker zelf niets mee te maken heeft — je wil weten met wie je aan de
-tafel staat en of er nog plaats is.
+de gebruiker zelf niets mee te maken heeft — je wil weten met wie je samen
+fluit en of er nog plaats is.
 
 De thuiswedstrijden van de ploegen waarvoor hij is
 aangeduid, gegroepeerd per maand en gesorteerd op datum, uur en ploeg. Per
@@ -34,8 +37,9 @@ wedstrijd twee knoppen: beschikbaar of niet beschikbaar. Nog niet geantwoord is
 een derde toestand — geen van beide knoppen staat aan — met bovenaan een teller
 van wat er nog open staat. Nog eens op dezelfde knop tikken wist het antwoord.
 
-**Voor een beheerder.** Achter de drie puntjes rechtsboven, alleen zichtbaar
-voor wie `is_admin = 1` heeft, en alleen bereikbaar voor wie dat ook echt is:
+**Voor een beheerder.** Achter je naam rechtsboven, bij Beheer — alleen
+zichtbaar voor wie `is_admin = 1` heeft, en alleen bereikbaar voor wie dat ook
+echt is:
 
 - Het seizoen, met plus- en minknop. Een seizoen loopt van juli tot juni; het
   paneel toont wat de kalender zelf zegt zodat je ziet of je goed zit.

@@ -113,6 +113,8 @@ const ROUTES = [
   { methode: 'DELETE', pad: '/api/admin/users',        handler: gebruikers.verwijderen, beheer: true },
   { methode: 'GET',    pad: '/api/admin/users/template', handler: gebruikers.template,  beheer: true },
   { methode: 'POST',   pad: '/api/admin/users/import', handler: gebruikers.importeer,  beheer: true },
+  { methode: 'POST',   pad: '/api/admin/users/welkom', handler: gebruikers.welkom,     beheer: true },
+  { methode: 'POST',   pad: '/api/admin/aanmeldmethodes', handler: mail.zetAanmeldMethodes, beheer: true },
 ];
 
 /** Zoekt de gebruiker op na een geslaagde identificatie. */

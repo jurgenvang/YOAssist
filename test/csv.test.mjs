@@ -216,5 +216,82 @@ console.log('\n11. Enkel beheerders');
       { methode: 'POST', alsWie: 'yo@club.be', body: { csv: 'email,voornaam,achternaam\na@b.be,A,B' } })).status, 403);
 }
 
+console.log('\n12. Welkomstmail');
+{
+  const env = nieuweEnv();
+  env.DB.exec("UPDATE settings SET waarde = 'aanduidingen@club.be' WHERE sleutel = 'mail_afzender'");
+  env.RESEND_API_KEY = 're_test';
+
+  const droog = await vraag(env, '/api/admin/users/welkom', { methode: 'POST', body: {} });
+  check('droogloop toont de ontvangers', droog.json.aantal, 2);
+  check('niet uitgevoerd', droog.json.uitgevoerd, false);
+  check('met namen erbij', droog.json.ontvangers[0].naam.length > 0, true);
+
+  const verzonden = [];
+  globalThis.fetch = async (url, opties) => {
+    verzonden.push(JSON.parse(opties.body));
+    return { ok: true, json: async () => ({}) };
+  };
+
+  const uit = await vraag(env, '/api/admin/users/welkom',
+    { methode: 'POST', body: { uitvoeren: true, adres: 'https://yoassist.org' } });
+  check('verstuurd', uit.json.verstuurd, 2);
+
+  const mail = verzonden[0];
+  check('legt uit hoe je aanmeldt', /code toegestuurd/.test(mail.text), true);
+  check('met de iPhone-stappen', /Safari/.test(mail.text) && /beginscherm/.test(mail.text), true);
+  check('en de Android-stappen', /Chrome/.test(mail.text), true);
+  check('het juiste adres erin', /yoassist\.org/.test(mail.text), true);
+  check('legt uit dat ja nog geen aanduiding is',
+    /niet\s+dat je moet komen/.test(mail.text.replace(/\n/g, ' ')), true);
+
+  // Naar één persoon in plaats van iedereen.
+  verzonden.length = 0;
+  const een = await vraag(env, '/api/admin/users/welkom',
+    { methode: 'POST', body: { email: 'bestaat@club.be', uitvoeren: true } });
+  check('naar één persoon', een.json.aantal, 1);
+  check('en dat is de juiste', verzonden[0].to, 'bestaat@club.be');
+
+  check('onbekend adres', (await vraag(env, '/api/admin/users/welkom',
+    { methode: 'POST', body: { email: 'niemand@club.be' } })).status, 404);
+  check('YO mag dit niet', (await vraag(env, '/api/admin/users/welkom',
+    { methode: 'POST', alsWie: 'yo@club.be', body: {} })).status, 403);
+}
+
+console.log('\n13. Aanmeldmethodes in de welkomstmail');
+{
+  const env = nieuweEnv();
+  env.DB.exec("UPDATE settings SET waarde = 'aanduidingen@club.be' WHERE sleutel = 'mail_afzender'");
+  env.RESEND_API_KEY = 're_test';
+
+  // Standaard: enkel de code per mail.
+  const standaard = await vraag(env, '/api/admin/users/welkom', { methode: 'POST', body: {} });
+  check('standaard enkel pin', standaard.json.methodes, ['pin']);
+  check('mail noemt de code', /code toegestuurd/.test(standaard.json.voorbeeld), true);
+  check('en niets over Google', /Google/.test(standaard.json.voorbeeld), false);
+
+  // Meerdere methodes aanzetten.
+  const zet = await vraag(env, '/api/admin/aanmeldmethodes',
+    { methode: 'POST', body: { methodes: ['pin', 'google', 'apple'] } });
+  check('bewaard', zet.json.methodes, ['pin', 'google', 'apple']);
+
+  const meer = await vraag(env, '/api/admin/users/welkom', { methode: 'POST', body: {} });
+  check('nu een keuzescherm', /3 manieren om aan te melden/.test(meer.json.voorbeeld), true);
+  check('Google erbij', /Google-account/.test(meer.json.voorbeeld), true);
+  check('Apple erbij', /Apple ID/.test(meer.json.voorbeeld), true);
+  check('Microsoft niet', /Microsoft/.test(meer.json.voorbeeld), false);
+  check('met de waarschuwing over het adres',
+    /zolang het bij dit e-mailadres hoort/.test(meer.json.voorbeeld), true);
+
+  // Onzin wordt genegeerd, en helemaal niets wordt geweigerd.
+  const gefilterd = await vraag(env, '/api/admin/aanmeldmethodes',
+    { methode: 'POST', body: { methodes: ['pin', 'facebook'] } });
+  check('onbekende methode weggefilterd', gefilterd.json.methodes, ['pin']);
+  check('leeg geweigerd', (await vraag(env, '/api/admin/aanmeldmethodes',
+    { methode: 'POST', body: { methodes: [] } })).status, 400);
+  check('YO mag dit niet', (await vraag(env, '/api/admin/aanmeldmethodes',
+    { methode: 'POST', alsWie: 'yo@club.be', body: { methodes: ['pin'] } })).status, 403);
+}
+
 console.log(f === 0 ? '\n=== ALLE CSV-TESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);
 process.exit(f ? 1 : 0);

@@ -8,5 +8,5 @@
     <path d="M65.1 34.9 A 39.9 39.9 0 0 0 65.1 71.1"/>
     <path d="M86.9 34.9 A 39.9 39.9 0 0 1 86.9 71.1"/>
   </g>
-  <text x="60" y="97" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="17" font-weight="700" fill="#ffffff" letter-spacing="1.6">assist</text>
+  <text x="60" y="97" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="17" font-weight="700" fill="#e8a317" letter-spacing="1.6">assist</text>
 </svg>

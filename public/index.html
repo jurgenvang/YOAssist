@@ -17,7 +17,7 @@
 <title>YOAssist</title>
 <style>
 /* ---------------------------------------------------------------------------
-   YOAssist — visuele richting: de tafel naast het veld.
+   YOAssist — visuele richting: het scorebord boven het veld.
    Donkere kopstrook als scorebord, lichte kaarten voor de wedstrijden,
    cijfers in tabelvorm zodat uren onder elkaar uitlijnen.
 --------------------------------------------------------------------------- */
@@ -537,8 +537,18 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
   position: absolute; width: min(20rem, calc(100vw - 2rem));
   background: var(--kaart); border-radius: var(--r); padding: 1rem 1.1rem;
   box-shadow: 0 10px 40px rgba(18, 22, 28, .35);
-  transition: all .25s ease;
+  transition: top .25s ease, left .25s ease, opacity .3s ease, transform .3s ease;
 }
+/* Terwijl er alleen wordt aangewezen: kaart weg, zodat de blik naar het
+   gemarkeerde element gaat in plaats van naar de tekst. */
+.rond-kaart.wachten { opacity: 0; transform: translateY(6px); pointer-events: none; }
+
+/* Het gat pulseert kort zodat het opvalt dat er iets wordt aangewezen. */
+@keyframes rond-klop {
+  0%, 100% { box-shadow: 0 0 0 9999px rgba(18, 22, 28, .72), 0 0 0 0 rgba(255,255,255,.5); }
+  50%      { box-shadow: 0 0 0 9999px rgba(18, 22, 28, .72), 0 0 0 7px rgba(255,255,255,0); }
+}
+.rond-gat.klopt { animation: rond-klop 1.1s ease-out 2; }
 .rond-kaart h3 { margin: 0 0 .35rem; font-size: 1rem; }
 .rond-kaart p { margin: 0 0 .9rem; font-size: .88rem; color: var(--inkt-zacht); line-height: 1.5; }
 .rond-voet { display: flex; align-items: center; gap: .5rem; }
@@ -649,12 +659,13 @@ select {
     <div class="merk">YO<span class="accent">Assist</span><span class="versie" id="versie"></span></div>
     <button class="balk-info" id="balk-info" aria-haspopup="menu" aria-expanded="false"></button>
     <div class="naammenu" id="naammenu" role="menu" hidden>
-      <button role="menuitem" data-menu="vergoeding">Mijn vergoeding</button>
-      <button role="menuitem" data-menu="clubgeld" hidden>Vergoedingen club</button>
-      <button role="menuitem" data-menu="voorkeuren">Mijn voorkeuren</button>
-      <button role="menuitem" data-menu="rondleiding">Rondleiding</button>
       <button role="menuitem" data-menu="beheer" hidden>Beheer</button>
+      <button role="menuitem" data-menu="clubgeld" hidden>Vergoedingen Club</button>
+      <button role="menuitem" data-menu="vergoeding">Mijn vergoeding</button>
+      <button role="menuitem" data-menu="voorkeuren">Mijn voorkeuren</button>
       <button role="menuitem" data-menu="alsyo" hidden>Kijken als official</button>
+      <button role="menuitem" data-menu="rondleiding">Rondleiding</button>
+      <button role="menuitem" data-menu="handleiding">Handleiding</button>
       <button role="menuitem" data-menu="over">Over YOAssist</button>
     </div>
   </div>
@@ -697,10 +708,10 @@ select {
 </div>
 
 <div class="overlay" id="clubgeld-overlay" role="dialog" aria-modal="true"
-     aria-label="Vergoedingen club">
+     aria-label="Vergoedingen Club">
   <div class="paneel">
     <div class="paneel-kop">
-      <h2>Vergoedingen club</h2>
+      <h2>Vergoedingen Club</h2>
       <button class="sluit" id="clubgeld-sluit" aria-label="Sluiten">&times;</button>
     </div>
     <div id="clubgeld-inhoud"><div class="leeg"><span class="spinner"></span> Laden…</div></div>
@@ -1916,6 +1927,7 @@ function startRondleiding(welke) {
 }
 
 function stopRondleiding() {
+  clearTimeout(staat.rond?.kaartTimer);
   $('rond-laag').removeAttribute('open');
   staat.rond = null;
   try { localStorage.setItem(ROND_GEZIEN, '1'); } catch { /* prima zonder */ }
@@ -1975,6 +1987,10 @@ function plaatsRondKaart(el, stap) {
   const tussen = 16;
 
   const gat = $('rond-gat');
+  // Opnieuw starten: een animatie herstart niet vanzelf als de klasse blijft staan.
+  gat.classList.remove('klopt');
+  void gat.offsetWidth;
+  gat.classList.add('klopt');
   gat.style.top = `${rand.top - marge}px`;
   gat.style.left = `${rand.left - marge}px`;
   gat.style.width = `${rand.width + marge * 2}px`;
@@ -1986,7 +2002,7 @@ function plaatsRondKaart(el, stap) {
   $('rond-verder').textContent = nummer + 1 === stappen.length ? 'Klaar' : 'Verder';
 
   const kaart = $('rond-kaart');
-  // Even zichtbaar maken om de werkelijke afmetingen te kunnen meten.
+  // Even meten met de kaart onzichtbaar; ze verschijnt straks pas.
   kaart.style.visibility = 'hidden';
   kaart.style.top = '0px';
   kaart.style.left = '0px';
@@ -2043,7 +2059,17 @@ function plaatsRondKaart(el, stap) {
 
   kaart.style.top = `${Math.round(gekozen.top)}px`;
   kaart.style.left = `${Math.round(gekozen.left)}px`;
+
+  // Eerst alleen aanwijzen, dan pas uitleggen. Verschijnt de kaart tegelijk met
+  // het gat, dan leest iedereen de tekst en kijkt niemand naar wat er wordt
+  // aangewezen — precies omgekeerd aan de bedoeling.
+  clearTimeout(staat.rond.kaartTimer);
+  kaart.classList.add('wachten');
   kaart.style.visibility = '';
+
+  staat.rond.kaartTimer = setTimeout(() => {
+    kaart.classList.remove('wachten');
+  }, staat.rond.nummer === 0 ? 1400 : 1000);
 }
 
 $('rond-verder').addEventListener('click', () => {
@@ -2446,6 +2472,7 @@ $('naammenu').addEventListener('click', (e) => {
   else if (knop.dataset.menu === 'beheer') openPaneel();
   else if (knop.dataset.menu === 'rondleiding') setTimeout(() => startRondleiding(), 100);
   else if (knop.dataset.menu === 'over') openOver();
+  else if (knop.dataset.menu === 'handleiding') window.open('/handleiding.html', '_blank');
   else if (knop.dataset.menu === 'alsyo') zetKijkAlsYo(true);
 });
 $('paneel-sluit').addEventListener('click', sluitPaneel);
@@ -2584,10 +2611,25 @@ function toonPaneel() {
     </section>
 
     <section class="blok">
-      <h3 data-vouw="beheer-gebruikers">Gebruikers</h3>
+      <h3>Gebruikers</h3>
       <p class="hint">Wie hier staat én in de Access-policy, raakt binnen.
         Beide lijsten moeten kloppen.</p>
       <div id="gebruikers-lijst"><span class="spinner"></span> Laden…</div>
+      <div class="scheiding"><span>Welkom</span></div>
+
+      <p class="hint">Een mail met uitleg over de app en hoe ze op een iPhone of
+        Android geïnstalleerd wordt. Je ziet eerst naar wie ze zou gaan.</p>
+
+      <p class="hint" style="margin-top:.7rem"><b>Hoe melden je officials aan?</b>
+        Vink aan wat in Cloudflare Zero Trust aanstaat. Alleen dat wordt in de
+        mail uitgelegd — verwijzen naar een knop die er niet is, kost meer uitleg
+        dan het bespaart.</p>
+      <div id="aanmeld-methodes"></div>
+      <button class="knop breed zacht" id="gebr-welkom-allen">
+        Welkomstmail naar alle actieve gebruikers
+      </button>
+      <div id="gebr-welkom-uitslag"></div>
+
       <div class="scheiding"><span>Toevoegen</span></div>
 
       <button class="knop breed zacht" id="gebr-nieuw">Gebruiker toevoegen</button>
@@ -2640,7 +2682,7 @@ function toonPaneel() {
     <section class="blok">
       <h3 data-vouw="beheer-facturatie">Vergoedingen</h3>
       <p class="hint">Afsluiten en de overzichten staan in het naammenu bij
-        <b>Vergoedingen club</b>. Hier staat alleen wat je één keer instelt.</p>
+        <b>Vergoedingen Club</b>. Hier staat alleen wat je één keer instelt.</p>
       <div class="veld-rij">
         <input type="text" id="fact-ontvangers" placeholder="penningmeester@club.be">
         <button class="knop zacht" id="fact-bewaar">Bewaren</button>
@@ -2691,6 +2733,11 @@ function bindPaneel() {
   };
 
   $('gebr-import').onclick = () => $('gebr-bestand').click();
+  $('gebr-welkom-allen').onclick = () => stuurWelkom();
+
+  api('/api/admin/mail')
+    .then((m) => toonAanmeldMethodes(m.aanmeldMethodes ?? ['pin']))
+    .catch(() => toonAanmeldMethodes(['pin']));
 
   $('wed-nieuw').onclick = toonWedstrijdFormulier;
   $('wed-import').onclick = () => $('wed-bestand').click();
@@ -2979,6 +3026,16 @@ function openOver() {
       <p class="hint">De applicatie gebruikt geen externe bibliotheken in
         productie; alles draait op eigen code op de Cloudflare
         Workers-runtime.</p>
+    </section>
+
+    <section class="blok">
+      <h3>Handleiding</h3>
+      <p class="hint">Wat de app doet, hoe ze werkt en wat er nodig is om ze
+        draaiende te houden.</p>
+      <a class="knop breed zacht" href="/handleiding.html" target="_blank"
+         rel="noopener noreferrer" style="display:block;text-align:center;text-decoration:none">
+        Handleiding openen
+      </a>
     </section>`;
 
   $('over-overlay').setAttribute('open', '');
@@ -3469,6 +3526,7 @@ async function laadGebruikers() {
         </span>
         ${g.isAdmin ? `<span class="merk-prof">${tekst(g.profiel)}</span>` : ''}
         <span class="gebr-acties">
+          ${g.actief ? '<button class="mini" data-welkom="1" title="Welkomstmail sturen">welkom</button>' : ''}
           <button class="mini" data-actief="${g.actief ? '0' : '1'}">${g.actief ? 'uit' : 'aan'}</button>
           <button class="mini gevaar" data-verwijder="1"
             title="${g.aantalAntwoorden ? 'Heeft al antwoorden, gebruik uit' : 'Verwijderen'}">wis</button>
@@ -3516,6 +3574,10 @@ async function laadGebruikers() {
       };
     });
 
+    doel.querySelectorAll('[data-welkom]').forEach((knop) => {
+      knop.onclick = () => stuurWelkom(knop.closest('.gebr-rij').dataset.email);
+    });
+
     doel.querySelectorAll('[data-verwijder]').forEach((knop) => {
       knop.onclick = async () => {
         const email = knop.closest('.gebr-rij').dataset.email;
@@ -3533,6 +3595,103 @@ async function laadGebruikers() {
         }
       };
     });
+  } catch (err) {
+    doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+  }
+}
+
+/**
+ * Welkomstmail sturen. Zonder adres: naar iedereen die actief is.
+ *
+ * Altijd eerst tonen naar wie ze zou gaan. Een welkomstmail twee keer sturen
+ * is niet erg, maar dertig mensen per ongeluk aanschrijven wel.
+ */
+const AANMELD_NAMEN = {
+  pin: 'Code per e-mail',
+  google: 'Google',
+  apple: 'Apple',
+  microsoft: 'Microsoft',
+  github: 'GitHub',
+};
+
+/** Vinkjes voor de aanmeldmethodes. Bepaalt enkel wat de welkomstmail vertelt. */
+function toonAanmeldMethodes(gekozen) {
+  staat.aanmeldMethodes = gekozen;
+
+  $('aanmeld-methodes').innerHTML = Object.entries(AANMELD_NAMEN).map(([sleutel, naam]) => `
+    <label class="keuzerij" style="cursor:pointer">
+      <span class="tekst"><b>${naam}</b></span>
+      <span class="schakelaar">
+        <input type="checkbox" data-aanmeld="${sleutel}" ${gekozen.includes(sleutel) ? 'checked' : ''}>
+      </span>
+    </label>`).join('');
+
+  document.querySelectorAll('[data-aanmeld]').forEach((vak) => {
+    vak.onchange = async () => {
+      const nu = [...document.querySelectorAll('[data-aanmeld]')]
+        .filter((x) => x.checked).map((x) => x.dataset.aanmeld);
+      try {
+        const r = await api('/api/admin/aanmeldmethodes', {
+          method: 'POST',
+          body: JSON.stringify({ methodes: nu }),
+        });
+        staat.aanmeldMethodes = r.methodes;
+        toast('Bewaard');
+      } catch (err) {
+        vak.checked = !vak.checked;
+        toast(err.message);
+      }
+    };
+  });
+}
+
+async function stuurWelkom(email = null) {
+  const doel = $('gebr-welkom-uitslag');
+  doel.innerHTML = '<div class="melding let"><span class="spinner"></span>Nakijken…</div>';
+
+  const body = { adres: location.origin };
+  if (email) body.email = email;
+
+  try {
+    const r = await api('/api/admin/users/welkom', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+
+    doel.innerHTML = `
+      <div class="melding let import-uitslag">
+        <b>Naar ${r.aantal} ${r.aantal === 1 ? 'persoon' : 'personen'}</b>
+        <ul>${r.ontvangers.slice(0, 15).map((o) => `<li>${tekst(o.naam)}
+          <span class="regelnr">${tekst(o.email)}</span></li>`).join('')}
+          ${r.aantal > 15 ? `<li class="regelnr">en nog ${r.aantal - 15}</li>` : ''}</ul>
+      </div>
+      <details style="margin-top:.5rem">
+        <summary class="hint" style="cursor:pointer">Toon de mail zoals ze verstuurd wordt</summary>
+        <pre style="white-space:pre-wrap;font-size:.78rem;background:#f4f5f7;
+             padding:.7rem;border-radius:8px;margin-top:.4rem;line-height:1.5">${
+          tekst(r.voorbeeld ?? '')}</pre>
+      </details>
+      <div class="veld-rij" style="margin-top:.5rem">
+        <button class="knop" id="welkom-bevestig" style="flex:1">Versturen</button>
+        <button class="knop zacht" id="welkom-annuleer" style="flex:1">Annuleren</button>
+      </div>`;
+
+    $('welkom-annuleer').onclick = () => { doel.innerHTML = ''; };
+    $('welkom-bevestig').onclick = async () => {
+      $('welkom-bevestig').disabled = true;
+      try {
+        const uit = await api('/api/admin/users/welkom', {
+          method: 'POST',
+          body: JSON.stringify({ ...body, uitvoeren: true }),
+        });
+        doel.innerHTML = uit.verstuurd === uit.aantal
+          ? `<div class="melding ok">${uit.verstuurd} welkomstmail(s) verstuurd.</div>`
+          : `<div class="melding let">${uit.verstuurd} van ${uit.aantal} verstuurd.
+             Controleer het afzenderadres bij Vergoedingen.</div>`;
+      } catch (err) {
+        doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+      }
+    };
   } catch (err) {
     doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
   }

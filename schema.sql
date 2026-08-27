@@ -27,6 +27,12 @@ INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('mail_afzender_naam', '
 -- Bewust los van wie beheerder is: de penningmeester hoeft dat niet te zijn.
 INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('facturatie_ontvangers', '');
 
+-- Welke aanmeldmethodes in Zero Trust aanstaan. Komt in de welkomstmail te
+-- staan; wat hier niet in staat wordt niet genoemd. Een instructie die naar een
+-- knop verwijst die er niet is, kost meer uitleg dan ze bespaart.
+-- Mogelijke waarden: pin, google, apple, microsoft, github
+INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('aanmeld_methodes', 'pin');
+
 
 -- ---------------------------------------------------------------------------
 -- categorieen: de drieletterige code uit de ploeg-GUID (BVBL1125J16  1 -> J16)

@@ -1,5 +1,8 @@
-import { json, fout, leesJson } from '../../lib/http.js';
+import { json, fout, leesJson, instelling } from '../../lib/http.js';
 import { leesCsv, maakCsv, alsBoolean } from '../../lib/csv.js';
+import { templateWelkom } from '../../lib/mailer.js';
+import { verwittig } from '../../lib/verwittigen.js';
+import { log } from '../../lib/logboek.js';
 
 /**
  * Gebruikersbeheer.
@@ -391,4 +394,76 @@ export async function importeer({ request, env }) {
         ? 'Vergeet deze adressen niet toe te voegen aan de Access-policy in Zero Trust.'
         : null,
   });
+}
+
+
+/**
+ * POST /api/admin/users/welkom   { email?, uitvoeren?, adres? }
+ *
+ * Zonder email: naar alle actieve gebruikers. Met email: naar die ene.
+ * Standaard een droogloop, zoals overal waar iets de deur uit gaat — een
+ * welkomstmail naar dertig mensen wil je niet per ongeluk twee keer sturen.
+ */
+export async function welkom({ request, env, user }) {
+  const body = await leesJson(request);
+  const uitvoeren = body.uitvoeren === true;
+  const adres = String(body.adres ?? 'https://yoassist.org').trim();
+
+  const enkel = body.email ? normaliseerEmail(body.email) : null;
+
+  const methodes = (await instelling(env.DB, 'aanmeld_methodes', 'pin'))
+    .split(',').map((s) => s.trim()).filter(Boolean);
+
+  const { results } = await env.DB.prepare(
+    `SELECT u.email, u.voornaam, u.achternaam, u.is_admin, c.naam AS club_naam
+       FROM users u
+       LEFT JOIN clubs c ON c.guid = u.club_guid
+      WHERE u.actief = 1 ${enkel ? 'AND u.email = ?' : ''}
+      ORDER BY u.achternaam COLLATE NOCASE, u.voornaam COLLATE NOCASE`,
+  )
+    .bind(...(enkel ? [enkel] : []))
+    .all();
+
+  if (results.length === 0) {
+    return fout(404, 'Niemand gevonden', enkel
+      ? 'Dit adres staat niet in de lijst, of is op inactief gezet.'
+      : 'Er zijn geen actieve gebruikers.');
+  }
+
+  const ontvangers = results.map((r) => ({
+    email: r.email,
+    naam: `${r.voornaam} ${r.achternaam}`,
+    isAdmin: r.is_admin === 1,
+    clubNaam: r.club_naam,
+  }));
+
+  if (!uitvoeren) {
+    // De voorbeeldtekst meesturen: dan ziet een beheerder wat er verstuurd wordt
+    // in plaats van te moeten vertrouwen dat het klopt.
+    const voorbeeld = templateWelkom({ ...ontvangers[0], adres, methodes });
+    return json({
+      uitgevoerd: false,
+      aantal: ontvangers.length,
+      ontvangers,
+      methodes,
+      voorbeeld: voorbeeld.tekst,
+    });
+  }
+
+  let verstuurd = 0;
+  for (const o of ontvangers) {
+    const bericht = templateWelkom({ ...o, adres, methodes });
+    const res = await verwittig(env, o.email, bericht).catch(() => ({ mail: false }));
+    if (res.mail) verstuurd++;
+  }
+
+  await log(env.DB, {
+    categorie: 'beheer',
+    soort: 'welkom',
+    wie: user.email,
+    veld: 'welkomstmail verstuurd',
+    nieuw: `${verstuurd} van ${ontvangers.length}`,
+  });
+
+  return json({ uitgevoerd: true, aantal: ontvangers.length, verstuurd });
 }

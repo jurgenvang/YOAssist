@@ -162,3 +162,86 @@ export function templateWeekoverzicht({ u10u12, overig, van, tot }) {
         : `Alle wedstrijden van ${van} tot ${tot} zijn volledig aangeduid.`,
   };
 }
+
+
+/**
+ * Welkomstbericht voor een nieuwe official.
+ *
+ * Legt uit waarvoor de app dient en hoe je ze op je telefoon zet. Dat laatste
+ * staat er uitgeschreven per besturingssysteem: "voeg toe aan je beginscherm"
+ * is voor wie het nooit gedaan heeft geen instructie maar een raadsel, en op
+ * iOS is het bovendien de enige manier om meldingen te kunnen krijgen.
+ */
+const AANMELD_UITLEG = {
+  pin: 'Vul je e-mailadres in. Je krijgt een code toegestuurd; die vul je in en ' +
+       'je bent binnen. Geen wachtwoord om te onthouden.',
+  google: 'Kies "Google" en meld je aan met je Google-account. Dat moet wel het ' +
+          'adres zijn waarop je deze mail kreeg.',
+  apple: 'Kies "Apple" en meld je aan met je Apple ID. Dat moet wel het adres zijn ' +
+         'waarop je deze mail kreeg.',
+  microsoft: 'Kies "Microsoft" en meld je aan met je Microsoft-account. Dat moet ' +
+             'wel het adres zijn waarop je deze mail kreeg.',
+  github: 'Kies "GitHub" en meld je aan met je GitHub-account. Dat moet wel het ' +
+          'adres zijn waarop je deze mail kreeg.',
+};
+
+export function templateWelkom({ naam, clubNaam, adres, isAdmin, methodes }) {
+  const voornaam = String(naam ?? '').split(' ')[0] || 'daar';
+
+  // Alleen de methodes noemen die effectief aanstaan. Verwijzen naar een knop
+  // die er niet is, kost meer uitleg dan ze bespaart.
+  const gekozen = (Array.isArray(methodes) ? methodes : ['pin'])
+    .filter((m) => AANMELD_UITLEG[m]);
+  if (gekozen.length === 0) gekozen.push('pin');
+
+  const rol = isAdmin
+    ? 'Je bent beheerder: je duidt de officials aan en beheert de club.'
+    : 'Je geeft er op wanneer je kunt fluiten. Een beheerder duidt daarna aan wie ' +
+      'welke wedstrijd doet.';
+
+  return {
+    onderwerp: `Welkom bij YOAssist${clubNaam ? ` — ${clubNaam}` : ''}`,
+    tekst:
+      `Hallo ${voornaam},\n\n` +
+      `Je bent toegevoegd aan YOAssist, de app waarmee ${clubNaam || 'de club'} de ` +
+      `scheidsrechters voor de thuiswedstrijden regelt.\n\n` +
+      `${rol}\n\n` +
+
+      `AANMELDEN\n` +
+      `Ga naar ${adres}. ` +
+      (gekozen.length > 1
+        ? `Je krijgt een keuzescherm met ${gekozen.length} manieren om aan te melden:\n\n` +
+          gekozen.map((m) => `- ${AANMELD_UITLEG[m]}`).join('\n') + '\n\n' +
+          'Welke je kiest maakt niet uit, zolang het bij dit e-mailadres hoort.\n\n'
+        : `${AANMELD_UITLEG[gekozen[0]]}\n\n`) +
+
+      `ZET DE APP OP JE TELEFOON\n` +
+      `Zo staat ze tussen je andere apps en hoef je het adres niet te onthouden.\n\n` +
+
+      `Op een iPhone of iPad:\n` +
+      `1. Open ${adres} in Safari (niet in Chrome — dit werkt alleen in Safari)\n` +
+      `2. Tik onderaan op het deelicoon: het vierkantje met de pijl omhoog\n` +
+      `3. Scrol naar beneden en kies "Zet op beginscherm"\n` +
+      `4. Tik op "Voeg toe"\n` +
+      `Open de app daarna via dat icoon. Alleen dan kun je meldingen aanzetten; ` +
+      `dat is een regel van Apple.\n\n` +
+
+      `Op Android:\n` +
+      `1. Open ${adres} in Chrome\n` +
+      `2. Tik rechtsboven op de drie puntjes\n` +
+      `3. Kies "App installeren" of "Toevoegen aan startscherm"\n\n` +
+
+      `WAT JE MOET DOEN\n` +
+      `Zeg bij elke wedstrijd of je kunt — ook als het nee is. Dan weet de ` +
+      `beheerder waar hij aan toe is. Ja zeggen betekent dat je zou kunnen, niet ` +
+      `dat je moet komen: de beheerder kiest daarna wie er effectief fluit, en ` +
+      `daar krijg je bericht van.\n\n` +
+      `Ben je aangeduid en lukt het toch niet, meld dat dan in de app bij die ` +
+      `wedstrijd. Niet met een berichtje aan je trainer — dan komt het niet bij ` +
+      `de juiste persoon terecht.\n\n` +
+
+      `Bij je naam rechtsboven vind je je voorkeuren, een rondleiding door de app ` +
+      `en de handleiding.\n\n` +
+      `Tot op het veld.`,
+  };
+}

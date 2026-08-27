@@ -118,3 +118,25 @@ export async function testMail({ env, user }) {
 
   return json({ ok: true, naar: user.email, zandbak: isZandbak(afzender) });
 }
+
+/**
+ * POST /api/admin/aanmeldmethodes   { methodes: string[] }
+ *
+ * Welke aanmeldmethodes in Cloudflare Access aanstaan. Dit verandert niets aan
+ * de authenticatie zelf — het bepaalt alleen wat de welkomstmail vertelt.
+ */
+export async function zetAanmeldMethodes({ request, env, user }) {
+  const body = await leesJson(request);
+  const geldig = ['pin', 'google', 'apple', 'microsoft', 'github'];
+
+  const gekozen = (Array.isArray(body.methodes) ? body.methodes : [])
+    .map((s) => String(s).trim().toLowerCase())
+    .filter((s) => geldig.includes(s));
+
+  if (gekozen.length === 0) {
+    return fout(400, 'Geen methode gekozen', 'Kies er minstens één; anders kan niemand aanmelden.');
+  }
+
+  await zetInstelling(env.DB, 'aanmeld_methodes', gekozen.join(','));
+  return json({ methodes: gekozen });
+}

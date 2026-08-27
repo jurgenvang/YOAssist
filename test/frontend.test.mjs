@@ -251,8 +251,16 @@ console.log('\n11. Het naammenu');
     /id="voorkeur-knop"|id="menu-knop"/.test(html), false);
 
   const items = [...html.matchAll(/data-menu="(\w+)"/g)].map((m) => m[1]);
-  check('zeven menu-items', [...new Set(items)].sort(),
-    ['alsyo', 'beheer', 'clubgeld', 'over', 'rondleiding', 'vergoeding', 'voorkeuren']);
+  check('acht menu-items', [...new Set(items)].sort(),
+    ['alsyo', 'beheer', 'clubgeld', 'handleiding', 'over', 'rondleiding',
+     'vergoeding', 'voorkeuren']);
+
+  // Beheer hoort bovenaan: dat is wat een beheerder het vaakst nodig heeft.
+  check('Beheer staat eerst', items[0], 'beheer');
+  check('daarna Vergoedingen Club', items[1], 'clubgeld');
+  check('dan Mijn vergoeding', items[2], 'vergoeding');
+  check('dan Mijn voorkeuren', items[3], 'voorkeuren');
+  check('hoofdletter in Vergoedingen Club', /Vergoedingen Club</.test(html), true);
 
   // De kijkstand mag nooit iets toevoegen, enkel wegnemen.
   const kijk = haalFunctie('pasTabbalkToe');
