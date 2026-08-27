@@ -1,5 +1,6 @@
 import { json, fout, leesJson } from '../lib/http.js';
 import { verwittig } from '../lib/verwittigen.js';
+import { geldigNummer } from '../lib/telefoon.js';
 
 /**
  * Persoonlijke voorkeuren en push-abonnementen.
@@ -16,7 +17,8 @@ import { verwittig } from '../lib/verwittigen.js';
 /** GET /api/voorkeuren */
 export async function voorkeuren({ env, user }) {
   const rij = await env.DB.prepare(
-    `SELECT kanaal_mail, kanaal_push, herinner_avond, herinner_ochtend, verborgen_tabs
+    `SELECT kanaal_mail, kanaal_push, herinner_avond, herinner_ochtend, verborgen_tabs,
+            gsm, gsm_delen
        FROM users WHERE email = ?`,
   )
     .bind(user.email)
@@ -35,6 +37,8 @@ export async function voorkeuren({ env, user }) {
     herinnerAvond: rij.herinner_avond === 1,
     herinnerOchtend: rij.herinner_ochtend === 1,
     verborgenTabs: (rij.verborgen_tabs ?? '').split(',').filter(Boolean),
+    gsm: rij.gsm ?? '',
+    gsmDelen: rij.gsm_delen === 1,
     toestellen: toestellen.map((t) => ({
       id: t.id,
       toestel: t.toestel,
@@ -66,6 +70,18 @@ export async function zetVoorkeuren({ request, env, user }) {
   zet('push', 'kanaal_push');
   zet('herinnerAvond', 'herinner_avond');
   zet('herinnerOchtend', 'herinner_ochtend');
+  zet('gsmDelen', 'gsm_delen');
+
+  // Het eigen nummer. Een official mag dat zelf zetten; een beheerder kan het
+  // ook, maar dat gaat via het gebruikersbeheer.
+  if (typeof body.gsm === 'string') {
+    if (!geldigNummer(body.gsm)) {
+      return fout(400, 'Ongeldig nummer',
+        'Dat lijkt geen telefoonnummer. Laat het leeg als je het niet wil invullen.');
+    }
+    velden.push('gsm = ?');
+    waarden.push(body.gsm.trim() || null);
+  }
 
   // Welke tabbladen iemand wil zien. Puur een weergavevoorkeur: de backend
   // blijft weigeren wat iemand niet mag, ongeacht wat hier staat.

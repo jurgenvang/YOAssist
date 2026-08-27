@@ -383,5 +383,66 @@ console.log('\n20. De schakelaar kan nooit méér tonen');
     (await vraag(env, '/api/matches', { alsWie: 'plus@club.be' })).json.matches.length);
 }
 
+console.log('\n21. Het nummer van een collega, alleen bij een gedeelde wedstrijd');
+{
+  const env = nieuweEnv();
+  env.DB.exec(`
+    UPDATE users SET gsm = '0470123456' WHERE email = 'plus@club.be';
+    UPDATE users SET gsm = '0488999888' WHERE email = 'yo@club.be';
+  `);
+
+  // Beiden op U12A; Bert daarnaast alleen op U12C. Niet U12B: die botst met
+  // U12A (zelfde zaal, één uur ertussen) en zou geweigerd worden.
+  await wijs(env, 'U12A', 'yo@club.be');
+  await wijs(env, 'U12A', 'plus@club.be');
+  await wijs(env, 'U12C', 'plus@club.be');
+
+  const ann = await vraag(env, '/api/matches', { alsWie: 'yo@club.be' });
+
+  const samen = ann.json.matches.find((m) => m.guid === 'U12A');
+  const bert = samen.clubRefs.find((p) => p.naam === 'Bert Bosmans');
+  check('nummer van de collega zichtbaar', bert.gsm, '0470 12 34 56');
+  check('met een WhatsApp-link', bert.whatsapp, 'https://wa.me/32470123456');
+
+  const zichzelf = samen.clubRefs.find((p) => p.ikZelf);
+  check('het eigen nummer wordt niet getoond', zichzelf.gsm, null);
+
+  // Op U12C staat Ann niet: dan hoort ze het nummer niet te zien.
+  const nietSamen = ann.json.matches.find((m) => m.guid === 'U12C');
+  const bertDaar = nietSamen.clubRefs.find((p) => p.naam === 'Bert Bosmans');
+  check('bij een wedstrijd waar ik niet op sta: geen nummer', bertDaar.gsm, null);
+  check('en geen link', bertDaar.whatsapp, null);
+}
+
+console.log('\n22. Wie zijn nummer niet deelt, deelt het niet');
+{
+  const env = nieuweEnv();
+  env.DB.exec(`
+    UPDATE users SET gsm = '0470123456', gsm_delen = 0 WHERE email = 'plus@club.be';
+  `);
+  await wijs(env, 'U12A', 'yo@club.be');
+  await wijs(env, 'U12A', 'plus@club.be');
+
+  const ann = await vraag(env, '/api/matches', { alsWie: 'yo@club.be' });
+  const bert = ann.json.matches.find((m) => m.guid === 'U12A')
+    .clubRefs.find((p) => p.naam === 'Bert Bosmans');
+
+  check('staat er wel bij', bert.naam, 'Bert Bosmans');
+  check('maar zonder nummer', bert.gsm, null);
+  check('en zonder link', bert.whatsapp, null);
+}
+
+console.log('\n23. Zonder nummer valt er niets te tonen');
+{
+  const env = nieuweEnv();
+  await wijs(env, 'U12A', 'yo@club.be');
+  await wijs(env, 'U12A', 'plus@club.be');
+
+  const ann = await vraag(env, '/api/matches', { alsWie: 'yo@club.be' });
+  const bert = ann.json.matches.find((m) => m.guid === 'U12A')
+    .clubRefs.find((p) => p.naam === 'Bert Bosmans');
+  check('geen nummer ingevuld', bert.gsm, null);
+}
+
 console.log(mislukt === 0 ? '\n=== ALLE AANDUIDINGSTESTS GESLAAGD ===' : `\n=== ${mislukt} TESTS GEFAALD ===`);
 process.exit(mislukt ? 1 : 0);

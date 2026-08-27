@@ -570,6 +570,20 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
   display: flex; align-items: center; gap: .5rem; padding: .45rem 0;
   border-top: 1px solid var(--lijn); font-size: .85rem;
 }
+.licentie-blok {
+  background: #f4f5f7; border-radius: 8px; padding: .7rem .8rem; margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .8rem; line-height: 1.6; white-space: pre-wrap; color: var(--inkt);
+}
+.dekt { display: flex; gap: .6rem; padding: .35rem 0; font-size: .86rem; line-height: 1.45; }
+.dekt .wel, .dekt .niet {
+  flex-shrink: 0; width: 2.4rem; font-weight: 700; font-size: .78rem;
+}
+.dekt .wel { color: var(--groen); }
+.dekt .niet { color: var(--rood); }
+.licentie-lijst { margin: .5rem 0 .7rem; padding-left: 1.1rem; font-size: .86rem; line-height: 1.5; }
+.licentie-lijst li { margin: .35rem 0; color: var(--inkt-zacht); }
+
 .over-rij { display: flex; padding: .4rem 0; border-top: 1px solid var(--lijn); font-size: .88rem; }
 .over-rij span { color: var(--grijs); }
 .over-rij b { margin-left: auto; font-variant-numeric: tabular-nums; }
@@ -586,6 +600,9 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
   display: flex; align-items: baseline;
 }
 .gebr-groep > h4 .aantal { margin-left: auto; font-variant-numeric: tabular-nums; }
+.gebr-naam small.gsm { color: var(--inkt-zacht); font-variant-numeric: tabular-nums; }
+.wa { color: #25d366; vertical-align: -.15em; margin-left: .15rem; }
+.wa:hover { color: #128c3e; }
 .gebr-acties { display: flex; gap: .3rem; flex-shrink: 0; }
 .mini.gevaar:hover { color: var(--rood); }
 .import-uitslag ul { list-style: none; margin: .4rem 0 0; padding: 0; font-size: .82rem; }
@@ -1148,9 +1165,16 @@ function refsRegel(m) {
   const club = m.clubRefs ?? [];
   for (let i = 0; i < m.nodig; i++) {
     const official = club[i];
+    // Staat er een nummer bij, dan sta ik zelf ook op deze wedstrijd en deelt
+    // die collega zijn nummer. De server beslist dat; hier alleen tonen.
+    const contact = official?.whatsapp
+      ? `<a href="${tekst(official.whatsapp)}" target="_blank" rel="noopener noreferrer"
+           class="wa" title="${tekst(official.gsm)} — bericht via WhatsApp">${WA_ICOON}</a>`
+      : '';
+
     delen.push(official
       ? `<span class="ref-plaats gevuld ${official.ikZelf ? 'ik' : ''}">
-           <span class="ref-nr">REF${i + 1}</span>${tekst(official.naam)}</span>`
+           <span class="ref-nr">REF${i + 1}</span>${tekst(official.naam)}${contact}</span>`
       : `<span class="ref-plaats leeg"><span class="ref-nr">REF${i + 1}</span>nog gezocht</span>`);
   }
 
@@ -1907,7 +1931,11 @@ function rondStappen(welke = 'official') {
     // Een stap die naar iets onzichtbaars wijst, overslaan in plaats van de
     // rondleiding te laten stranden. Dat gebeurt bij een verborgen tabblad of
     // bij een lege wedstrijdlijst.
+    //
+    // Stappen die zelf een menu of paneel openen zijn de uitzondering: hun doel
+    // ís verborgen op het moment van filteren, en dat is de bedoeling.
     const el = document.querySelector(stap.doel);
+    if (stap.opent) return el !== null;
     return el !== null && el.offsetParent !== null;
   });
 }
@@ -1928,6 +1956,8 @@ function startRondleiding(welke) {
 
 function stopRondleiding() {
   clearTimeout(staat.rond?.kaartTimer);
+  zetNaammenu(false);
+  sluitVoorkeuren();
   $('rond-laag').removeAttribute('open');
   staat.rond = null;
   try { localStorage.setItem(ROND_GEZIEN, '1'); } catch { /* prima zonder */ }
@@ -1936,6 +1966,20 @@ function stopRondleiding() {
 function toonRondStap() {
   const { stappen, nummer } = staat.rond;
   const stap = stappen[nummer];
+
+  // Sommige stappen wijzen naar iets dat achter een menu of paneel zit. Dat
+  // eerst openen, anders wijst de rondleiding naar een verborgen element en
+  // wordt de stap overgeslagen.
+  if (stap.opent === 'menu') zetNaammenu(true);
+  else zetNaammenu(false);
+
+  if (stap.opent === 'voorkeuren' && $('voorkeur-overlay').hasAttribute('open') === false) {
+    zetNaammenu(false);
+    openVoorkeuren().then(() => setTimeout(() => toonRondStap(), 150));
+    stap.opent = null;   // niet blijven heropenen bij het opnieuw tekenen
+    return;
+  }
+
   const el = document.querySelector(stap.doel);
 
   // Het element kan intussen verdwenen zijn doordat een scherm verversde.
@@ -2267,6 +2311,21 @@ function toonVoorkeuren(v) {
     </section>
 
     <section class="blok">
+      <h3>Je gsm-nummer</h3>
+      <p class="hint">De beheerder ziet dit altijd. Deel je het, dan zien ook de
+        officials met wie je diezelfde wedstrijd fluit het — zodat jullie elkaar
+        kunnen bereiken als er iets misloopt.</p>
+      <div class="veld-rij">
+        <input type="tel" id="v-gsm" placeholder="0470 12 34 56"
+               value="${tekst(v.gsm ?? '')}" autocapitalize="none" spellcheck="false">
+        <button class="knop zacht" id="v-gsm-bewaar">Bewaren</button>
+      </div>
+      <div id="v-gsm-melding"></div>
+      ${rij('gsmDelen', 'Deel met wie ik samen fluit',
+            'Alleen bij wedstrijden waar jullie allebei op staan.', v.gsmDelen)}
+    </section>
+
+    <section class="blok">
       <h3>Herinneringen</h3>
       <p class="hint">Voor wedstrijden waarvoor je bent aangeduid.</p>
       ${rij('herinnerAvond', 'De avond ervoor', 'Een overzicht van wat je de volgende dag fluit.', v.herinnerAvond)}
@@ -2364,6 +2423,19 @@ function toonVoorkeuren(v) {
     // Even wachten tot het paneel dicht is, anders wijst het gat naar iets
     // dat achter de overlay zit.
     setTimeout(() => startRondleiding(welke), 250);
+  };
+
+  $('v-gsm-bewaar').onclick = async () => {
+    const melding = $('v-gsm-melding');
+    try {
+      await api('/api/voorkeuren', {
+        method: 'PATCH',
+        body: JSON.stringify({ gsm: $('v-gsm').value }),
+      });
+      melding.innerHTML = '<div class="melding ok">Bewaard.</div>';
+    } catch (err) {
+      melding.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+    }
   };
 
   $('rond-start').onclick = () => startNa('official');
@@ -3015,17 +3087,53 @@ function openOver() {
     </section>
 
     <section class="blok">
-      <h3>Licentie</h3>
-      <p class="hint">YOAssist is vrije software, uitgebracht onder de
-        <b>European Union Public Licence v1.2</b>. Je mag ze gebruiken,
-        aanpassen en doorgeven onder de voorwaarden van die licentie.</p>
+      <h3>Kennisgeving</h3>
+      <pre class="licentie-blok">Copyright © 2026 Jurgen van Geijstelen
+Licensed under the EUPL-1.2</pre>
+      <p class="hint">Dit is de formulering die de Europese Commissie aanbeveelt.
+        Ze staat ook in <code>LICENSE</code> bij de broncode.</p>
+    </section>
+
+    <section class="blok">
+      <h3>Wat de licentie dekt</h3>
+      <div class="dekt"><span class="wel">wel</span>
+        <span>de programmacode: synchronisatie, aanduidingen, planner, facturatie,
+          de vormgeving</span></div>
+      <div class="dekt"><span class="wel">wel</span>
+        <span>de Nederlandse teksten die voor deze app geschreven zijn</span></div>
+      <div class="dekt"><span class="niet">niet</span>
+        <span>de wedstrijdgegevens van Basketbal Vlaanderen: die komen van hun
+          systeem en blijven van hen</span></div>
+      <div class="dekt"><span class="niet">niet</span>
+        <span>de namen en gegevens van de officials: dat zijn persoonsgegevens
+          van de club, geen onderdeel van de software</span></div>
+    </section>
+
+    <section class="blok">
+      <h3>Wat de EUPL inhoudt</h3>
+      <p class="hint">De <b>European Union Public Licence</b> is de vrije-
+        softwarelicentie van de Europese Commissie, gepubliceerd in mei 2017.
+        Ze is erkend door zowel het Open Source Initiative als de Free Software
+        Foundation.</p>
+      <ul class="licentie-lijst">
+        <li><b>Je mag alles</b> — gebruiken, kopiëren, aanpassen, doorgeven, ook
+          commercieel.</li>
+        <li><b>Copyleft.</b> Geef je een aangepaste versie door, dan gebeurt dat
+          onder dezelfde licentie of een latere versie ervan. Je kunt de code dus
+          niet afsluiten.</li>
+        <li><b>Verenigbaar met andere licenties.</b> Combineer je dit met werk
+          onder GPL, AGPL, MPL, EPL, LGPL, OSL, CeCILL of LiLiQ, dan mag het
+          geheel onder die licentie doorgegeven worden.</li>
+        <li><b>Ook bij gebruik over een netwerk.</b> Anders dan bij de GPL telt
+          niet alleen verspreiden, maar ook een aangepaste versie als dienst
+          aanbieden.</li>
+        <li><b>Geen garantie, geen aansprakelijkheid.</b> De software wordt
+          geleverd zoals ze is.</li>
+      </ul>
       <p class="hint">De volledige tekst bestaat in de 23 officiële talen van de
         Europese Unie en staat op
         <a href="https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12"
            target="_blank" rel="noopener noreferrer">joinup.ec.europa.eu</a>.</p>
-      <p class="hint">De applicatie gebruikt geen externe bibliotheken in
-        productie; alles draait op eigen code op de Cloudflare
-        Workers-runtime.</p>
     </section>
 
     <section class="blok">
@@ -3523,6 +3631,12 @@ async function laadGebruikers() {
         <span class="gebr-naam">
           ${tekst(g.naam)}
           <small>${tekst(g.email)}${g.clubNaam ? ' &middot; ' + tekst(g.clubNaam) : ''}</small>
+          ${g.gsmLeesbaar
+            ? `<small class="gsm">${tekst(g.gsmLeesbaar)}${g.whatsapp
+                ? ` <a href="${tekst(g.whatsapp)}" target="_blank" rel="noopener noreferrer"
+                     class="wa" title="Bericht via WhatsApp">${WA_ICOON}</a>`
+                : ''}</small>`
+            : ''}
         </span>
         ${g.isAdmin ? `<span class="merk-prof">${tekst(g.profiel)}</span>` : ''}
         <span class="gebr-acties">
@@ -3606,6 +3720,10 @@ async function laadGebruikers() {
  * Altijd eerst tonen naar wie ze zou gaan. Een welkomstmail twee keer sturen
  * is niet erg, maar dertig mensen per ongeluk aanschrijven wel.
  */
+/** Het WhatsApp-logo, klein en eenkleurig. Geen afbeelding: dit schaalt mee
+    met de tekst en heeft geen extra bestand nodig. */
+const WA_ICOON = `<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91C21.96 6.45 17.5 2 12.04 2zm5.8 14.1c-.24.68-1.2 1.26-1.97 1.42-.53.11-1.22.2-3.54-.76-2.97-1.23-4.88-4.25-5.03-4.45-.14-.2-1.2-1.6-1.2-3.05 0-1.45.76-2.16 1.03-2.46.27-.3.58-.37.78-.37.19 0 .39 0 .56.01.18.01.42-.07.66.5.24.58.83 2.02.9 2.17.07.15.12.32.02.52-.1.2-.15.32-.29.5-.15.17-.31.38-.44.51-.15.15-.3.31-.13.6.17.3.76 1.25 1.63 2.03 1.12 1 2.06 1.31 2.35 1.46.29.15.46.12.63-.07.17-.2.73-.85.92-1.14.19-.29.39-.24.66-.15.27.1 1.7.8 1.99.95.29.15.48.22.55.34.07.12.07.7-.17 1.38z"/></svg>`;
+
 const AANMELD_NAMEN = {
   pin: 'Code per e-mail',
   google: 'Google',
@@ -3765,6 +3883,9 @@ function toonGebruikerFormulier() {
         <input type="text" id="g-email" placeholder="e-mailadres" autocapitalize="none" spellcheck="false">
       </div>
       <div class="veld-paar">
+        <input type="tel" id="g-gsm" placeholder="gsm (mag leeg)" autocapitalize="none" spellcheck="false">
+      </div>
+      <div class="veld-paar">
         <select id="g-profiel"><option value="YO">YO</option><option value="YO+">YO+</option></select>
         <select id="g-club">
           <option value="">Club automatisch</option>
@@ -3785,6 +3906,7 @@ function toonGebruikerFormulier() {
           voornaam: $('g-voornaam').value,
           achternaam: $('g-achternaam').value,
           email: $('g-email').value,
+          gsm: $('g-gsm').value,
           profiel: $('g-profiel').value,
           clubGuid: $('g-club').value || null,
           isAdmin: $('g-admin').checked,

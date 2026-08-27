@@ -64,7 +64,8 @@ CREATE TABLE IF NOT EXISTS users (
   kanaal_push INTEGER NOT NULL DEFAULT 0,
   herinner_avond   INTEGER NOT NULL DEFAULT 1,
   herinner_ochtend INTEGER NOT NULL DEFAULT 1,
-  verborgen_tabs TEXT NOT NULL DEFAULT ''
+  verborgen_tabs TEXT NOT NULL DEFAULT '',
+  gsm_delen   INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_naam

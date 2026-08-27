@@ -4,6 +4,7 @@ import { aantalNodig, opkomstUur } from '../lib/aanduiding.js';
 import { templateProbleem } from '../lib/mailer.js';
 import { verwittigAllen } from '../lib/verwittigen.js';
 import { log } from '../lib/logboek.js';
+import { whatsappLink, toonNummer } from '../lib/telefoon.js';
 import { VERSIE } from '../versie.js';
 
 /**
@@ -158,7 +159,7 @@ export async function matches({ url, env, user }) {
 
   if (results.length > 0) {
     const { results: aanduidingen } = await env.DB.prepare(
-      `SELECT a.match_guid, u.email, u.voornaam, u.achternaam
+      `SELECT a.match_guid, u.email, u.voornaam, u.achternaam, u.gsm, u.gsm_delen
          FROM assignments a
          JOIN users u ON u.email = a.user_email
          JOIN matches m ON m.guid = a.match_guid
@@ -169,10 +170,27 @@ export async function matches({ url, env, user }) {
       .bind(seizoen, clubGuid, vandaag)
       .all();
 
+    // Op welke wedstrijden sta ik zelf? Alleen daar mag ik het nummer van een
+    // collega zien — niet bij elke wedstrijd van de club.
+    const ikSta = new Set(
+      aanduidingen.filter((a) => a.email === email).map((a) => a.match_guid),
+    );
+
     for (const a of aanduidingen) {
+      const ikZelf = a.email === email;
+      // Nummer tonen als: ik sta zelf op die wedstrijd, hij deelt zijn nummer,
+      // en hij is niet mezelf. Elkaar kunnen bereiken is het punt; de rest van
+      // de club heeft dat nummer niet nodig.
+      const magNummer = !ikZelf && ikSta.has(a.match_guid) && a.gsm_delen === 1 && a.gsm;
+
       perWedstrijd.set(a.match_guid, [
         ...(perWedstrijd.get(a.match_guid) ?? []),
-        { naam: `${a.voornaam} ${a.achternaam}`, ikZelf: a.email === email },
+        {
+          naam: `${a.voornaam} ${a.achternaam}`,
+          ikZelf,
+          gsm: magNummer ? toonNummer(a.gsm) : null,
+          whatsapp: magNummer ? whatsappLink(a.gsm) : null,
+        },
       ]);
     }
   }

@@ -1,6 +1,7 @@
 import { json, fout, leesJson, instelling } from '../../lib/http.js';
 import { leesCsv, maakCsv, alsBoolean } from '../../lib/csv.js';
 import { templateWelkom } from '../../lib/mailer.js';
+import { geldigNummer, whatsappLink, toonNummer } from '../../lib/telefoon.js';
 import { verwittig } from '../../lib/verwittigen.js';
 import { log } from '../../lib/logboek.js';
 
@@ -48,6 +49,8 @@ export async function lijst({ env }) {
     clubGuid: r.club_guid,
     clubNaam: r.club_naam,
     gsm: r.gsm,
+    gsmLeesbaar: toonNummer(r.gsm),
+    whatsapp: whatsappLink(r.gsm),
     actief: r.actief === 1,
     aantalAntwoorden: r.aantal_antwoorden,
   }));
@@ -90,19 +93,17 @@ export async function toevoegen({ request, env }) {
   const bestaat = await env.DB.prepare('SELECT email FROM users WHERE email = ?').bind(email).first();
   if (bestaat) return fout(409, 'Bestaat al', `${email} staat al in de lijst.`);
 
+  const gsm = String(body.gsm ?? '').trim() || null;
+  if (!geldigNummer(gsm)) {
+    return fout(400, 'Ongeldig nummer',
+      'Dat lijkt geen telefoonnummer. Laat het leeg als je het niet hebt.');
+  }
+
   await env.DB.prepare(
     `INSERT INTO users (email, voornaam, achternaam, is_admin, profiel, club_guid, gsm, actief)
      VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
   )
-    .bind(
-      email,
-      voornaam,
-      achternaam,
-      body.isAdmin ? 1 : 0,
-      profiel,
-      clubGuid,
-      String(body.gsm ?? '').trim() || null,
-    )
+    .bind(email, voornaam, achternaam, body.isAdmin ? 1 : 0, profiel, clubGuid, gsm)
     .run();
 
   return json({
@@ -156,6 +157,9 @@ export async function wijzigen({ request, env, user }) {
     waarden.push(body.actief ? 1 : 0);
   }
   if (typeof body.gsm === 'string') {
+    if (!geldigNummer(body.gsm)) {
+      return fout(400, 'Ongeldig nummer', 'Dat lijkt geen telefoonnummer.');
+    }
     velden.push('gsm = ?');
     waarden.push(body.gsm.trim() || null);
   }

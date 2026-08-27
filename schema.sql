@@ -108,7 +108,11 @@ CREATE TABLE IF NOT EXISTS users (
   -- Komma-gescheiden lijst van tabbladen die deze gebruiker niet wil zien.
   -- Een persoonlijke voorkeur, geen rechten: de backend blijft weigeren wat
   -- iemand niet mag, ongeacht wat hier staat.
-  verborgen_tabs TEXT NOT NULL DEFAULT ''
+  verborgen_tabs TEXT NOT NULL DEFAULT '',
+  -- Of het gsm-nummer zichtbaar mag zijn voor wie samen op dezelfde wedstrijd
+  -- staat. Beheerders zien het altijd; dit gaat enkel over collega's onderling.
+  -- Staat standaard aan, want elkaar kunnen bereiken is het punt.
+  gsm_delen   INTEGER NOT NULL DEFAULT 1
 );
 
 -- Officials sorteer je op achternaam. Tussenvoegsels ('Van der Elst') horen bij
