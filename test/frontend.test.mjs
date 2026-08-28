@@ -474,5 +474,17 @@ console.log('\n21. Geen letterlijke template-syntax in de statische HTML');
   check('het envelopicoontje is een echte SVG', /<svg[^>]*>.*<\/svg>/.test(html), true);
 }
 
+console.log('\n22. Het envelopicoontje zit in de kopbalk, niet los boven de pagina');
+{
+  // De oorspronkelijke plaatsing (position: fixed, los boven de pagina) botste
+  // met de systeembalk van iOS (batterij, klok) omdat de app onder die balk
+  // doorloopt (apple-mobile-web-app-status-bar-style: black-translucent).
+  check('niet meer los gepositioneerd', /position: fixed; top: \.6rem/.test(html), false);
+
+  const balkRij = html.slice(html.indexOf('class="balk-rij"'), html.indexOf('</header>'));
+  check('het envelopicoontje staat in de kopbalk', /id="envelop-knop"/.test(balkRij), true);
+  check('vóór de naam-knop', balkRij.indexOf('envelop-knop') < balkRij.indexOf('balk-info'), true);
+}
+
 console.log(f === 0 ? '\n=== ALLE FRONTENDTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);
 process.exit(f ? 1 : 0);

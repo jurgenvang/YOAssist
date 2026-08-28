@@ -311,16 +311,19 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
 }
 
 /* Rechtstreeks klikbaar, geen omweg via het naammenu. Enkel zichtbaar als er
-   iets te tonen valt, anders staat er een leeg icoontje in de weg. */
+   iets te tonen valt, anders staat er een leeg icoontje in de weg.
+   Staat gewoon ín de kopbalk, niet los boven de pagina geplakt: die balk houdt
+   zelf al rekening met de systeembalk van het toestel (batterij, klok, …).
+   Een losse 'position: fixed' bovenaan negeert dat en botst ermee. */
 .envelop-knop {
-  position: fixed; top: .6rem; right: .6rem; z-index: 40;
-  background: rgba(0,0,0,.35); border: 0; border-radius: 999px;
-  width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
+  position: relative; flex-shrink: 0;
+  background: rgba(255,255,255,.12); border: 0; border-radius: 999px;
+  width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
   color: #fff; cursor: pointer;
 }
 .envelop-knop[hidden] { display: none; }
 .envelop-teller {
-  position: absolute; top: -2px; right: -2px; min-width: 17px; height: 17px;
+  position: absolute; top: -3px; right: -3px; min-width: 17px; height: 17px;
   border-radius: 999px; background: var(--rood); color: #fff;
   font-size: .66rem; font-weight: 700; line-height: 17px; text-align: center;
   padding: 0 3px; box-shadow: 0 0 0 2px var(--inkt);
@@ -804,6 +807,10 @@ select {
 <header class="balk">
   <div class="balk-rij">
     <div class="merk">YO<span class="accent">Assist</span><span class="versie" id="versie"></span></div>
+    <button class="envelop-knop" id="envelop-knop" title="Mijn berichten" hidden>
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M3 6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6zm2 0l7 5 7-5H5zm0 2.2V18h14V8.2l-7 5-7-5z"/></svg>
+      <span class="envelop-teller" id="envelop-teller" hidden>0</span>
+    </button>
     <button class="balk-info" id="balk-info" aria-haspopup="menu" aria-expanded="false"></button>
     <div class="naammenu" id="naammenu" role="menu" hidden>
       <button role="menuitem" data-menu="beheer" hidden>Beheer</button>
@@ -825,11 +832,6 @@ select {
     <span>Je vult in voor</span>
     <select id="namens-keuze"></select>
   </div>
-
-  <button class="envelop-knop" id="envelop-knop" title="Mijn berichten" hidden>
-    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M3 6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6zm2 0l7 5 7-5H5zm0 2.2V18h14V8.2l-7 5-7-5z"/></svg>
-    <span class="envelop-teller" id="envelop-teller" hidden>0</span>
-  </button>
 
   <div class="mededeling" id="mededeling" hidden>
     <span id="mededeling-tekst"></span>
