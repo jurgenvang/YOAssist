@@ -288,13 +288,20 @@ console.log('\n13. Iedereen mag bij zijn eigen voorkeuren');
 console.log('\n14. Tabbladen verbergen als voorkeur');
 {
   const env = nieuweEnv();
-  check('standaard niets verborgen',
+  // Het logboek staat standaard uit: een controle-instrument dat je zelden
+  // opent, hoort geen vaste plaats in de balk te krijgen.
+  check('logboek standaard verborgen',
+    (await vraag(env, '/api/voorkeuren', { alsWie: 'baas@club.be' })).json.verborgenTabs, ['log']);
+
+  await vraag(env, '/api/voorkeuren',
+    { methode: 'PATCH', alsWie: 'baas@club.be', body: { verborgenTabs: [] } });
+  check('en weer aan te zetten',
     (await vraag(env, '/api/voorkeuren', { alsWie: 'baas@club.be' })).json.verborgenTabs, []);
 
   await vraag(env, '/api/voorkeuren',
-    { methode: 'PATCH', alsWie: 'baas@club.be', body: { verborgenTabs: ['log'] } });
-  check('bewaard',
-    (await vraag(env, '/api/voorkeuren', { alsWie: 'baas@club.be' })).json.verborgenTabs, ['log']);
+    { methode: 'PATCH', alsWie: 'baas@club.be', body: { verborgenTabs: ['club'] } });
+  check('een ander tabblad verbergen',
+    (await vraag(env, '/api/voorkeuren', { alsWie: 'baas@club.be' })).json.verborgenTabs, ['club']);
 
   // Onbekende sleutels worden genegeerd: dit is een weergavevoorkeur, geen
   // plek om willekeurige tekst in de databank te zetten.
@@ -303,8 +310,8 @@ console.log('\n14. Tabbladen verbergen als voorkeur');
   check('enkel gekende tabbladen',
     (await vraag(env, '/api/voorkeuren', { alsWie: 'baas@club.be' })).json.verborgenTabs, ['log']);
 
-  check('per gebruiker apart',
-    (await vraag(env, '/api/voorkeuren', { alsWie: 'ann@club.be' })).json.verborgenTabs, []);
+  check('per gebruiker apart: die ander staat nog op de standaard',
+    (await vraag(env, '/api/voorkeuren', { alsWie: 'ann@club.be' })).json.verborgenTabs, ['log']);
 }
 
 console.log('\n15. Uitleg over meldingen in de mail');

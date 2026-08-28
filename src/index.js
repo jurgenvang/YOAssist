@@ -20,7 +20,7 @@ import {
   templateAvondcontrole,
   templateWeekoverzicht,
 } from './lib/mailer.js';
-import { verwittig, verwittigAllen } from './lib/verwittigen.js';
+import { verwittig, verwittigAllen, kuisBerichtenOp } from './lib/verwittigen.js';
 import { me, clubs, kiesClub, matches, zetBeschikbaarheid, meldProbleem } from './routes/gebruiker.js';
 import * as voorkeuren from './routes/voorkeuren.js';
 import * as admin from './routes/admin/index.js';
@@ -37,6 +37,8 @@ import * as resetRoute from './routes/admin/reset.js';
 import * as backupRoute from './routes/admin/backup.js';
 import * as facturatie from './routes/admin/facturatie.js';
 import { vergoeding } from './routes/vergoeding.js';
+import * as berichtenRoute from './routes/berichten.js';
+import * as mededelingRoute from './routes/admin/mededeling.js';
 
 // ---------------------------------------------------------------------------
 // Routetabel. beheer: true betekent dat de route alleen voor admins is.
@@ -50,6 +52,9 @@ const ROUTES = [
   { methode: 'POST',   pad: '/api/club',               handler: kiesClub },
   { methode: 'POST',   pad: '/api/probleem',           handler: meldProbleem },
   { methode: 'GET',    pad: '/api/vergoeding',         handler: vergoeding },
+  { methode: 'GET',    pad: '/api/berichten',          handler: berichtenRoute.berichten },
+  { methode: 'GET',    pad: '/api/mededeling',         handler: berichtenRoute.mededeling },
+  { methode: 'POST',   pad: '/api/mededeling/wegklikken', handler: berichtenRoute.wegklikken },
 
   { methode: 'GET',    pad: '/api/voorkeuren',         handler: voorkeuren.voorkeuren },
   { methode: 'PATCH',  pad: '/api/voorkeuren',         handler: voorkeuren.zetVoorkeuren },
@@ -114,7 +119,13 @@ const ROUTES = [
   { methode: 'GET',    pad: '/api/admin/users/template', handler: gebruikers.template,  beheer: true },
   { methode: 'POST',   pad: '/api/admin/users/import', handler: gebruikers.importeer,  beheer: true },
   { methode: 'POST',   pad: '/api/admin/users/welkom', handler: gebruikers.welkom,     beheer: true },
+  { methode: 'POST',   pad: '/api/admin/users/ouder',  handler: gebruikers.koppelOuder,   beheer: true },
+  { methode: 'DELETE', pad: '/api/admin/users/ouder',  handler: gebruikers.ontkoppelOuder, beheer: true },
   { methode: 'POST',   pad: '/api/admin/aanmeldmethodes', handler: mail.zetAanmeldMethodes, beheer: true },
+
+  { methode: 'GET',    pad: '/api/admin/mededeling',   handler: mededelingRoute.huidige, beheer: true },
+  { methode: 'POST',   pad: '/api/admin/mededeling',   handler: mededelingRoute.zet,     beheer: true },
+  { methode: 'DELETE', pad: '/api/admin/mededeling',   handler: mededelingRoute.trekIn,  beheer: true },
 ];
 
 /** Zoekt de gebruiker op na een geslaagde identificatie. */
@@ -259,6 +270,9 @@ export function takenVoor({ uur, weekdag }) {
   // Maandagochtend om 8 uur: het overzicht van het komende weekend.
   if (weekdag === 1 && uur === 8) taken.push('weekoverzicht');
 
+  // Eén keer per dag oude berichten opkuisen, op een rustig uur.
+  if (uur === 4) taken.push('opkuis');
+
   // Herinneringen: 's avonds voor morgen, 's ochtends voor vandaag.
   if (uur === 19) taken.push('herinnering-avond');
   if (uur === 7) taken.push('herinnering-ochtend');
@@ -371,6 +385,11 @@ async function voerTakenUit(taken, env, tijdstip) {
         if (perOfficial.size > 0) {
           console.log(`[YOAssist] ${taak}: ${perOfficial.size} official(s) verwittigd voor ${dag}`);
         }
+      }
+
+      if (taak === 'opkuis') {
+        const weg = await kuisBerichtenOp(env.DB);
+        if (weg > 0) console.log(`[YOAssist] ${weg} oude bericht(en) opgekuist`);
       }
 
       if (taak === 'weekoverzicht') {

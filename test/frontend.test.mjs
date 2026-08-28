@@ -156,7 +156,7 @@ console.log('\n7. De laadfuncties van het beheerpaneel worden aangeroepen');
 
   // Elke functie die een paneelsectie vult, moet in bindPaneel aangeroepen
   // worden. Ontbreekt er één, dan blijft die sectie leeg.
-  for (const naam of ['laadGebruikers', 'laadMailConfig', 'laadVrijgeven', 'laadOntvangers', 'laadBackup', 'laadReset']) {
+  for (const naam of ['laadGebruikers', 'laadMailConfig', 'laadVrijgeven', 'laadOntvangers', 'laadNieuws', 'laadBackup', 'laadReset']) {
     check(`${naam} wordt aangeroepen`, new RegExp(`${naam}\\(\\)`).test(bind), true);
   }
 }
@@ -251,9 +251,9 @@ console.log('\n11. Het naammenu');
     /id="voorkeur-knop"|id="menu-knop"/.test(html), false);
 
   const items = [...html.matchAll(/data-menu="(\w+)"/g)].map((m) => m[1]);
-  check('acht menu-items', [...new Set(items)].sort(),
-    ['alsyo', 'beheer', 'clubgeld', 'handleiding', 'over', 'rondleiding',
-     'vergoeding', 'voorkeuren']);
+  check('tien menu-items', [...new Set(items)].sort(),
+    ['alsyo', 'beheer', 'berichten', 'clubgeld', 'documenten', 'handleiding',
+     'over', 'rondleiding', 'vergoeding', 'voorkeuren']);
 
   // Beheer hoort bovenaan: dat is wat een beheerder het vaakst nodig heeft.
   check('Beheer staat eerst', items[0], 'beheer');
@@ -349,6 +349,7 @@ console.log('\n14. Licentie in de app');
     /Geen garantie, geen aansprakelijkheid/.test(html), true);
   check('copyleft uitgelegd', /Copyleft/.test(html), true);
   check('link naar de volledige tekst', /joinup\.ec\.europa\.eu/.test(html), true);
+  check('link naar de broncode', /github\.com\/jurgenvang\/YOAssist/.test(html), true);
 }
 
 console.log('\n15. Het aanduidingenscherm');
@@ -378,6 +379,53 @@ console.log('\n15. Het aanduidingenscherm');
   // Niet twee keer tonen: staat het bij de aanduiding, dan hoort het niet ook
   // nog in de metaregel.
   check('niet dubbel getoond', /m\.wedstrijdblad && !m\.toegewezen/.test(html), true);
+}
+
+console.log('\n16. Berichten, mededeling en documenten');
+{
+  const items = [...html.matchAll(/data-menu="(\w+)"/g)].map((m) => m[1]);
+  check('Mijn berichten in het menu', items.includes('berichten'), true);
+  check('Documenten in het menu', items.includes('documenten'), true);
+
+  check('banner boven het scherm', /id="mededeling"/.test(html), true);
+  check('met een wegklikknop', /id="mededeling-weg"/.test(html), true);
+
+  // De documentenlijst staat in de code en niet in de databank: hij verandert
+  // zelden en hoeft niet door een beheerder onderhouden te worden.
+  check('documentenbibliotheek erin', /basketbal\.vlaanderen\/documentenbibliotheek/.test(html), true);
+  check('spelregels U10', /id=397231/.test(html), true);
+  check('spelregels U12', /id=397232/.test(html), true);
+  check('spelregels U14', /id=397233/.test(html), true);
+  check('FIBA-wijzigingen', /fiba-official-rules-2026-rule-changes/.test(html), true);
+}
+
+console.log('\n17. Een kaart springt niet terwijl je antwoordt');
+{
+  const fn = haalFunctie('toonMatches');
+  check('de indeling wordt vastgelegd', /staat\.sectieVast/.test(fn), true);
+  check('en niet herberekend per antwoord', /sectieVan\(m\)/.test(fn), true);
+  check('de teller telt wel meteen mee', /const nogOpen = staat\.matches\.filter/.test(fn), true);
+  check('bij een nieuw bezoek vervalt de indeling',
+    /staat\.sectieVast = null/.test(html), true);
+  check('met een bevestiging bij het antwoorden',
+    /toast\('Bewaard'\)/.test(haalFunctie('werkTellerBij')), true);
+}
+
+console.log('\n18. Namens een kind invullen');
+{
+  check('er is een balk die toont voor wie', /id="namensbalk"/.test(html), true);
+  check('met een keuzelijst', /id="namens-keuze"/.test(html), true);
+
+  const balk = haalFunctie('pasNamensbalkToe');
+  check('verborgen zonder kinderen', /kinderen\.length === 0/.test(balk), true);
+  check('met jezelf als eerste keuze', /\(jezelf\)/.test(balk), true);
+
+  // De keuze moet meegaan naar de server, anders vult de ouder op zijn eigen rij in.
+  check('de lijst wordt namens de gekozen persoon opgehaald',
+    /metNamens\(`\/api\/matches/.test(html), true);
+  check('en de beschikbaarheid ook', /namens: namensWie\(\)/.test(html), true);
+
+  check('koppelen zit in het beheerscherm', /data-ouder="1"/.test(html), true);
 }
 
 console.log(f === 0 ? '\n=== ALLE FRONTENDTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);

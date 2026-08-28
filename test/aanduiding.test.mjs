@@ -403,6 +403,7 @@ console.log('\n21. Het nummer van een collega, alleen bij een gedeelde wedstrijd
   const bert = samen.clubRefs.find((p) => p.naam === 'Bert Bosmans');
   check('nummer van de collega zichtbaar', bert.gsm, '0470 12 34 56');
   check('met een WhatsApp-link', bert.whatsapp, 'https://wa.me/32470123456');
+  check('en een bellink', bert.bellen, 'tel:+32470123456');
 
   const zichzelf = samen.clubRefs.find((p) => p.ikZelf);
   check('het eigen nummer wordt niet getoond', zichzelf.gsm, null);
@@ -411,7 +412,7 @@ console.log('\n21. Het nummer van een collega, alleen bij een gedeelde wedstrijd
   const nietSamen = ann.json.matches.find((m) => m.guid === 'U12C');
   const bertDaar = nietSamen.clubRefs.find((p) => p.naam === 'Bert Bosmans');
   check('bij een wedstrijd waar ik niet op sta: geen nummer', bertDaar.gsm, null);
-  check('en geen link', bertDaar.whatsapp, null);
+  check('en geen links', [bertDaar.whatsapp, bertDaar.bellen], [null, null]);
 }
 
 console.log('\n22. Wie zijn nummer niet deelt, deelt het niet');

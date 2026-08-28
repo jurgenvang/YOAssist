@@ -218,6 +218,7 @@ export async function wijsToe({ request, env, user }) {
     uur: wedstrijd.uur,
     locatie: wedstrijd.locatie,
     opkomst: opkomstUur(wedstrijd.uur) ?? wedstrijd.uur,
+    matchGuid: guid,
   });
   const verzending = await verwittig(env, email, mail).catch(() => ({ mail: false, push: 0 }));
 
@@ -283,6 +284,7 @@ export async function geefVrij({ url, env, user }) {
       wedstrijd: `${wedstrijd.thuis_naam} - ${wedstrijd.uit_naam}`,
       datum: wedstrijd.datum,
       uur: wedstrijd.uur,
+      matchGuid: guid,
     });
     const verzending = await verwittig(env, email, mail).catch(() => ({ mail: false }));
     mailVerstuurd = verzending.mail;

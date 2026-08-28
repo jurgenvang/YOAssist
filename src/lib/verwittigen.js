@@ -98,7 +98,46 @@ export async function verwittig(env, email, bericht, opties = {}) {
     }
   }
 
+  // Bewaren wat er is aangekomen, zodat het in Mijn berichten terechtkomt.
+  // Enkel bij succes: een mislukte poging hoort in het logboek, want daar kan
+  // een official toch niets mee.
+  const kanalen = [uitslag.mail && 'mail', uitslag.push > 0 && 'push']
+    .filter(Boolean).join(',');
+
+  if (kanalen && bericht.samenvatting !== false) {
+    await env.DB
+      .prepare(
+        `INSERT INTO berichten (user_email, soort, titel, tekst, match_guid, kanalen)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        email,
+        bericht.soort ?? 'bericht',
+        bericht.onderwerp,
+        // Een samenvatting, geen kopie van de mail: de eerste zinvolle regel.
+        bericht.kort ?? bericht.tekst.split('\n').filter(Boolean)[1] ?? null,
+        bericht.matchGuid ?? null,
+        kanalen,
+      )
+      .run()
+      .catch(() => {});   // bewaren mag het versturen nooit laten mislukken
+  }
+
   return uitslag;
+}
+
+/**
+ * Ruimt oude berichten op. Dezelfde aanpak als het logboek: wat er lang genoeg
+ * staat verdwijnt vanzelf, zodat de lijst bruikbaar blijft zonder dat iemand
+ * hem moet beheren.
+ */
+export async function kuisBerichtenOp(db, dagen = 120) {
+  const res = await db
+    .prepare(`DELETE FROM berichten WHERE verstuurd < datetime('now', ?)`)
+    .bind(`-${dagen} days`)
+    .run()
+    .catch(() => null);
+  return res?.meta?.changes ?? 0;
 }
 
 /** Verwittigt meerdere mensen. Faalt per persoon, niet in het geheel. */

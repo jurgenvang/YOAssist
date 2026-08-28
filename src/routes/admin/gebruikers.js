@@ -1,7 +1,8 @@
 import { json, fout, leesJson, instelling } from '../../lib/http.js';
 import { leesCsv, maakCsv, alsBoolean } from '../../lib/csv.js';
 import { templateWelkom } from '../../lib/mailer.js';
-import { geldigNummer, whatsappLink, toonNummer } from '../../lib/telefoon.js';
+import { geldigNummer, whatsappLink, belLink, toonNummer } from '../../lib/telefoon.js';
+import { oudersVan } from '../../lib/namens.js';
 import { verwittig } from '../../lib/verwittigen.js';
 import { log } from '../../lib/logboek.js';
 
@@ -30,6 +31,18 @@ function geldigEmail(email) {
 
 /** GET /api/admin/users */
 export async function lijst({ env }) {
+  const { results: koppelingen } = await env.DB
+    .prepare('SELECT ouder_email, kind_email FROM ouder_kind')
+    .all()
+    .catch(() => ({ results: [] }));
+
+  const kinderenPer = new Map();
+  const oudersPer = new Map();
+  for (const k of koppelingen) {
+    kinderenPer.set(k.ouder_email, [...(kinderenPer.get(k.ouder_email) ?? []), k.kind_email]);
+    oudersPer.set(k.kind_email, [...(oudersPer.get(k.kind_email) ?? []), k.ouder_email]);
+  }
+
   const { results } = await env.DB.prepare(
     `SELECT u.email, u.voornaam, u.achternaam, u.is_admin, u.profiel, u.club_guid,
             u.gsm, u.actief, c.naam AS club_naam,
@@ -50,7 +63,10 @@ export async function lijst({ env }) {
     clubNaam: r.club_naam,
     gsm: r.gsm,
     gsmLeesbaar: toonNummer(r.gsm),
+    kinderen: kinderenPer.get(r.email) ?? [],
+    ouders: oudersPer.get(r.email) ?? [],
     whatsapp: whatsappLink(r.gsm),
+    bellen: belLink(r.gsm),
     actief: r.actief === 1,
     aantalAntwoorden: r.aantal_antwoorden,
   }));
@@ -470,4 +486,77 @@ export async function welkom({ request, env, user }) {
   });
 
   return json({ uitgevoerd: true, aantal: ontvangers.length, verstuurd });
+}
+
+
+/**
+ * POST /api/admin/users/ouder   { ouder, kind }
+ *
+ * Koppelt een kind aan een ouder. Alleen een beheerder doet dit: zou een ouder
+ * het zelf kunnen aanvragen, dan kan iemand een willekeurig kind aan zichzelf
+ * hangen.
+ */
+export async function koppelOuder({ request, env, user }) {
+  const body = await leesJson(request);
+  const ouder = normaliseerEmail(body.ouder);
+  const kind = normaliseerEmail(body.kind);
+
+  if (!ouder || !kind) return fout(400, 'Ongeldige aanvraag', 'ouder en kind zijn beide nodig.');
+  if (ouder === kind) {
+    return fout(400, 'Zelfde persoon', 'Iemand kan geen ouder van zichzelf zijn.');
+  }
+
+  const beide = await env.DB.prepare(
+    'SELECT email FROM users WHERE email IN (?, ?)',
+  ).bind(ouder, kind).all();
+
+  if (beide.results.length !== 2) {
+    return fout(404, 'Onbekend adres', 'Ouder of kind staat niet in de gebruikerslijst.');
+  }
+
+  // Geen ketens: is het kind zelf al ouder van iemand, dan wordt het onduidelijk
+  // wie namens wie handelt. Eén niveau volstaat voor waar dit voor dient.
+  const isZelfOuder = await env.DB
+    .prepare('SELECT 1 AS x FROM ouder_kind WHERE ouder_email = ?').bind(kind).first();
+  if (isZelfOuder) {
+    return fout(409, 'Al ouder', `${kind} is zelf al aan een kind gekoppeld.`);
+  }
+
+  await env.DB.prepare(
+    `INSERT INTO ouder_kind (ouder_email, kind_email, door) VALUES (?, ?, ?)
+     ON CONFLICT (ouder_email, kind_email) DO NOTHING`,
+  ).bind(ouder, kind, user.email).run();
+
+  await log(env.DB, {
+    categorie: 'beheer',
+    soort: 'gebruiker',
+    wie: user.email,
+    veld: 'ouder gekoppeld',
+    nieuw: `${ouder} mag invullen namens ${kind}`,
+  });
+
+  return json({ ouder, kind, gekoppeld: true });
+}
+
+/** DELETE /api/admin/users/ouder?ouder=…&kind=… */
+export async function ontkoppelOuder({ url, env, user }) {
+  const ouder = normaliseerEmail(url.searchParams.get('ouder'));
+  const kind = normaliseerEmail(url.searchParams.get('kind'));
+
+  if (!ouder || !kind) return fout(400, 'Ongeldige aanvraag', 'ouder en kind zijn beide nodig.');
+
+  const res = await env.DB
+    .prepare('DELETE FROM ouder_kind WHERE ouder_email = ? AND kind_email = ?')
+    .bind(ouder, kind)
+    .run();
+
+  await log(env.DB, {
+    categorie: 'beheer',
+    soort: 'gebruiker',
+    wie: user.email,
+    veld: 'ouderkoppeling verwijderd',
+    oud: `${ouder} — ${kind}`,
+  });
+
+  return json({ verwijderd: res?.meta?.changes ?? 0 });
 }

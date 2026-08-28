@@ -2,7 +2,7 @@
  * Tests voor telefoonnummers: omzetten naar het formaat dat WhatsApp verwacht,
  * en leesbaar maken voor op het scherm.
  */
-import { naarInternationaal, whatsappLink, toonNummer, geldigNummer } from '../src/lib/telefoon.js';
+import { naarInternationaal, whatsappLink, belLink, toonNummer, geldigNummer } from '../src/lib/telefoon.js';
 
 let f = 0;
 const check = (n, e, v) => {
@@ -34,6 +34,14 @@ console.log('\n4. De WhatsApp-link');
 check('volledige link', whatsappLink('0470 12 34 56'), 'https://wa.me/32470123456');
 check('geen link zonder nummer', whatsappLink(''), null);
 check('geen link bij onzin', whatsappLink('xx'), null);
+
+console.log('\n4b. De bellink');
+// Met plus en landcode: een nationaal genoteerd nummer weet niet welk land het
+// moet aannemen wanneer iemand in het buitenland zit.
+check('bellink met landcode', belLink('0470 12 34 56'), 'tel:+32470123456');
+check('buitenlands nummer blijft', belLink('+31 6 12345678'), 'tel:+31612345678');
+check('geen link zonder nummer', belLink(''), null);
+check('geen link bij onzin', belLink('bel mij'), null);
 
 console.log('\n5. Leesbaar tonen');
 check('Belgisch mobiel', toonNummer('0470123456'), '0470 12 34 56');

@@ -46,6 +46,16 @@ export function naarInternationaal(ruw, landcode = STANDAARD_LANDCODE) {
   return landcode + cijfers;
 }
 
+/**
+ * De tel:-link om te bellen. Met landcode en plusteken, want dat werkt ook
+ * wanneer iemand in het buitenland zit — bij een nationaal genoteerd nummer
+ * weet het toestel dan niet welk land het moet aannemen.
+ */
+export function belLink(ruw, landcode = STANDAARD_LANDCODE) {
+  const nummer = naarInternationaal(ruw, landcode);
+  return nummer ? `tel:+${nummer}` : null;
+}
+
 /** De volledige wa.me-link, of null als het nummer onbruikbaar is. */
 export function whatsappLink(ruw, landcode = STANDAARD_LANDCODE) {
   const nummer = naarInternationaal(ruw, landcode);

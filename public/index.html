@@ -294,6 +294,65 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
 /* ---- Weergaveschakelaar voor beheerders --------------------------------- */
 /* Opvallend, niet subtiel. Vergeet je dat dit aanstaat, dan vraag je je een
    half uur later af waarom het cluboverzicht verdwenen is. */
+/* ---- Mededeling ---------------------------------------------------------
+   Opvallend genoeg om gelezen te worden, rustig genoeg om er dagen te mogen
+   staan zonder te irriteren. */
+/* Wie namens zijn kinderen invult, moet altijd kunnen zien voor wie. Zonder
+   die balk zet je per ongeluk de beschikbaarheid van de verkeerde zoon. */
+.namensbalk {
+  display: flex; align-items: center; gap: .6rem;
+  background: #eef2f8; border-bottom: 1px solid #d8e0ec;
+  padding: .5rem 1rem; font-size: .84rem; max-width: 46rem; margin: 0 auto;
+}
+.namensbalk[hidden] { display: none; }
+.namensbalk select {
+  margin-left: auto; padding: .25rem .5rem; font-size: .85rem; font-weight: 600;
+  border: 1px solid #c5d0e0; border-radius: 6px; background: #fff; color: var(--inkt);
+}
+
+.mededeling {
+  display: flex; align-items: flex-start; gap: .7rem;
+  background: #fdf4e0; color: var(--inkt); border-bottom: 1px solid #f0dcae;
+  padding: .7rem 1rem; font-size: .87rem; line-height: 1.45;
+  max-width: 46rem; margin: 0 auto;
+}
+.mededeling[hidden] { display: none; }
+.mededeling a { color: var(--amber-diep); font-weight: 600; }
+.sluit-klein {
+  background: none; border: 0; color: var(--grijs); font-size: 1.2rem; line-height: 1;
+  padding: 0 .2rem; margin-left: auto; flex-shrink: 0; cursor: pointer;
+}
+.sluit-klein:hover { color: var(--inkt); }
+
+/* ---- Mijn berichten ----------------------------------------------------- */
+.bericht {
+  background: var(--kaart); border: 1px solid var(--lijn); border-left: 3px solid var(--lijn);
+  border-radius: 8px; padding: .6rem .75rem; margin-bottom: .4rem; box-shadow: var(--schaduw);
+}
+.bericht.aanduiding  { border-left-color: var(--groen); }
+.bericht.vrijgave    { border-left-color: var(--rood); }
+.bericht.herinnering { border-left-color: var(--amber); }
+.bericht.nieuws      { border-left-color: #2b3f7a; }
+.bericht-kop { display: flex; align-items: baseline; gap: .5rem; }
+.bericht-soort {
+  font-size: .64rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--grijs);
+}
+.bericht-tijd { margin-left: auto; font-size: .74rem; color: var(--grijs);
+                font-variant-numeric: tabular-nums; }
+.bericht-titel { font-size: .9rem; font-weight: 600; margin-top: .15rem; }
+.bericht-tekst { font-size: .82rem; color: var(--inkt-zacht); margin-top: .15rem; }
+.bericht-wed { font-size: .76rem; color: var(--grijs); margin-top: .2rem; }
+
+/* ---- Documenten --------------------------------------------------------- */
+.doc-link {
+  display: block; padding: .6rem 0; border-top: 1px solid var(--lijn);
+  text-decoration: none; color: var(--inkt);
+}
+.doc-link:first-of-type { border-top: 0; }
+.doc-naam { display: block; font-size: .92rem; font-weight: 600; }
+.doc-uitleg { display: block; font-size: .8rem; color: var(--grijs); margin-top: .1rem; }
+
 .kijkbalk {
   display: flex; align-items: center; gap: .6rem;
   background: var(--amber); color: var(--inkt);
@@ -623,6 +682,7 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
 }
 .gebr-groep > h4 .aantal { margin-left: auto; font-variant-numeric: tabular-nums; }
 .gebr-naam small.gsm { color: var(--inkt-zacht); font-variant-numeric: tabular-nums; }
+.gebr-naam small.band { color: #2b3f7a; }
 .wa { color: #25d366; vertical-align: -.15em; margin-left: .2rem; }
 .wa:hover { color: #128c3e; }
 .bel { color: var(--inkt-zacht); vertical-align: -.15em; margin-left: .25rem; }
@@ -709,7 +769,9 @@ select {
       <button role="menuitem" data-menu="vergoeding">Mijn vergoeding</button>
       <button role="menuitem" data-menu="voorkeuren">Mijn voorkeuren</button>
       <button role="menuitem" data-menu="alsyo" hidden>Kijken als official</button>
+      <button role="menuitem" data-menu="berichten">Mijn berichten</button>
       <button role="menuitem" data-menu="rondleiding">Rondleiding</button>
+      <button role="menuitem" data-menu="documenten">Documenten</button>
       <button role="menuitem" data-menu="handleiding">Handleiding</button>
       <button role="menuitem" data-menu="over">Over YOAssist</button>
     </div>
@@ -717,6 +779,16 @@ select {
 </header>
 
 <main>
+  <div class="namensbalk" id="namensbalk" hidden>
+    <span>Je vult in voor</span>
+    <select id="namens-keuze"></select>
+  </div>
+
+  <div class="mededeling" id="mededeling" hidden>
+    <span id="mededeling-tekst"></span>
+    <button class="sluit-klein" id="mededeling-weg" aria-label="Wegklikken">&times;</button>
+  </div>
+
   <div class="kijkbalk" id="kijkbalk" hidden>
     <span>Je kijkt als official</span>
     <button class="mini-knop" id="kijk-terug">Terug naar beheer</button>
@@ -739,6 +811,27 @@ select {
       <button class="sluit" id="paneel-sluit" aria-label="Sluiten">&times;</button>
     </div>
     <div id="paneel-inhoud"><div class="leeg"><span class="spinner"></span> Laden…</div></div>
+  </div>
+</div>
+
+<div class="overlay" id="berichten-overlay" role="dialog" aria-modal="true"
+     aria-label="Mijn berichten">
+  <div class="paneel">
+    <div class="paneel-kop">
+      <h2>Mijn berichten</h2>
+      <button class="sluit" id="berichten-sluit" aria-label="Sluiten">&times;</button>
+    </div>
+    <div id="berichten-inhoud"><div class="leeg"><span class="spinner"></span> Laden…</div></div>
+  </div>
+</div>
+
+<div class="overlay" id="doc-overlay" role="dialog" aria-modal="true" aria-label="Documenten">
+  <div class="paneel">
+    <div class="paneel-kop">
+      <h2>Documenten</h2>
+      <button class="sluit" id="doc-sluit" aria-label="Sluiten">&times;</button>
+    </div>
+    <div id="doc-inhoud"></div>
   </div>
 </div>
 
@@ -1042,6 +1135,8 @@ async function laadHoofd() {
       staat.verborgenTabs = v.verborgenTabs ?? [];
     } catch { /* zonder voorkeuren tonen we gewoon alles */ }
     pasKijkstandToe();
+    pasNamensbalkToe();
+    laadMededeling();
 
     if (data.clubKeuze) {
       toonClubKeuze(data.clubKeuze, ik.isAdmin);
@@ -1104,18 +1199,42 @@ function toonMatches(data) {
   // Drie secties, in volgorde van wat er van je verwacht wordt: eerst wat
   // vastligt, dan wat nog een antwoord vraagt, en onderaan wat je al beantwoord
   // hebt. Dat laatste mag ver weg staan; het vraagt geen actie meer.
-  const aangeduid = staat.matches.filter((m) => m.toegewezen);
-  const open = staat.matches.filter((m) => !m.toegewezen && m.beschikbaarheid === null);
-  const beantwoord = staat.matches.filter((m) => !m.toegewezen && m.beschikbaarheid !== null);
+  // Waar een wedstrijd hoort, wordt bij het openen van het scherm vastgelegd en
+  // niet opnieuw berekend na elk antwoord. Anders springt de kaart die je net
+  // aantikte naar een andere sectie, en ben je kwijt waar je gebleven was.
+  // Bij het volgende bezoek staat alles wel op zijn plaats.
+  if (!staat.sectieVast) {
+    staat.sectieVast = new Map(
+      staat.matches.map((m) => [
+        m.guid,
+        m.toegewezen ? 'aangeduid' : m.beschikbaarheid === null ? 'open' : 'beantwoord',
+      ]),
+    );
+  }
+
+  // Een wedstrijd die er bij het openen nog niet was — na een verversing
+  // bijvoorbeeld — krijgt alsnog een plaats.
+  const sectieVan = (m) =>
+    staat.sectieVast.get(m.guid)
+    ?? (m.toegewezen ? 'aangeduid' : m.beschikbaarheid === null ? 'open' : 'beantwoord');
+
+  const aangeduid = staat.matches.filter((m) => sectieVan(m) === 'aangeduid');
+  const open = staat.matches.filter((m) => sectieVan(m) === 'open');
+  const beantwoord = staat.matches.filter((m) => sectieVan(m) === 'beantwoord');
 
   const delen = [];
 
+  // De teller telt wél meteen mee: die toont voortgang zonder dat er iets
+  // beweegt op het scherm.
+  const nogOpen = staat.matches.filter((m) => !m.toegewezen && m.beschikbaarheid === null).length;
+  const nuAangeduid = staat.matches.filter((m) => m.toegewezen).length;
+
   delen.push(
-    open.length === 0
+    nogOpen === 0
       ? `<div class="teller klaar"><b>&check;</b><span>Alles beantwoord${
-          aangeduid.length ? ` &middot; ${aangeduid.length} keer aangeduid` : ''}.</span></div>`
-      : `<div class="teller open"><b>${open.length}</b><span>nog te beantwoorden${
-          aangeduid.length ? ` &middot; ${aangeduid.length} keer aangeduid` : ''}.</span></div>`,
+          nuAangeduid ? ` &middot; ${nuAangeduid} keer aangeduid` : ''}.</span></div>`
+      : `<div class="teller open"><b>${nogOpen}</b><span>nog te beantwoorden${
+          nuAangeduid ? ` &middot; ${nuAangeduid} keer aangeduid` : ''}.</span></div>`,
   );
 
   const sectie = (sleutel, naam, uitleg, items, staart = '') => {
@@ -1325,7 +1444,7 @@ $('hoofd').addEventListener('click', async (e) => {
   try {
     await api('/api/availability', {
       method: 'POST',
-      body: JSON.stringify({ matchGuid: guid, status: nieuw }),
+      body: JSON.stringify({ matchGuid: guid, status: nieuw, namens: namensWie() }),
     });
 
     kaartEl.dataset.status = nieuw ?? '';
@@ -1342,9 +1461,10 @@ $('hoofd').addEventListener('click', async (e) => {
 });
 
 function werkTellerBij() {
-  // De secties verschuiven zodra iemand antwoordt, dus het hele scherm
-  // opnieuw tekenen in plaats van enkel de teller bij te werken. Anders staat
-  // een net beantwoorde wedstrijd nog onder 'nog te beantwoorden'.
+  toast('Bewaard');
+  // Opnieuw tekenen voor de kleur en de teller. De sectie-indeling ligt vast
+  // (zie toonMatches), dus de kaart blijft staan waar hij stond — enkel de rand
+  // verandert van kleur en de teller telt af.
   toonMatches({ matches: staat.matches });
 }
 
@@ -1365,8 +1485,10 @@ async function wisselWeergave(welke) {
     // net iets gewijzigd; de lijst uit het geheugen toont dat niet.
     $('hoofd').innerHTML = '<div class="leeg"><span class="spinner"></span> Laden…</div>';
     try {
-      const data = await api(`/api/matches${kijktAlsYo() ? '?alsProfiel=YO' : ''}`);
+      const data = await api(metNamens(`/api/matches${kijktAlsYo() ? '?alsProfiel=YO' : ''}`));
       staat.matches = data.matches;
+      // Nieuw bezoek, nieuwe indeling: nu mogen de kaarten wel verschuiven.
+      staat.sectieVast = null;
       toonMatches(data);
     } catch (err) {
       $('hoofd').innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
@@ -2236,6 +2358,57 @@ function sluitVoorkeuren() {
  * Verbergen is een weergavevoorkeur, geen recht: de backend weigert onafhankelijk
  * hiervan wat iemand niet mag.
  */
+/* --- Namens een kind -----------------------------------------------------
+   Een ouder vult in voor zijn kinderen. Het kind heeft een eigen rij met eigen
+   beschikbaarheden; de ouder krijgt enkel het recht om er namens hem in te
+   vullen. De backend controleert die koppeling bij elk verzoek.
+------------------------------------------------------------------------- */
+const NAMENS_SLEUTEL = 'yoassist-namens';
+
+function namensWie() {
+  try { return sessionStorage.getItem(NAMENS_SLEUTEL) || null; } catch { return null; }
+}
+
+function zetNamens(email) {
+  try {
+    if (email) sessionStorage.setItem(NAMENS_SLEUTEL, email);
+    else sessionStorage.removeItem(NAMENS_SLEUTEL);
+  } catch { /* zonder opslag werkt het voor deze pagina ook */ }
+}
+
+/** Voegt ?namens=… toe waar nodig. */
+function metNamens(pad) {
+  const wie = namensWie();
+  if (!wie) return pad;
+  return pad + (pad.includes('?') ? '&' : '?') + 'namens=' + encodeURIComponent(wie);
+}
+
+function pasNamensbalkToe() {
+  const kinderen = staat.ik?.kinderen ?? [];
+  const balk = $('namensbalk');
+
+  if (kinderen.length === 0) {
+    balk.hidden = true;
+    zetNamens(null);
+    return;
+  }
+
+  const huidig = namensWie() ?? '';
+  $('namens-keuze').innerHTML =
+    `<option value="">${tekst(staat.ik.naam)} (jezelf)</option>` +
+    kinderen.map((k) => `<option value="${tekst(k.email)}" ${
+      k.email === huidig ? 'selected' : ''}>${tekst(k.naam)}</option>`).join('');
+
+  balk.hidden = false;
+}
+
+$('namens-keuze').addEventListener('change', async (e) => {
+  zetNamens(e.target.value || null);
+  // De lijst hoort bij de gekozen persoon, dus opnieuw ophalen.
+  staat.sectieVast = null;
+  await wisselWeergave('mijn');
+});
+
 /* --- Kijken als official -------------------------------------------------
    Een beheerder kan de app bekijken zoals een gewone Youth Official ze ziet.
    Bewust alleen wegnemen, nooit toevoegen: de backend blijft de identiteit uit
@@ -2595,6 +2768,8 @@ $('naammenu').addEventListener('click', (e) => {
   else if (knop.dataset.menu === 'beheer') openPaneel();
   else if (knop.dataset.menu === 'rondleiding') setTimeout(() => startRondleiding(), 100);
   else if (knop.dataset.menu === 'over') openOver();
+  else if (knop.dataset.menu === 'berichten') openBerichten();
+  else if (knop.dataset.menu === 'documenten') openDocumenten();
   else if (knop.dataset.menu === 'handleiding') window.open('/handleiding.html', '_blank');
   else if (knop.dataset.menu === 'alsyo') zetKijkAlsYo(true);
 });
@@ -2607,6 +2782,8 @@ document.addEventListener('keydown', (e) => {
   sluitVergoeding();
   sluitClubgeld();
   sluitOver();
+  sluitBerichten();
+  sluitDocumenten();
   zetNaammenu(false);
   if (staat.rond) stopRondleiding();
 });
@@ -2803,6 +2980,28 @@ function toonPaneel() {
     </section>
 
     <section class="blok">
+      <h3 data-vouw="beheer-nieuws">Belangrijk nieuws</h3>
+      <p class="hint">Eén mededeling tegelijk, bovenaan bij iedereen. Ze verdwijnt
+        vanzelf op het moment dat je opgeeft, of eerder als iemand ze wegklikt.</p>
+      <div id="nieuws-huidig"></div>
+      <textarea id="nieuws-tekst" rows="3"
+        placeholder="Bijvoorbeeld: zaterdag zijn alle wedstrijden in Sporthal Noord afgelast."></textarea>
+      <div class="veld-paar">
+        <input type="url" id="nieuws-link" placeholder="link (mag leeg)">
+        <input type="text" id="nieuws-linktekst" placeholder="linktekst" style="max-width:9rem">
+      </div>
+      <div class="veld-paar">
+        <input type="datetime-local" id="nieuws-tot">
+        <select id="nieuws-kanalen">
+          <option value="beide">Mail en melding</option>
+          <option value="geen">Enkel in de app</option>
+        </select>
+      </div>
+      <button class="knop breed" id="nieuws-zet">Bekijken en versturen</button>
+      <div id="nieuws-melding"></div>
+    </section>
+
+    <section class="blok">
       <h3 data-vouw="beheer-facturatie">Vergoedingen</h3>
       <p class="hint">Afsluiten en de overzichten staan in het naammenu bij
         <b>Vergoedingen Club</b>. Hier staat alleen wat je één keer instelt.</p>
@@ -2933,7 +3132,57 @@ function bindPaneel() {
   laadMailConfig();
   laadVrijgeven();
   laadOntvangers();
+  laadNieuws();
   laadBackup();
+
+  $('nieuws-zet').onclick = async () => {
+    const doel = $('nieuws-melding');
+    const body = {
+      tekst: $('nieuws-tekst').value,
+      link: $('nieuws-link').value,
+      linkTekst: $('nieuws-linktekst').value,
+      geldigTot: $('nieuws-tot').value,
+      kanalen: $('nieuws-kanalen').value,
+    };
+
+    doel.innerHTML = '<div class="melding let"><span class="spinner"></span>Nakijken…</div>';
+    try {
+      const r = await api('/api/admin/mededeling', { method: 'POST', body: JSON.stringify(body) });
+
+      doel.innerHTML = `
+        <div class="melding let">
+          Dit komt bij <b>${r.aantal}</b> ${r.aantal === 1 ? 'persoon' : 'personen'} bovenaan te
+          staan${body.kanalen === 'beide' ? ' en wordt ook verstuurd' : ''}, tot
+          ${tekst(body.geldigTot.replace('T', ' '))}.
+        </div>
+        <div class="veld-rij" style="margin-top:.5rem">
+          <button class="knop" id="nieuws-bevestig" style="flex:1">Versturen</button>
+          <button class="knop zacht" id="nieuws-annuleer" style="flex:1">Annuleren</button>
+        </div>`;
+
+      $('nieuws-annuleer').onclick = () => { doel.innerHTML = ''; };
+      $('nieuws-bevestig').onclick = async () => {
+        $('nieuws-bevestig').disabled = true;
+        try {
+          const uit = await api('/api/admin/mededeling', {
+            method: 'POST',
+            body: JSON.stringify({ ...body, uitvoeren: true }),
+          });
+          doel.innerHTML = `<div class="melding ok">Geplaatst${
+            uit.verstuurd ? `, ${uit.verstuurd} verwittigd` : ''}.</div>`;
+          $('nieuws-tekst').value = '';
+          $('nieuws-link').value = '';
+          $('nieuws-linktekst').value = '';
+          await laadNieuws();
+          await laadMededeling();
+        } catch (err) {
+          doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+        }
+      };
+    } catch (err) {
+      doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+    }
+  };
 
   $('fact-bewaar').onclick = async () => {
     try {
@@ -3121,6 +3370,183 @@ $('clubgeld-overlay').addEventListener('click', (e) => {
   if (e.target === $('clubgeld-overlay')) sluitClubgeld();
 });
 
+/* --- Mijn berichten ------------------------------------------------------
+   Wat de app naar jou stuurde. Een samenvatting per bericht; de volledige
+   tekst staat in je mailbox. Oude regels verdwijnen vanzelf.
+------------------------------------------------------------------------- */
+const BERICHT_NAMEN = {
+  aanduiding: 'Aangeduid',
+  vrijgave: 'Aanduiding vervallen',
+  herinnering: 'Herinnering',
+  probleem: 'Probleem',
+  nieuws: 'Bericht van de club',
+  bericht: 'Bericht',
+};
+
+$('berichten-sluit').addEventListener('click', sluitBerichten);
+$('berichten-overlay').addEventListener('click', (e) => {
+  if (e.target === $('berichten-overlay')) sluitBerichten();
+});
+
+async function openBerichten() {
+  $('berichten-overlay').setAttribute('open', '');
+  document.body.style.overflow = 'hidden';
+  $('berichten-inhoud').innerHTML = '<div class="leeg"><span class="spinner"></span> Laden…</div>';
+
+  try {
+    const data = await api('/api/berichten');
+
+    if (data.aantal === 0) {
+      $('berichten-inhoud').innerHTML = `<div class="leeg">Je hebt nog geen berichten
+        gekregen.<br>Zodra je aangeduid wordt of er iets wijzigt, verschijnt het hier.</div>`;
+      return;
+    }
+
+    let vorigeDag = null;
+    const delen = [];
+
+    for (const b of data.berichten) {
+      const dag = b.verstuurd.slice(0, 10);
+      if (dag !== vorigeDag) {
+        const d = ontleedDatum(dag);
+        delen.push(`<div class="dag-kop">${DAGEN[d.getUTCDay()]} ${d.getUTCDate()} ${
+          MAANDEN[d.getUTCMonth()]}</div>`);
+        vorigeDag = dag;
+      }
+
+      delen.push(`
+        <article class="bericht ${tekst(b.soort)}">
+          <div class="bericht-kop">
+            <span class="bericht-soort">${tekst(BERICHT_NAMEN[b.soort] ?? b.soort)}</span>
+            <span class="bericht-tijd">${tekst(b.verstuurd.slice(11, 16))}</span>
+          </div>
+          <div class="bericht-titel">${tekst(b.titel)}</div>
+          ${b.tekst ? `<div class="bericht-tekst">${tekst(b.tekst)}</div>` : ''}
+          ${b.wedstrijd ? `<div class="bericht-wed">${tekst(b.wedstrijd)}</div>` : ''}
+        </article>`);
+    }
+
+    $('berichten-inhoud').innerHTML = delen.join('');
+  } catch (err) {
+    $('berichten-inhoud').innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+  }
+}
+
+function sluitBerichten() {
+  $('berichten-overlay').removeAttribute('open');
+  document.body.style.overflow = '';
+}
+
+/* --- Mededeling ----------------------------------------------------------
+   Eén tegelijk, wegklikbaar per persoon, en met een vervaldatum zodat ze ook
+   verdwijnt bij wie ze liet staan.
+------------------------------------------------------------------------- */
+$('mededeling-weg').addEventListener('click', async () => {
+  const id = staat.mededeling?.id;
+  $('mededeling').hidden = true;
+  if (!id) return;
+  try {
+    await api('/api/mededeling/wegklikken', { method: 'POST', body: JSON.stringify({ id }) });
+  } catch { /* volgende keer opnieuw proberen is prima */ }
+});
+
+async function laadMededeling() {
+  try {
+    const data = await api('/api/mededeling');
+    staat.mededeling = data.mededeling;
+
+    if (!data.mededeling) {
+      $('mededeling').hidden = true;
+      return;
+    }
+
+    const m = data.mededeling;
+    $('mededeling-tekst').innerHTML = tekst(m.tekst) +
+      (m.link
+        ? ` <a href="${tekst(m.link)}" target="_blank" rel="noopener noreferrer">${
+            tekst(m.link_tekst || 'meer info')} &#8599;</a>`
+        : '');
+    $('mededeling').hidden = false;
+  } catch { /* zonder mededeling werkt alles gewoon */ }
+}
+
+/* --- Documenten ----------------------------------------------------------
+   Links naar wat buiten de app staat. Verandert zelden, dus een vaste lijst
+   in plaats van iets dat een beheerder moet bijhouden.
+------------------------------------------------------------------------- */
+const DOCUMENTEN = [
+  {
+    groep: 'Spelregels minibasketbal 2026-2027',
+    items: [
+      {
+        naam: 'Spelregels U10',
+        uitleg: 'Basketbal Vlaanderen',
+        url: 'https://www.basketbal.vlaanderen/index.php?p=actions/asset-count/count&id=397231',
+      },
+      {
+        naam: 'Spelregels U12',
+        uitleg: 'Basketbal Vlaanderen',
+        url: 'https://www.basketbal.vlaanderen/index.php?p=actions/asset-count/count&id=397232',
+      },
+      {
+        naam: 'Spelregels U14',
+        uitleg: 'Basketbal Vlaanderen',
+        url: 'https://www.basketbal.vlaanderen/index.php?p=actions/asset-count/count&id=397233',
+      },
+    ],
+  },
+  {
+    groep: 'FIBA',
+    items: [
+      {
+        naam: 'Wijzigingen reglement 2026',
+        uitleg: 'Officiële regelwijzigingen, FIBA',
+        url: 'https://assets.fiba.basketball/image/upload/documents-corporate-fiba-official-rules-2026-rule-changes-v10a.pdf',
+      },
+    ],
+  },
+  {
+    groep: 'Basketbal Vlaanderen',
+    items: [
+      {
+        naam: 'Documentenbibliotheek',
+        uitleg: 'Reglementen, formulieren en richtlijnen van de bond',
+        url: 'https://www.basketbal.vlaanderen/documentenbibliotheek?search=&category%5B%5D=397235',
+      },
+      {
+        naam: 'basketbal.vlaanderen',
+        uitleg: 'De website van de bond',
+        url: 'https://www.basketbal.vlaanderen',
+      },
+    ],
+  },
+];
+
+$('doc-sluit').addEventListener('click', sluitDocumenten);
+$('doc-overlay').addEventListener('click', (e) => {
+  if (e.target === $('doc-overlay')) sluitDocumenten();
+});
+
+function openDocumenten() {
+  $('doc-inhoud').innerHTML = DOCUMENTEN.map((groep) => `
+    <section class="blok">
+      <h3>${tekst(groep.groep)}</h3>
+      ${groep.items.map((d) => `
+        <a class="doc-link" href="${tekst(d.url)}" target="_blank" rel="noopener noreferrer">
+          <span class="doc-naam">${tekst(d.naam)} &#8599;</span>
+          <span class="doc-uitleg">${tekst(d.uitleg)}</span>
+        </a>`).join('')}
+    </section>`).join('');
+
+  $('doc-overlay').setAttribute('open', '');
+  document.body.style.overflow = 'hidden';
+}
+
+function sluitDocumenten() {
+  $('doc-overlay').removeAttribute('open');
+  document.body.style.overflow = '';
+}
+
 $('over-sluit').addEventListener('click', sluitOver);
 $('over-overlay').addEventListener('click', (e) => {
   if (e.target === $('over-overlay')) sluitOver();
@@ -3135,6 +3561,9 @@ function openOver() {
         Vlaanderen; de aanduidingen worden hier gemaakt.</p>
       <div class="over-rij"><span>Versie</span><b>${tekst(staat.ik?.versie ?? '?')}</b></div>
       <div class="over-rij"><span>Club</span><b>${tekst(staat.ik?.clubNaam ?? '—')}</b></div>
+      <div class="over-rij"><span>Broncode</span>
+        <b><a href="https://github.com/jurgenvang/YOAssist" target="_blank"
+              rel="noopener noreferrer">github.com/jurgenvang/YOAssist &#8599;</a></b></div>
     </section>
 
     <section class="blok">
@@ -3142,7 +3571,9 @@ function openOver() {
       <pre class="licentie-blok">Copyright © 2026 Jurgen van Geijstelen
 Licensed under the EUPL-1.2</pre>
       <p class="hint">Dit is de formulering die de Europese Commissie aanbeveelt.
-        Ze staat ook in <code>LICENSE</code> bij de broncode.</p>
+        Ze staat ook in <code>LICENSE</code> in de
+        <a href="https://github.com/jurgenvang/YOAssist" target="_blank"
+           rel="noopener noreferrer">broncode op GitHub</a>.</p>
     </section>
 
     <section class="blok">
@@ -3265,6 +3696,40 @@ async function toonPerOfficial() {
 }
 
 /** Enkel de ontvangers; de rest van de facturatie zit in het naammenu. */
+async function laadNieuws() {
+  try {
+    const data = await api('/api/admin/mededeling');
+    const doel = $('nieuws-huidig');
+
+    if (!data.mededeling) {
+      doel.innerHTML = '';
+      return;
+    }
+
+    const m = data.mededeling;
+    doel.innerHTML = `
+      <div class="melding let" style="margin-bottom:.5rem">
+        <b>Staat nu bovenaan bij iedereen</b><br>
+        ${tekst(m.tekst)}<br>
+        <span class="regelnr">Tot ${tekst(m.geldig_tot.replace('T', ' ').slice(0, 16))} &middot;
+          ${data.aantalWeggeklikt} van ${data.ontvangers} weggeklikt</span>
+      </div>
+      <button class="knop zacht breed" id="nieuws-intrek" style="margin-bottom:.6rem">
+        Nu intrekken
+      </button>`;
+
+    $('nieuws-intrek').onclick = async () => {
+      if (!confirm('De mededeling nu weghalen bij iedereen?')) return;
+      try {
+        await api('/api/admin/mededeling', { method: 'DELETE' });
+        await laadNieuws();
+      } catch (err) {
+        toast(err.message);
+      }
+    };
+  } catch { /* zonder mededeling is er niets te tonen */ }
+}
+
 async function laadOntvangers() {
   try {
     const data = await api('/api/admin/facturatie');
@@ -3682,6 +4147,10 @@ async function laadGebruikers() {
         <span class="gebr-naam">
           ${tekst(g.naam)}
           <small>${tekst(g.email)}${g.clubNaam ? ' &middot; ' + tekst(g.clubNaam) : ''}</small>
+          ${g.ouders?.length
+            ? `<small class="band">ingevuld door ${g.ouders.map(tekst).join(', ')}</small>` : ''}
+          ${g.kinderen?.length
+            ? `<small class="band">vult in voor ${g.kinderen.map(tekst).join(', ')}</small>` : ''}
           ${g.gsmLeesbaar
             ? `<small class="gsm">${tekst(g.gsmLeesbaar)}
                 ${g.bellen ? `<a href="${tekst(g.bellen)}" class="bel" title="Bellen">${BEL_ICOON}</a>` : ''}
@@ -3694,6 +4163,7 @@ async function laadGebruikers() {
         ${g.isAdmin ? `<span class="merk-prof">${tekst(g.profiel)}</span>` : ''}
         <span class="gebr-acties">
           ${g.actief ? '<button class="mini" data-welkom="1" title="Welkomstmail sturen">welkom</button>' : ''}
+          <button class="mini" data-ouder="1" title="Ouder koppelen">ouder</button>
           <button class="mini" data-actief="${g.actief ? '0' : '1'}">${g.actief ? 'uit' : 'aan'}</button>
           <button class="mini gevaar" data-verwijder="1"
             title="${g.aantalAntwoorden ? 'Heeft al antwoorden, gebruik uit' : 'Verwijderen'}">wis</button>
@@ -3739,6 +4209,10 @@ async function laadGebruikers() {
           toast(err.message);
         }
       };
+    });
+
+    doel.querySelectorAll('[data-ouder]').forEach((knop) => {
+      knop.onclick = () => koppelOuder(knop.closest('.gebr-rij').dataset.email);
     });
 
     doel.querySelectorAll('[data-welkom]').forEach((knop) => {
@@ -3818,6 +4292,54 @@ function toonAanmeldMethodes(gekozen) {
       }
     };
   });
+}
+
+/**
+ * Een kind aan een ouder koppelen, of een bestaande koppeling weghalen.
+ *
+ * Enkel een beheerder doet dit. Zou een ouder het zelf kunnen aanvragen, dan
+ * kan iemand een willekeurig kind aan zichzelf hangen.
+ */
+async function koppelOuder(kindEmail) {
+  const kind = staat.gebruikers?.gebruikers.find((g) => g.email === kindEmail);
+  const doel = $('gebr-melding');
+
+  const huidig = kind?.ouders ?? [];
+  if (huidig.length > 0) {
+    const weg = confirm(
+      `${kind.naam} wordt ingevuld door ${huidig.join(', ')}.\n\n` +
+      'OK om die koppeling weg te halen, Annuleren om ze te laten staan.');
+    if (!weg) return;
+
+    try {
+      for (const ouder of huidig) {
+        await api(`/api/admin/users/ouder?ouder=${encodeURIComponent(ouder)}` +
+                  `&kind=${encodeURIComponent(kindEmail)}`, { method: 'DELETE' });
+      }
+      doel.innerHTML = '<div class="melding ok">Koppeling verwijderd.</div>';
+      await laadGebruikers();
+    } catch (err) {
+      doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+    }
+    return;
+  }
+
+  const ouder = prompt(
+    `Wie mag de beschikbaarheid van ${kind?.naam ?? kindEmail} invullen?\n\n` +
+    'Vul het e-mailadres in van een bestaande gebruiker.');
+  if (!ouder) return;
+
+  try {
+    await api('/api/admin/users/ouder', {
+      method: 'POST',
+      body: JSON.stringify({ ouder, kind: kindEmail }),
+    });
+    doel.innerHTML = `<div class="melding ok">${tekst(ouder)} mag nu invullen namens
+      ${tekst(kind?.naam ?? kindEmail)}.</div>`;
+    await laadGebruikers();
+  } catch (err) {
+    doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+  }
 }
 
 async function stuurWelkom(email = null) {

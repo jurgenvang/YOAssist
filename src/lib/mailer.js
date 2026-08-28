@@ -78,8 +78,11 @@ function escapeHtml(s) {
 // geen databanktoegang, dus makkelijk te testen los van het versturen zelf.
 // ---------------------------------------------------------------------------
 
-export function templateAanduiding({ naam, wedstrijd, datum, uur, locatie, opkomst }) {
+export function templateAanduiding({ naam, wedstrijd, datum, uur, locatie, opkomst, matchGuid }) {
   return {
+    soort: 'aanduiding',
+    matchGuid,
+    kort: `${datum} om ${uur}${locatie ? ` — ${locatie}` : ''}`,
     onderwerp: `Aangeduid: ${wedstrijd}`,
     tekst:
       `Hallo ${naam},\n\n` +
@@ -90,8 +93,11 @@ export function templateAanduiding({ naam, wedstrijd, datum, uur, locatie, opkom
   };
 }
 
-export function templateVrijgegeven({ naam, wedstrijd, datum, uur }) {
+export function templateVrijgegeven({ naam, wedstrijd, datum, uur, matchGuid }) {
   return {
+    soort: 'vrijgave',
+    matchGuid,
+    kort: `${datum} om ${uur} — je staat weer als beschikbaar`,
     onderwerp: `Aanduiding vervallen: ${wedstrijd}`,
     tekst:
       `Hallo ${naam},\n\n` +
@@ -101,11 +107,14 @@ export function templateVrijgegeven({ naam, wedstrijd, datum, uur }) {
 }
 
 export function templateHerinnering({ naam, wedstrijden, wanneer }) {
+  const kort = wedstrijden.map((w) => `${w.uur} ${w.wedstrijd}`).join(', ');
   const lijst = wedstrijden
     .map((w) => `- ${w.uur} ${w.wedstrijd} (${w.locatie || 'locatie volgt'}) — op het terrein om ${w.opkomst}`)
     .join('\n');
 
   return {
+    soort: 'herinnering',
+    kort,
     onderwerp:
       wedstrijden.length === 1
         ? `Herinnering: ${wedstrijden[0].wedstrijd}`
@@ -124,6 +133,7 @@ export function templateProbleem({ naam, wedstrijd, bericht, official }) {
 }
 
 export function templateWoensdagregel({ wedstrijden, van, tot }) {
+  // eslint-disable-next-line no-unused-vars
   const lijst = wedstrijden
     .map((w) => `- ${w.datum} ${w.uur} ${w.thuis} - ${w.uit} (nog ${w.nogNodig} nodig)`)
     .join('\n');

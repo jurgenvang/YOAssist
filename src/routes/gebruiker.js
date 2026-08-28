@@ -4,7 +4,8 @@ import { aantalNodig, opkomstUur } from '../lib/aanduiding.js';
 import { templateProbleem } from '../lib/mailer.js';
 import { verwittigAllen } from '../lib/verwittigen.js';
 import { log } from '../lib/logboek.js';
-import { whatsappLink, toonNummer } from '../lib/telefoon.js';
+import { whatsappLink, belLink, toonNummer } from '../lib/telefoon.js';
+import { kinderenVan, bepaalPersoon } from '../lib/namens.js';
 import { VERSIE } from '../versie.js';
 
 /**
@@ -58,6 +59,8 @@ export async function me({ env, user }) {
     versie: VERSIE,
     seizoen: seizoenLabel(startJaar),
     clubKeuze: keuze,
+    // Voor wie namens zijn kinderen mag invullen. Leeg voor de meesten.
+    kinderen: await kinderenVan(env.DB, bijgewerkt.email),
   });
 }
 
@@ -106,12 +109,25 @@ export async function kiesClub({ request, env, user }) {
  * vandaag. Sortering op datum, uur, ploeg; de frontend groepeert per maand.
  */
 export async function matches({ url, env, user }) {
+  // Een ouder kan de lijst van zijn kind opvragen. Zonder koppeling weigeren we
+  // dat; stilzwijgend de eigen lijst tonen zou verwarrend zijn.
+  const persoon = await bepaalPersoon(env.DB, user, url?.searchParams?.get('namens'));
+  if (persoon.fout) return fout(403, 'Niet toegestaan', persoon.fout);
   const seizoen = seizoenscode(Number(await instelling(env.DB, 'seizoen_start_jaar', '2026')));
   const { user: bijgewerkt, keuze } = await zorgVoorClub(env, user);
 
   if (keuze) return json({ seizoen, matches: [], clubKeuze: keuze });
 
-  const { email, profiel, clubGuid } = bijgewerkt;
+  // De club en het profiel komen van de persoon om wie het gaat, niet van wie
+  // er is aangemeld: een kind kan een ander profiel hebben dan zijn ouder.
+  const kindRij = persoon.namensKind
+    ? await env.DB.prepare('SELECT email, profiel, club_guid FROM users WHERE email = ?')
+        .bind(persoon.email).first()
+    : null;
+
+  const email = kindRij?.email ?? bijgewerkt.email;
+  const profiel = kindRij?.profiel ?? bijgewerkt.profiel;
+  const clubGuid = kindRij?.club_guid ?? bijgewerkt.clubGuid;
   const vandaag = new Date().toISOString().slice(0, 10);
 
   // Een YO ziet alleen U10/U12. Een YO+ ziet alles wat in de aanduidingslijst
@@ -190,6 +206,7 @@ export async function matches({ url, env, user }) {
           ikZelf,
           gsm: magNummer ? toonNummer(a.gsm) : null,
           whatsapp: magNummer ? whatsappLink(a.gsm) : null,
+          bellen: magNummer ? belLink(a.gsm) : null,
         },
       ]);
     }
@@ -199,6 +216,9 @@ export async function matches({ url, env, user }) {
     seizoen,
     clubNaam: bijgewerkt.clubNaam,
     profiel: zichtbaarProfiel,
+    // Voor wie de lijst is. De frontend toont dat in de balk zodat niemand per
+    // ongeluk voor de verkeerde persoon antwoordt.
+    namens: persoon.namensKind ? { email: persoon.email, naam: persoon.naam } : null,
     matches: results.map((r) => {
       let vblRefs = [];
       try {
@@ -260,8 +280,19 @@ export async function zetBeschikbaarheid({ request, env, user }) {
     return fout(400, 'Ongeldige aanvraag', "status moet 'ja', 'nee' of null zijn.");
   }
 
-  const { email, profiel, clubGuid } = user;
-  if (!clubGuid) return fout(403, 'Geen club', 'Je account is nog aan geen club gekoppeld.');
+  const persoon = await bepaalPersoon(env.DB, user, body.namens);
+  if (persoon.fout) return fout(403, 'Niet toegestaan', persoon.fout);
+
+  const rij = persoon.namensKind
+    ? await env.DB.prepare('SELECT email, profiel, club_guid FROM users WHERE email = ?')
+        .bind(persoon.email).first()
+    : null;
+
+  const email = rij?.email ?? user.email;
+  const profiel = rij?.profiel ?? user.profiel;
+  const clubGuid = rij?.club_guid ?? user.clubGuid;
+
+  if (!clubGuid) return fout(403, 'Geen club', 'Dit account is nog aan geen club gekoppeld.');
 
   const seizoen = seizoenscode(Number(await instelling(env.DB, 'seizoen_start_jaar', '2026')));
   const profielFilter = profiel === 'YO+' ? '' : "AND cat.groep = 'U10U12'";

@@ -49,7 +49,7 @@
 </div>
 <main>
 <h1>YOAssist — hoe het werkt</h1>
-<p>Versie 1.0.0</p>
+<p>Versie 1.7.1</p>
 <p>Dit document legt uit wat YOAssist doet, waar het draait en wat er nodig is om het draaiende te houden. Bedoeld voor wie de app beheert, en voor wie hem ooit overneemt.</p>
 <hr>
 <h2>1. Waarvoor het dient</h2>
@@ -92,7 +92,7 @@
 <p>Afsluiten wordt geweigerd zolang er aanduidingen staan op een categorie zonder tarief. Op nul zetten zou stil verkeerd zijn.</p>
 <hr>
 <h2>7. Waar het draait</h2>
-<table><thead><tr><th>Onderdeel</th><th>Waar</th></tr></thead><tbody><tr><td>De app en de API</td><td>Cloudflare Workers</td></tr><tr><td>De databank</td><td>Cloudflare D1 (SQLite)</td></tr><tr><td>Aanmelden</td><td>Cloudflare Access (Zero Trust)</td></tr><tr><td>Mail</td><td>Resend</td></tr><tr><td>Broncode</td><td>GitHub</td></tr><tr><td>Adres</td><td><code>https://yoassist.org</code></td></tr></tbody></table>
+<table><thead><tr><th>Onderdeel</th><th>Waar</th></tr></thead><tbody><tr><td>De app en de API</td><td>Cloudflare Workers</td></tr><tr><td>De databank</td><td>Cloudflare D1 (SQLite)</td></tr><tr><td>Aanmelden</td><td>Cloudflare Access (Zero Trust)</td></tr><tr><td>Mail</td><td>Resend</td></tr><tr><td>Broncode</td><td>GitHub — <code>github.com/jurgenvang/YOAssist</code></td></tr><tr><td>Adres</td><td><code>https://yoassist.org</code></td></tr></tbody></table>
 <p>Het oude adres <code>https://yoassist.jurgenvang.workers.dev</code> blijft ook werken.</p>
 <p><strong>Eén Worker doet alles</strong>: de webpagina, de API en de geplande taken zitten in hetzelfde project. Er is geen aparte server, geen buildstap en geen framework. De volledige frontend is één bestand, <code>public/index.html</code>.</p>
 <p><strong>Kosten.</strong> Alles draait binnen de gratis niveaus van Cloudflare en Resend, bij een club van deze grootte ruim. D1 en Workers hebben royale dagelijkse limieten; Resend staat een paar duizend mails per maand toe.</p>
@@ -104,14 +104,21 @@
 <p><strong>Die twee lijsten moeten handmatig gelijk blijven.</strong> Voeg je een official toe in YOAssist, dan moet zijn adres ook in Zero Trust bij de Access-policy. Het beheerscherm levert daarom een kopieerklare lijst met alle actieve adressen.</p>
 <p>Vergeet je laag 1, dan raakt de official niet binnen. Vergeet je laag 2, dan komt hij binnen en krijgt hij een foutmelding.</p>
 <hr>
+<h2>8b. Namens een kind invullen</h2>
+<p>Een ouder kan de beschikbaarheid van zijn kinderen opgeven. Het kind heeft een eigen account met eigen beschikbaarheden, aanduidingen en vergoedingsoverzicht; de ouder krijgt enkel het recht om er namens hem in te vullen.</p>
+<p>Een beheerder legt die koppeling in het gebruikersbeheer — een ouder kan ze niet zelf aanvragen, anders zou iemand een willekeurig kind aan zichzelf kunnen hangen. Meerdere ouders per kind kan; gescheiden ouders die allebei invullen past dus.</p>
+<p>De ouder ziet bovenaan een keuzelijst: zichzelf, of een van zijn kinderen. Krijgt het kind later een eigen e-mailadres, dan blijft alles staan — enkel de aanmelding verandert.</p>
 <h2>9. Meldingen op de telefoon</h2>
 <p>Naast mail kan de app meldingen sturen naar het toestel. Elke gebruiker zet dat zelf aan bij Mijn voorkeuren.</p>
 <p><strong>Op een iPhone werkt dat alleen als de app op het beginscherm staat.</strong> Openen in Safari, tikken op het deelicoon, &quot;Zet op beginscherm&quot;, en de app daarna via dat icoon openen. Dat is een beperking van Apple, niet van YOAssist. Officials die nog geen meldingen hebben, krijgen die uitleg onderaan elke mail.</p>
 <p>Mail blijft daarom het betrouwbare kanaal en staat standaard aan.</p>
 <hr>
+<h2>9b. Berichten en nieuws</h2>
+<p>Bij je naam staat <strong>Mijn berichten</strong>: wat de app naar jou stuurde, als korte samenvatting. Enkel wat effectief aankwam; oudere regels verdwijnen vanzelf.</p>
+<p>Een beheerder kan <strong>belangrijk nieuws</strong> plaatsen: één mededeling tegelijk, bovenaan bij iedereen, met een einddatum. Ze kan met mail en melding meegaan of enkel in de app blijven staan. Iedereen kan ze zelf wegklikken; na de einddatum verdwijnt ze sowieso.</p>
 <h2>10. Onderhoud</h2>
 <p><strong>Bij het begin van een seizoen</strong>: het seizoen ophogen in het beheerpaneel, teams opnieuw laden, en aanvinken welke ploegen gevolgd worden. Nieuwe ploegen met een onbekende categorie staan bewust uit.</p>
-<p><strong>Elke maand</strong>: de vorige maand afsluiten bij Vergoedingen club.</p>
+<p><strong>Elke maand</strong>: de vorige maand afsluiten bij Vergoedingen Club.</p>
 <p><strong>Af en toe</strong>: een backup nemen. Dat is één JSON-bestand met alles erin. Er is geen knop om hem terug te zetten — dat gebeurt handmatig via de D1-console, met het bestand ernaast. In dat bestand staat in welke volgorde de tabellen ingelezen moeten worden.</p>
 <p><strong>Bij een nieuwe versie</strong>: de bestanden naar GitHub, en Cloudflare deployt vanzelf. Wijzigt de databank mee, dan staat erbij wat er moet gebeuren — meestal een <code>ALTER TABLE</code>, soms een <code>DROP</code> gevolgd door een blok uit <code>schema-console.sql</code>.</p>
 <hr>
@@ -126,9 +133,9 @@
 <h2>12. Als iemand het overneemt</h2>
 <p>Wat er nodig is om verder te kunnen:</p>
 <p>geverifieerde domein</p>
-<ul><li>Toegang tot het <strong>Cloudflare-account</strong> (Workers, D1, Zero Trust)</li><li>Toegang tot de <strong>GitHub-repo</strong></li><li>Toegang tot het <strong>Resend-account</strong>, of een eigen account met hetzelfde</li><li>Beheerder zijn in YOAssist zelf</li></ul>
+<ul><li>Toegang tot het <strong>Cloudflare-account</strong> (Workers, D1, Zero Trust)</li><li>Toegang tot de <strong>GitHub-repo</strong>: <code>github.com/jurgenvang/YOAssist</code></li><li>Toegang tot het <strong>Resend-account</strong>, of een eigen account met hetzelfde</li><li>Beheerder zijn in YOAssist zelf</li></ul>
 <p>De code staat onder de <strong>EUPL v1.2</strong>: vrij te gebruiken, aan te passen en door te geven onder dezelfde voorwaarden. Zie <code>LICENSE</code>.</p>
-<p>Voor wie eraan verder wil bouwen zijn er 1034 tests die zonder netwerk draaien met <code>cd test &amp;&amp; npm test</code>. Ze zijn er niet voor de vorm: verschillende ervan kwamen er nadat iets stil was misgegaan, en houden dat nu tegen.</p>
+<p>Voor wie eraan verder wil bouwen zijn er 1233 tests die zonder netwerk draaien met <code>cd test &amp;&amp; npm test</code>. Ze zijn er niet voor de vorm: verschillende ervan kwamen er nadat iets stil was misgegaan, en houden dat nu tegen.</p>
 </main>
 </body>
 </html>
