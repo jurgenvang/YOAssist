@@ -104,7 +104,7 @@ console.log('\n4. Handmatig synchroniseren via de knop');
   globalThis.fetch = async (url) => {
     if (String(url).includes('OrgMatchesByGuid')) {
       return { ok: true, status: 200, text: async () => JSON.stringify([{
-        guid: 'BVBLW1', wedID: 'W1', tTGUID: 'T1', tTNaam: 'Thuis', tUGUID: 'T2', tUNaam: 'Uit',
+        guid: 'BVBLW1', wedID: 'W1', tTGUID: 'BVBL9999J16  1', tTNaam: 'Thuis', tUGUID: 'T2', tUNaam: 'Uit',
         datumString: '20-09-2026', beginTijd: '14.00', wedOff: [], gespeeld: 'N', uitslag: '',
       }]) };
     }

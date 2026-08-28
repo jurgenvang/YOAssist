@@ -19,10 +19,16 @@ function nieuweDb() {
 }
 
 function wed(nr, opties = {}) {
+  const clubGuid = opties.clubGuid ?? 'BVBL9999';
   return {
     guid: `BVBLX${nr}`, wedID: `X${nr}`, accGUID: 'ACC1',
     wedOff: opties.wedOff ?? [],
-    tTGUID: 'T1', tTNaam: opties.thuisNaam ?? 'Thuis X',
+    // Standaard een thuiswedstrijd van de gevolgde club: het team-GUID begint
+    // met de club-GUID, gevolgd door een categoriecode. Een test die een
+    // uitwedstrijd wil simuleren geeft zelf een tTGUID mee dat daar niet mee
+    // begint.
+    tTGUID: opties.tTGUID ?? `${clubGuid}J16  1`,
+    tTNaam: opties.thuisNaam ?? 'Thuis X',
     tUGUID: 'T2', tUNaam: opties.uitNaam ?? 'Uit X',
     datumString: opties.datum ?? '20-09-2026', beginTijd: opties.uur ?? '14.00',
     accNaam: 'Zaal X', pouleNaam: 'P',
@@ -74,7 +80,7 @@ console.log('\n3. Eén falende club blokkeert de andere niet');
       ('BVBL1111', 'Club A', 'baas@club.be'),
       ('BVBL2222', 'Club B', 'baas@club.be');
   `);
-  zetApi({ BVBL2222: [wed(3)] }, { faal: ['BVBL1111'] });
+  zetApi({ BVBL2222: [wed(3, { clubGuid: 'BVBL2222' })] }, { faal: ['BVBL1111'] });
 
   const r = await synchroniseerVolgClubs(db);
   check('twee clubs geprobeerd', r.clubs, 2);
@@ -221,6 +227,67 @@ console.log('\n11. Trekt iemand zich terug, dan verdwijnt de naam weer');
   check('en is weer weg zodra er niemand meer aangeduid is',
     (await db.prepare('SELECT vbl_naam FROM volg_wedstrijden WHERE guid = ?').bind('BVBLX1').first()).vbl_naam,
     null);
+}
+
+console.log('\n12. Regressie: een uitwedstrijd tegen U10/U12 mag niet doorglippen');
+{
+  // Precies het gemelde probleem: bij een uitwedstrijd hoort thuisGuid bij de
+  // TEGENSTANDER. Zonder de thuiswedstrijd-filter levert categorieUitGuid()
+  // dan null op (het GUID begint niet met de gevolgde club-GUID), en werd dat
+  // ten onrechte niet gefilterd — waardoor U10/U12-wedstrijden van de
+  // tegenpartij toch verschenen.
+  const db = nieuweDb();
+  db.exec("INSERT INTO volg_clubs (guid, naam, toegevoegd_door) VALUES ('BVBL9999', 'Verre Club', 'baas@club.be')");
+
+  zetApi({
+    BVBL9999: [
+      // Uitwedstrijd: de tegenstander (een andere club) is de thuisploeg,
+      // en speelt toevallig U10.
+      { ...wed(1), tTGUID: 'BVBL8888G10  1', tTNaam: 'Tegenstander U10' },
+      // Ter controle: een echte thuiswedstrijd van de gevolgde club, U16.
+      { ...wed(2), tTGUID: 'BVBL9999J16  1', tTNaam: 'Eigen U16' },
+    ],
+  });
+
+  const r = await synchroniseerVolgClubs(db);
+  check('enkel de eigen thuiswedstrijd wordt opgehaald', r.gevonden, 1);
+
+  const rijen = (await db.prepare('SELECT guid, thuis_naam FROM volg_wedstrijden').all()).results;
+  check('de uitwedstrijd staat er niet in', rijen.length, 1);
+  check('en het is de juiste', rijen[0]?.thuis_naam, 'Eigen U16');
+}
+
+console.log('\n13. Een bestaande foute rij verdwijnt bij de eerstvolgende sync');
+{
+  // Simuleert de situatie van vóór deze reparatie: een uitwedstrijd tegen een
+  // U10/U12-team stond al in de databank.
+  const db = nieuweDb();
+  db.exec("INSERT INTO volg_clubs (guid, naam, toegevoegd_door) VALUES ('BVBL9999', 'Verre Club', 'baas@club.be')");
+  db.exec(`
+    INSERT INTO volg_wedstrijden (guid, club_guid, club_naam, thuis_naam, uit_naam, datum, uur, vbl_aantal)
+    VALUES ('FOUT1', 'BVBL9999', 'Verre Club', 'Tegenstander U10', 'Verre Club', '2099-01-01', '10:00', 0);
+  `);
+
+  zetApi({ BVBL9999: [] });   // de bond geeft nu correct niets relevants terug
+  await synchroniseerVolgClubs(db);
+
+  check('de foute rij is weg', (await db.prepare('SELECT COUNT(*) AS n FROM volg_wedstrijden').first()).n, 0);
+}
+
+console.log('\n14. Een club die deze ronde faalt, verliest haar bestaande rijen niet');
+{
+  const db = nieuweDb();
+  db.exec("INSERT INTO volg_clubs (guid, naam, toegevoegd_door) VALUES ('BVBL9999', 'Verre Club', 'baas@club.be')");
+  zetApi({ BVBL9999: [wed(1)] });
+  await synchroniseerVolgClubs(db);
+  check('staat er na de eerste sync',
+    (await db.prepare('SELECT COUNT(*) AS n FROM volg_wedstrijden').first()).n, 1);
+
+  zetApi({}, { faal: ['BVBL9999'] });
+  const r = await synchroniseerVolgClubs(db);
+  check('deze ronde faalt', r.fouten.length, 1);
+  check('maar de eerdere rij blijft staan',
+    (await db.prepare('SELECT COUNT(*) AS n FROM volg_wedstrijden').first()).n, 1);
 }
 
 console.log(f === 0 ? '\n=== ALLE VOLGSYNCTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);

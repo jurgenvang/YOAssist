@@ -40,6 +40,12 @@ export async function synchroniseerVolgClubs(db) {
   const vandaag = new Date().toISOString().slice(0, 10);
   const fouten = [];
   let totaalGevonden = 0;
+  // Elk guid dat deze ronde daadwerkelijk geldig bleek, per club. Gebruikt
+  // achteraf om exact op te ruimen wat er niet meer bij hoort — precieser dan
+  // afzonderlijke regels raden (datum, uur, categorie) die stuk voor stuk
+  // konden vergeten een rij te vangen die vroeger om een andere reden werd
+  // ingevoegd, zoals een uitwedstrijd die per ongeluk meetelde.
+  const geldigePerClub = new Map();
 
   for (const club of clubs) {
     let rauweLijst;
@@ -52,10 +58,17 @@ export async function synchroniseerVolgClubs(db) {
     }
 
     const opdrachten = [];
+    const geldig = [];
 
     for (const rauw of rauweLijst) {
       const w = normaliseerWedstrijd(rauw);
       if (!w) continue;
+      // Enkel thuiswedstrijden: alleen daar zijn scheidsrechters van deze club
+      // nodig. Dit voorkomt ook een stille fout verderop — bij een
+      // uitwedstrijd hoort thuisGuid bij de tegenstander, en dan levert
+      // categorieUitGuid() null op in plaats van de juiste categorie, wat
+      // U10/U12-wedstrijden van de tegenpartij ongefilterd zou doorlaten.
+      if (!w.thuisGuid.startsWith(club.guid)) continue;
       if (w.datum < vandaag) continue;   // enkel wat nog moet gebeuren is relevant
       // Middernacht is bij Basketbal Vlaanderen meestal een teken dat het uur
       // niet correct is doorgekomen, niet een echte wedstrijd om 00:00.
@@ -70,6 +83,7 @@ export async function synchroniseerVolgClubs(db) {
       // toch al niet op deze pagina.
       const naam = w.offAantal === 1 ? w.offNamen[0] : null;
 
+      geldig.push(w.guid);
       opdrachten.push(
         db
           .prepare(
@@ -92,26 +106,35 @@ export async function synchroniseerVolgClubs(db) {
 
     if (opdrachten.length > 0) await db.batch(opdrachten);
     totaalGevonden += opdrachten.length;
+    geldigePerClub.set(club.guid, geldig);
   }
 
-  // Wedstrijden die niet langer bij een gevolgde club horen (club losgekoppeld,
-  // of de wedstrijd zelf verdwenen bij de bond) opruimen. Simpeler dan de
-  // hoofdsync: geen historiek om te bewaren, dus gewoon weg.
-  //
-  // De categoriefilter hoort hier ook bij: rijen die vóór de U10/U12-filter
-  // werden opgehaald, komen niet vanzelf opnieuw binnen om overschreven te
-  // worden (INSERT ... ON CONFLICT raakt enkel wat er nog wél in de API
-  // staat), dus moeten ze hier expliciet weg.
+  // Opruimen: elke rij van een club die deze ronde succesvol werd opgehaald,
+  // moet nu een van de zonet geldig bevonden guid's zijn — anders hoort ze er
+  // niet meer bij (verdwenen bij de bond, uitwedstrijd, U10/U12, weekend
+  // voorbij, ...). Een club die deze ronde faalde (zie 'fouten'), laten we met
+  // rust: haar rijen blijven staan tot een latere, geslaagde synchronisatie.
   const clubGuids = clubs.map((c) => c.guid);
-  const zonderU10U12 = [...ZONDER_U10U12].map(() => '?').join(',');
   if (clubGuids.length > 0) {
+    for (const [clubGuid, guids] of geldigePerClub) {
+      if (guids.length > 0) {
+        await db
+          .prepare(
+            `DELETE FROM volg_wedstrijden
+              WHERE club_guid = ? AND guid NOT IN (${guids.map(() => '?').join(',')})`,
+          )
+          .bind(clubGuid, ...guids)
+          .run();
+      } else {
+        await db.prepare('DELETE FROM volg_wedstrijden WHERE club_guid = ?').bind(clubGuid).run();
+      }
+    }
+    // Clubs die intussen ontkoppeld zijn: hun rijen horen nergens meer bij.
     await db
       .prepare(
-        `DELETE FROM volg_wedstrijden
-          WHERE datum < ? OR uur = '00:00' OR cat_code IN (${zonderU10U12})
-             OR club_guid NOT IN (${clubGuids.map(() => '?').join(',')})`,
+        `DELETE FROM volg_wedstrijden WHERE club_guid NOT IN (${clubGuids.map(() => '?').join(',')})`,
       )
-      .bind(vandaag, ...ZONDER_U10U12, ...clubGuids)
+      .bind(...clubGuids)
       .run();
   } else {
     await db.prepare('DELETE FROM volg_wedstrijden').run();
