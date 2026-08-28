@@ -549,7 +549,7 @@ console.log('\n24. De aandachtspagina (V31)');
   check('standaard verborgen, samen met het logboek',
     /verborgen_tabs TEXT NOT NULL DEFAULT 'log,aandacht'/.test(
       readFileSync(new URL('../schema.sql', import.meta.url), 'utf8')), true);
-  check('instelbaar bij Mijn voorkeuren, Tabbladen', /\['aandacht', 'Aandacht'\]/.test(html), true);
+  check('instelbaar bij Mijn voorkeuren, Tabbladen', /\['aandacht', 'Regio'\]/.test(html), true);
 
   const wissel = haalFunctie('wisselWeergave');
   check('wisselWeergave kent de aandachtweergave', /welke === 'aandacht'/.test(wissel), true);
@@ -573,6 +573,23 @@ console.log('\n25. Elk tabblad in de balk is ook echt klikbaar');
     check(`${id} heeft een addEventListener('click', ...)`,
       new RegExp(`\\$\\('${id}'\\)\\.addEventListener\\('click'`).test(html), true);
   }
+}
+
+console.log('\n26. De naam bij één scheidsrechter (Regio)');
+{
+  const toonFn = haalFunctie('toonAandacht');
+  check('toont de naam als die er is', /w\.naam/.test(toonFn), true);
+  check('enkel bij één ref, niet bij nul', /aantalRefs === 0[\s\S]*?w\.naam/.test(toonFn), true);
+}
+
+console.log('\n27. Knop om de wedstrijdenlijst van Regio leeg te maken');
+{
+  check('de knop staat er, naast \'Nu synchroniseren\'', /id="volgclub-wis"/.test(html), true);
+  const start = html.indexOf("$('volgclub-wis').onclick");
+  const stuk = html.slice(start, start + 600);
+  check('vraagt eerst bevestiging', /confirm\(/.test(stuk), true);
+  check('roept de juiste route aan', /aandacht\/wedstrijden/.test(stuk), true);
+  check('gebruikt DELETE', /method: 'DELETE'/.test(stuk), true);
 }
 
 console.log(f === 0 ? '\n=== ALLE FRONTENDTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);

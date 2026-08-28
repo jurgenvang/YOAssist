@@ -254,6 +254,7 @@ CREATE TABLE IF NOT EXISTS volg_wedstrijden (
   uur         TEXT NOT NULL,
   cat_code    TEXT,
   vbl_aantal  INTEGER NOT NULL DEFAULT 0,
+  vbl_naam    TEXT,
   laatst_gezien TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

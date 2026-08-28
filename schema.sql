@@ -433,6 +433,10 @@ CREATE TABLE IF NOT EXISTS volg_wedstrijden (
   uur         TEXT NOT NULL,
   cat_code    TEXT,
   vbl_aantal  INTEGER NOT NULL DEFAULT 0,
+  -- Enkel gevuld bij precies één scheidsrechter: dan is een naam bruikbare
+  -- info (wie te bereiken om aan te vullen). Bij nul is er niemand om te
+  -- noemen; bij twee of meer toont de pagina de wedstrijd toch al niet.
+  vbl_naam    TEXT,
   laatst_gezien TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

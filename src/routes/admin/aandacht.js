@@ -76,7 +76,7 @@ export async function aandacht({ env }) {
   const totIso = tot.toISOString().slice(0, 10);
 
   const { results } = await env.DB.prepare(
-    `SELECT guid, club_guid, club_naam, thuis_naam, uit_naam, datum, uur, vbl_aantal
+    `SELECT guid, club_guid, club_naam, thuis_naam, uit_naam, datum, uur, vbl_aantal, vbl_naam
        FROM volg_wedstrijden
       WHERE datum BETWEEN ? AND ? AND vbl_aantal <= 1
       ORDER BY datum, uur, club_naam COLLATE NOCASE`,
@@ -99,6 +99,8 @@ export async function aandacht({ env }) {
       datum: r.datum,
       uur: r.uur,
       aantalRefs: r.vbl_aantal,
+      // Enkel gevuld bij precies één ref — zie de uitleg bij de sync.
+      naam: r.vbl_naam,
     })),
   });
 }
@@ -115,4 +117,24 @@ export async function syncNu({ env, user }) {
   });
 
   return json(rapport);
+}
+
+/**
+ * DELETE /api/admin/aandacht/wedstrijden — enkel de wedstrijdenlijst leegmaken.
+ *
+ * De gevolgde clubs zelf blijven staan; dit wist alleen wat er al opgehaald
+ * werd. Vooral bedoeld om een verkeerd ingevulde categoriefilter of een
+ * verouderde toestand niet te hoeven uitzoeken — gewoon leegmaken en de
+ * volgende sync (of de knop 'Nu synchroniseren') bouwt het weer op.
+ */
+export async function wisWedstrijden({ env, user }) {
+  const res = await env.DB.prepare('DELETE FROM volg_wedstrijden').run();
+
+  await log(env.DB, {
+    categorie: 'beheer', soort: 'volgclub', wie: user.email,
+    veld: 'wedstrijdenlijst van Regio leeggemaakt',
+    oud: `${res?.meta?.changes ?? 0} wedstrijden`,
+  });
+
+  return json({ gewist: res?.meta?.changes ?? 0 });
 }

@@ -119,5 +119,51 @@ console.log('\n4. Handmatig synchroniseren via de knop');
   check('staat in het logboek', log.some((l) => l.veld === 'aandachtspagina gesynchroniseerd'), true);
 }
 
+console.log('\n5. De naam van de ene scheidsrechter komt mee in het antwoord');
+{
+  const env = nieuweEnv();
+  const morgen = () => new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+
+  env.DB.exec("INSERT INTO volg_clubs (guid, naam, toegevoegd_door) VALUES ('BVBL9999', 'Verre Club', 'baas@club.be')");
+  env.DB.exec(`
+    INSERT INTO volg_wedstrijden (guid, club_guid, club_naam, thuis_naam, uit_naam, datum, uur, vbl_aantal, vbl_naam) VALUES
+      ('W1', 'BVBL9999', 'Verre Club', 'A', 'B', '${morgen()}', '14:00', 1, 'Piet Peeters'),
+      ('W2', 'BVBL9999', 'Verre Club', 'C', 'D', '${morgen()}', '16:00', 0, NULL);
+  `);
+
+  const r = await vraag(env, '/api/admin/aandacht');
+  const w1 = r.json.wedstrijden.find((w) => w.guid === 'W1');
+  const w2 = r.json.wedstrijden.find((w) => w.guid === 'W2');
+
+  check('naam zit bij één ref', w1.naam, 'Piet Peeters');
+  check('geen naam bij nul refs', w2.naam, null);
+}
+
+console.log('\n6. De wedstrijdenlijst leegmaken, zonder de clubs te raken');
+{
+  const env = nieuweEnv();
+  const morgen = () => new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+
+  env.DB.exec("INSERT INTO volg_clubs (guid, naam, toegevoegd_door) VALUES ('BVBL9999', 'Verre Club', 'baas@club.be')");
+  env.DB.exec(`
+    INSERT INTO volg_wedstrijden (guid, club_guid, club_naam, thuis_naam, uit_naam, datum, uur, vbl_aantal) VALUES
+      ('W1', 'BVBL9999', 'Verre Club', 'A', 'B', '${morgen()}', '14:00', 0),
+      ('W2', 'BVBL9999', 'Verre Club', 'C', 'D', '${morgen()}', '16:00', 1);
+  `);
+
+  const r = await vraag(env, '/api/admin/aandacht/wedstrijden', { methode: 'DELETE' });
+  check('twee gewist', r.json.gewist, 2);
+  check('de wedstrijdenlijst is leeg',
+    (await vraag(env, '/api/admin/aandacht')).json.aantal, 0);
+  check('de gevolgde club blijft staan',
+    (await vraag(env, '/api/admin/volg-clubs')).json.clubs.length, 1);
+
+  const log = (await vraag(env, '/api/admin/logboek')).json.regels;
+  check('komt in het logboek', log.some((l) => l.veld === 'wedstrijdenlijst van Regio leeggemaakt'), true);
+
+  check('een YO mag dit niet', (await vraag(env, '/api/admin/aandacht/wedstrijden',
+    { methode: 'DELETE', alsWie: 'ann@club.be' })).status, 403);
+}
+
 console.log(f === 0 ? '\n=== ALLE AANDACHTSTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);
 process.exit(f ? 1 : 0);

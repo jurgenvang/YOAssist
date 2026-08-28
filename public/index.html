@@ -844,7 +844,7 @@ select {
     <button class="tab" id="tab-mijn" role="tab" aria-selected="true">Aanduidingen</button>
     <button class="tab" id="tab-club" role="tab" aria-selected="false">Cluboverzicht</button>
     <button class="tab" id="tab-log" role="tab" aria-selected="false">Logboek</button>
-    <button class="tab" id="tab-aandacht" role="tab" aria-selected="false">Aandacht</button>
+    <button class="tab" id="tab-aandacht" role="tab" aria-selected="false">Regio</button>
   </div>
   <div id="hoofd">
     <div class="leeg"><span class="spinner"></span> Laden…</div>
@@ -1675,7 +1675,7 @@ function toonAandacht(data) {
     $('hoofd').innerHTML = `
       <div class="leeg">
         Nog geen clubs om te volgen.<br>
-        Voeg ze toe bij Configuratie, onderaan bij 'Aandachtspagina'.
+        Voeg ze toe bij Configuratie, onderaan bij 'Regio'.
       </div>`;
     return;
   }
@@ -1706,7 +1706,7 @@ function toonAandacht(data) {
           <span class="cat">${tekst(w.clubNaam ?? w.clubGuid)}</span>
           <span>${w.aantalRefs === 0
             ? 'geen scheidsrechter aangeduid'
-            : 'nog maar één scheidsrechter aangeduid'}</span>
+            : `nog maar één scheidsrechter aangeduid${w.naam ? `: ${tekst(w.naam)}` : ''}`}</span>
         </div>
       </article>`);
   }
@@ -2716,7 +2716,7 @@ async function toonVoorkeuren(v) {
       <h3>Tabbladen</h3>
       <p class="hint">Welke schermen je in de balk bovenaan wil zien.
         Aanduidingen staat er altijd.</p>
-      ${[['club', 'Cluboverzicht'], ['log', 'Logboek'], ['aandacht', 'Aandacht']].map(([sleutel, naam]) => `
+      ${[['club', 'Cluboverzicht'], ['log', 'Logboek'], ['aandacht', 'Regio']].map(([sleutel, naam]) => `
         <div class="keuzerij">
           <span class="tekst"><b>${naam}</b></span>
           <label class="schakelaar">
@@ -3205,19 +3205,24 @@ function toonPaneel() {
     </section>
 
     <section class="blok" data-groep="configuratie">
-      <h3 data-vouw="beheer-aandacht">Aandachtspagina</h3>
+      <h3 data-vouw="beheer-aandacht">Regio</h3>
       <p class="hint">Clubs waarvan je wil zien welke wedstrijden krap zitten
         (nul of één scheidsrechter), ook al doet YOAssist zelf niets voor die
-        club. Verschijnt als tabblad 'Aandacht', standaard uitgezet — een
+        club. Verschijnt als tabblad 'Regio', standaard uitgezet — een
         beheerder zet het zelf aan bij Mijn voorkeuren, Tabbladen.</p>
       <div class="veld-rij">
         <input type="text" id="volgclub-guid" placeholder="club-GUID, bv. BVBL1053">
         <button class="knop zacht" id="volgclub-toevoegen">Toevoegen</button>
       </div>
       <div id="volgclub-lijst"></div>
-      <button class="knop zacht breed" id="volgclub-sync" style="margin-top:.5rem">
-        Nu synchroniseren
-      </button>
+      <div class="veld-rij" style="margin-top:.5rem">
+        <button class="knop zacht" id="volgclub-sync" style="flex:1">
+          Nu synchroniseren
+        </button>
+        <button class="knop zacht" id="volgclub-wis" style="flex:1">
+          Wedstrijdenlijst leegmaken
+        </button>
+      </div>
       <div id="volgclub-melding"></div>
     </section>
 
@@ -3431,6 +3436,23 @@ function bindPaneel() {
       doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
     } finally {
       $('volgclub-sync').disabled = false;
+    }
+  };
+
+  $('volgclub-wis').onclick = async () => {
+    const doel = $('volgclub-melding');
+    if (!confirm('De hele wedstrijdenlijst van Regio wissen? De gevolgde clubs ' +
+                 'blijven staan; de volgende synchronisatie bouwt de lijst opnieuw op.')) {
+      return;
+    }
+    $('volgclub-wis').disabled = true;
+    try {
+      const r = await api('/api/admin/aandacht/wedstrijden', { method: 'DELETE' });
+      doel.innerHTML = `<div class="melding ok">${r.gewist} wedstrijden gewist.</div>`;
+    } catch (err) {
+      doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+    } finally {
+      $('volgclub-wis').disabled = false;
     }
   };
 

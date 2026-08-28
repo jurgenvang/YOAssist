@@ -141,6 +141,7 @@ const ROUTES = [
   { methode: 'DELETE', pad: '/api/admin/volg-clubs', handler: aandachtRoute.verwijderen, beheer: true },
   { methode: 'GET',    pad: '/api/admin/aandacht',      handler: aandachtRoute.aandacht, beheer: true },
   { methode: 'POST',   pad: '/api/admin/aandacht/sync', handler: aandachtRoute.syncNu,   beheer: true },
+  { methode: 'DELETE', pad: '/api/admin/aandacht/wedstrijden', handler: aandachtRoute.wisWedstrijden, beheer: true },
 
   { methode: 'GET',    pad: '/api/admin/mededeling',   handler: mededelingRoute.huidige, beheer: true },
   { methode: 'POST',   pad: '/api/admin/mededeling',   handler: mededelingRoute.zet,     beheer: true },

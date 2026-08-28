@@ -123,5 +123,105 @@ console.log('\n6. Verleden wedstrijden verdwijnen vanzelf');
   check('enkel de toekomstige wordt opgehaald', r.gevonden, 1);
 }
 
+console.log('\n7. U10 en U12 worden niet opgehaald, vanaf U14 wel');
+{
+  const db = nieuweDb();
+  db.exec("INSERT INTO volg_clubs (guid, naam, toegevoegd_door) VALUES ('BVBL9999', 'Verre Club', 'baas@club.be')");
+
+  const metCategorie = (nr, catCode) => ({
+    ...wed(nr),
+    tTGUID: `BVBL9999${catCode}  1`,   // club-GUID + categoriecode + twee spaties + volgnummer
+  });
+
+  zetApi({
+    BVBL9999: [
+      metCategorie(1, 'G10'),   // U10, moet eruit gefilterd
+      metCategorie(2, 'G12'),   // U12, moet eruit gefilterd
+      metCategorie(3, 'M12'),   // U12 meisjes, moet eruit gefilterd
+      metCategorie(4, 'J16'),   // U16, hoort erin
+      metCategorie(5, 'HSE'),   // senioren, hoort erin
+    ],
+  });
+
+  const r = await synchroniseerVolgClubs(db);
+  check('enkel de twee vanaf U14', r.gevonden, 2);
+
+  const guids = (await db.prepare('SELECT guid FROM volg_wedstrijden').all()).results.map((r) => r.guid);
+  check('J16 en HSE erin, U10/U12 niet', guids.sort(), ['BVBLX4', 'BVBLX5']);
+}
+
+console.log('\n8. Een oude U10/U12-rij verdwijnt bij de volgende sync');
+{
+  // Simuleert een rij die vóór deze filter werd opgehaald.
+  const db = nieuweDb();
+  db.exec("INSERT INTO volg_clubs (guid, naam, toegevoegd_door) VALUES ('BVBL9999', 'Verre Club', 'baas@club.be')");
+  db.exec(`
+    INSERT INTO volg_wedstrijden (guid, club_guid, club_naam, thuis_naam, uit_naam, datum, uur, cat_code, vbl_aantal)
+    VALUES ('OUD1', 'BVBL9999', 'Verre Club', 'A', 'B', '2099-01-01', '10:00', 'G10', 0);
+  `);
+  zetApi({ BVBL9999: [] });
+
+  await synchroniseerVolgClubs(db);
+  check('opgeruimd', (await db.prepare('SELECT COUNT(*) AS n FROM volg_wedstrijden').first()).n, 0);
+}
+
+console.log('\n9. Wedstrijden om middernacht worden overgeslagen');
+{
+  const db = nieuweDb();
+  db.exec("INSERT INTO volg_clubs (guid, naam, toegevoegd_door) VALUES ('BVBL9999', 'Verre Club', 'baas@club.be')");
+  zetApi({
+    BVBL9999: [
+      { ...wed(1, { uur: '00.00' }), tTGUID: 'BVBL9999J16  1' },
+      { ...wed(2, { uur: '14.00' }), tTGUID: 'BVBL9999J16  1' },
+    ],
+  });
+
+  const r = await synchroniseerVolgClubs(db);
+  check('enkel de wedstrijd met een echt uur', r.gevonden, 1);
+
+  const rij = await db.prepare('SELECT uur FROM volg_wedstrijden').first();
+  check('en dat is niet middernacht', rij.uur, '14:00');
+}
+
+console.log('\n10. De naam wordt bewaard bij precies één scheidsrechter');
+{
+  const db = nieuweDb();
+  db.exec("INSERT INTO volg_clubs (guid, naam, toegevoegd_door) VALUES ('BVBL9999', 'Verre Club', 'baas@club.be')");
+  zetApi({
+    BVBL9999: [
+      { ...wed(1, { wedOff: [] }), tTGUID: 'BVBL9999J16  1' },              // nul refs
+      { ...wed(2, { wedOff: ['Piet Peeters'] }), tTGUID: 'BVBL9999J16  1' }, // één ref
+      { ...wed(3, { wedOff: ['A', 'B'] }), tTGUID: 'BVBL9999J16  1' },       // twee refs
+    ],
+  });
+
+  await synchroniseerVolgClubs(db);
+  const rijen = (await db.prepare('SELECT guid, vbl_naam FROM volg_wedstrijden ORDER BY guid').all()).results;
+
+  check('geen naam bij nul refs', rijen.find((r) => r.guid === 'BVBLX1').vbl_naam, null);
+  check('wel een naam bij precies één ref',
+    rijen.find((r) => r.guid === 'BVBLX2').vbl_naam, 'Piet Peeters');
+  check('geen naam bewaard bij twee refs (die komt toch niet op de pagina)',
+    rijen.find((r) => r.guid === 'BVBLX3').vbl_naam, null);
+}
+
+console.log('\n11. Trekt iemand zich terug, dan verdwijnt de naam weer');
+{
+  const db = nieuweDb();
+  db.exec("INSERT INTO volg_clubs (guid, naam, toegevoegd_door) VALUES ('BVBL9999', 'Verre Club', 'baas@club.be')");
+
+  zetApi({ BVBL9999: [{ ...wed(1, { wedOff: ['Piet Peeters'] }), tTGUID: 'BVBL9999J16  1' }] });
+  await synchroniseerVolgClubs(db);
+  check('naam staat er eerst',
+    (await db.prepare('SELECT vbl_naam FROM volg_wedstrijden WHERE guid = ?').bind('BVBLX1').first()).vbl_naam,
+    'Piet Peeters');
+
+  zetApi({ BVBL9999: [{ ...wed(1, { wedOff: [] }), tTGUID: 'BVBL9999J16  1' }] });
+  await synchroniseerVolgClubs(db);
+  check('en is weer weg zodra er niemand meer aangeduid is',
+    (await db.prepare('SELECT vbl_naam FROM volg_wedstrijden WHERE guid = ?').bind('BVBLX1').first()).vbl_naam,
+    null);
+}
+
 console.log(f === 0 ? '\n=== ALLE VOLGSYNCTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);
 process.exit(f ? 1 : 0);
