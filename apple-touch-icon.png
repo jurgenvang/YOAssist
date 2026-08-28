@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YOAssist — handleiding</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/icoon/favicon-32.png">
+<style>
+  :root {
+    --inkt:#12161c; --inkt-zacht:#3d4450; --grijs:#6b7480;
+    --lijn:#e2e5ea; --kaart:#fff; --amber:#e8a317;
+  }
+  * { box-sizing:border-box; }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:#f7f7f5; color:#12161c; margin:0; line-height:1.6;
+  }
+  .balk {
+    background:#12161c; color:#fff; padding:.9rem 1rem;
+    display:flex; align-items:center; gap:.6rem;
+  }
+  .balk img { width:28px; height:28px; border-radius:6px; }
+  .balk b { font-size:1rem; }
+  .balk a { margin-left:auto; color:#a8b0bb; font-size:.85rem; text-decoration:none; }
+  .balk a:hover { color:#fff; }
+  main { max-width:44rem; margin:0 auto; padding:1.5rem 1.1rem 4rem; }
+  h1 { font-size:1.5rem; margin:.5rem 0 .2rem; }
+  h2 { font-size:1.1rem; margin:2.2rem 0 .5rem; padding-bottom:.3rem;
+        border-bottom:2px solid #12161c; }
+  h3 { font-size:.95rem; margin:1.4rem 0 .3rem; }
+  p { margin:.6rem 0; }
+  ul { margin:.5rem 0; padding-left:1.2rem; }
+  li { margin:.25rem 0; }
+  code { background:#eef0f3; border-radius:4px; padding:.08em .3em; font-size:.9em; }
+  hr { border:0; border-top:1px solid var(--lijn); margin:2rem 0; }
+  table { width:100%; border-collapse:collapse; margin:.8rem 0; font-size:.92rem; }
+  th, td { text-align:left; padding:.45rem .6rem; border-bottom:1px solid var(--lijn);
+            vertical-align:top; }
+  th { font-size:.75rem; text-transform:uppercase; letter-spacing:.06em;
+        color:var(--grijs); border-bottom:2px solid #12161c; }
+  @media print { .balk { display:none; } main { max-width:none; } }
+</style>
+</head>
+<body>
+<div class="balk">
+  <img src="/icoon/favicon-32.png" alt="">
+  <b>YOAssist</b>
+  <a href="/">&larr; terug naar de app</a>
+</div>
+<main>
+<h1>YOAssist — hoe het werkt</h1>
+<p>Versie 1.7.1</p>
+<p>Dit document legt uit wat YOAssist doet, waar het draait en wat er nodig is om het draaiende te houden. Bedoeld voor wie de app beheert, en voor wie hem ooit overneemt.</p>
+<hr>
+<h2>1. Waarvoor het dient</h2>
+<p>Bij thuiswedstrijden van de jeugd moet een basketbalclub zelf voor scheidsrechters zorgen. Youth Officials zijn jonge leden die die wedstrijden fluiten. Wie kan wanneer, wie is al ergens anders bezig, en wie heeft er al genoeg gedaan dit seizoen — dat werd bijgehouden in berichten en lijstjes.</p>
+<p>YOAssist doet drie dingen:</p>
+<p>dag.</p>
+<p>iedereen daarover verwittigen.</p>
+<ul><li><strong>De kalender ophalen</strong> bij Basketbal Vlaanderen, automatisch, vier keer per</li><li><strong>Beschikbaarheden verzamelen</strong> bij de Youth Officials.</li><li><strong>Aanduidingen maken</strong> door een beheerder, met controle op botsingen, en</li></ul>
+<p>Daarnaast houdt het de vergoedingen bij en sluit het per maand af.</p>
+<hr>
+<h2>2. Wie ziet wat</h2>
+<p>Er zijn drie rollen. Ze staan in de <code>users</code>-tabel en worden door een beheerder toegekend.</p>
+<table><thead><tr><th>Rol</th><th>Ziet</th></tr></thead><tbody><tr><td><strong>YO</strong></td><td>Alleen U10- en U12-wedstrijden</td></tr><tr><td><strong>YO+</strong></td><td>Alle wedstrijden die in de aanduidingslijst staan</td></tr><tr><td><strong>Beheerder</strong></td><td>Alles, plus het cluboverzicht, het logboek en het beheerpaneel</td></tr></tbody></table>
+<p>Een beheerder is meestal ook YO+. Hij kan met <strong>Kijken als official</strong> tijdelijk zien wat een gewone YO ziet, om te controleren of het klopt.</p>
+<p><strong>Wat waar staat.</strong> Officials hebben één scherm: Aanduidingen. Beheerders hebben daarnaast tabbladen voor Cluboverzicht en Logboek, die ze per stuk kunnen uitzetten. Alles wat over jou persoonlijk gaat — je vergoeding, je voorkeuren, de rondleiding — zit achter je naam rechtsboven, samen met Beheer voor wie dat mag.</p>
+<hr>
+<h2>3. Hoe een wedstrijd in de lijst komt</h2>
+<p>Niet elke wedstrijd heeft eigen officials nodig. Er zijn drie manieren waarop een wedstrijd in de beschikbaarhedenlijst terechtkomt:</p>
+<p><strong>Automatisch.</strong> U10 en U12 (categorieën G10, G12, M12). Daar duidt de bond nooit scheidsrechters aan, dus die zijn altijd voor de club.</p>
+<p><strong>De woensdagregel.</strong> Elke woensdag om 14 uur kijkt de app naar het komende weekend. Wedstrijden vanaf U14 waar Basketbal Vlaanderen minder dan twee scheidsrechters heeft aangeduid, komen erbij. De YO+&#x27;ers krijgen daar bericht van.</p>
+<p><strong>Handmatig.</strong> Een beheerder kan een wedstrijd toevoegen of net weglaten. Haalt hij er een uit, dan onthoudt de app dat en haalt de woensdagregel ze niet opnieuw binnen.</p>
+<p>Staat er vanaf U14 geen scheidsrechter bij Basketbal Vlaanderen terwijl de beheerder weet dat er wél twee komen, dan kan hij dat aanvinken. Dat wijst niemand aan; het onderdrukt alleen de rode melding. Zodra de bond zelf twee refs invult, verdwijnt die vlag vanzelf.</p>
+<hr>
+<h2>4. Aanduiden</h2>
+<p>Per wedstrijd zijn er twee plaatsen, REF1 en REF2, min wat de bond al heeft gedaan. Een beheerder kiest uit wie zich beschikbaar zette.</p>
+<p><strong>Botsingen</strong> worden gemeten van aanvang tot aanvang: twee uur in dezelfde zaal, tweeënhalf uur bij een andere. Wie te krap zit, wordt gemeld — de beheerder kan alsnog doorgaan als hij weet dat het lukt.</p>
+<p><strong>Automatisch aanvullen</strong> stelt een verdeling voor: eerst de wedstrijden waar weinig kandidaten voor zijn, en zo eerlijk mogelijk verdeeld over het seizoen. Het toont eerst wat het zou doen; pas na bevestiging gebeurt het.</p>
+<p>Een official die is aangeduid, kan zijn beschikbaarheid niet meer wijzigen. Lukt het toch niet, dan meldt hij een probleem — dat gaat naar alle beheerders.</p>
+<hr>
+<h2>5. Wat er automatisch gebeurt</h2>
+<p>Eén taak per uur, die zelf beslist wat er op dat Brusselse uur moet gebeuren.</p>
+<table><thead><tr><th>Tijdstip</th><th>Wat</th></tr></thead><tbody><tr><td>0, 6, 12, 18 uur</td><td>Kalender ophalen bij Basketbal Vlaanderen</td></tr><tr><td>Woensdag 14 uur</td><td>Woensdagregel: weekendwedstrijden zonder twee refs erbij zetten</td></tr><tr><td>19 uur</td><td>Herinnering aan wie morgen fluit</td></tr><tr><td>20 uur</td><td>Nakijken of een toegevoegde wedstrijd intussen toch refs kreeg</td></tr><tr><td>7 uur</td><td>Herinnering aan wie vandaag fluit</td></tr><tr><td>Maandag 8 uur</td><td>Overzicht naar beheerders van wat nog niet is aangeduid</td></tr></tbody></table>
+<p>Herinneringen gaan alleen naar wie ze wil; dat staat per persoon in Mijn voorkeuren.</p>
+<p><strong>Verdwenen wedstrijden</strong> worden gemarkeerd, nooit verwijderd — er hangen beschikbaarheden aan. Verdwijnen er in één keer meer dan drie, dan gebeurt er niets: dat wijst eerder op een storing bij de bond dan op drie afgelastingen.</p>
+<hr>
+<h2>6. Vergoedingen</h2>
+<p>Elke categorie heeft een tarief: €15 voor U10/U12, €20 tot en met U21, €25 voor de senioren. Die staan in de databank en zijn aanpasbaar.</p>
+<p><strong>Een maand afsluiten</strong> kan vanaf de eerste dag van de volgende maand. Dat legt de bedragen vast in een momentopname. Elke official krijgt zijn eigen overzicht per mail; een instelbare lijst adressen krijgt de verzamelstaat — de penningmeester hoeft daarvoor geen beheerder te zijn.</p>
+<p><strong>Wat er nadien nog verandert</strong>, raakt het bedrag van toen niet meer. Wordt een aanduiding achteraf vrijgegeven, dan komt dat als correctieregel in de volgende maand: <em>Correctie 2026-09: −1 × U12</em>. Zo klopt het totaal over het seizoen, zonder dat een betaald bedrag met terugwerkende kracht verandert.</p>
+<p>Afsluiten wordt geweigerd zolang er aanduidingen staan op een categorie zonder tarief. Op nul zetten zou stil verkeerd zijn.</p>
+<hr>
+<h2>7. Waar het draait</h2>
+<table><thead><tr><th>Onderdeel</th><th>Waar</th></tr></thead><tbody><tr><td>De app en de API</td><td>Cloudflare Workers</td></tr><tr><td>De databank</td><td>Cloudflare D1 (SQLite)</td></tr><tr><td>Aanmelden</td><td>Cloudflare Access (Zero Trust)</td></tr><tr><td>Mail</td><td>Resend</td></tr><tr><td>Broncode</td><td>GitHub — <code>github.com/jurgenvang/YOAssist</code></td></tr><tr><td>Adres</td><td><code>https://yoassist.org</code></td></tr></tbody></table>
+<p>Het oude adres <code>https://yoassist.jurgenvang.workers.dev</code> blijft ook werken.</p>
+<p><strong>Eén Worker doet alles</strong>: de webpagina, de API en de geplande taken zitten in hetzelfde project. Er is geen aparte server, geen buildstap en geen framework. De volledige frontend is één bestand, <code>public/index.html</code>.</p>
+<p><strong>Kosten.</strong> Alles draait binnen de gratis niveaus van Cloudflare en Resend, bij een club van deze grootte ruim. D1 en Workers hebben royale dagelijkse limieten; Resend staat een paar duizend mails per maand toe.</p>
+<hr>
+<h2>8. Aanmelden: twee lagen</h2>
+<p>Dit is het stuk dat het vaakst verwarring geeft, dus expliciet:</p>
+<p><strong>Laag 1 — Cloudflare Access</strong> bepaalt wie de app überhaupt mag openen. Wie op <code>yoassist.org</code> komt, krijgt eerst een aanmeldscherm en vult zijn e-mailadres in; Access stuurt een PIN. Dat adres moet in de Access-policy staan.</p>
+<p><strong>Laag 2 — de <code>users</code>-tabel</strong> bepaalt wat iemand mag zodra hij binnen is. Wie in Access staat maar niet in <code>users</code>, krijgt een foutmelding.</p>
+<p><strong>Die twee lijsten moeten handmatig gelijk blijven.</strong> Voeg je een official toe in YOAssist, dan moet zijn adres ook in Zero Trust bij de Access-policy. Het beheerscherm levert daarom een kopieerklare lijst met alle actieve adressen.</p>
+<p>Vergeet je laag 1, dan raakt de official niet binnen. Vergeet je laag 2, dan komt hij binnen en krijgt hij een foutmelding.</p>
+<hr>
+<h2>8b. Namens een kind invullen</h2>
+<p>Een ouder kan de beschikbaarheid van zijn kinderen opgeven. Het kind heeft een eigen account met eigen beschikbaarheden, aanduidingen en vergoedingsoverzicht; de ouder krijgt enkel het recht om er namens hem in te vullen.</p>
+<p>Een beheerder legt die koppeling in het gebruikersbeheer — een ouder kan ze niet zelf aanvragen, anders zou iemand een willekeurig kind aan zichzelf kunnen hangen. Meerdere ouders per kind kan; gescheiden ouders die allebei invullen past dus.</p>
+<p>De ouder ziet bovenaan een keuzelijst: zichzelf, of een van zijn kinderen. Krijgt het kind later een eigen e-mailadres, dan blijft alles staan — enkel de aanmelding verandert.</p>
+<h2>9. Meldingen op de telefoon</h2>
+<p>Naast mail kan de app meldingen sturen naar het toestel. Elke gebruiker zet dat zelf aan bij Mijn voorkeuren.</p>
+<p><strong>Op een iPhone werkt dat alleen als de app op het beginscherm staat.</strong> Openen in Safari, tikken op het deelicoon, &quot;Zet op beginscherm&quot;, en de app daarna via dat icoon openen. Dat is een beperking van Apple, niet van YOAssist. Officials die nog geen meldingen hebben, krijgen die uitleg onderaan elke mail.</p>
+<p>Mail blijft daarom het betrouwbare kanaal en staat standaard aan.</p>
+<hr>
+<h2>9b. Berichten en nieuws</h2>
+<p>Bij je naam staat <strong>Mijn berichten</strong>: wat de app naar jou stuurde, als korte samenvatting. Enkel wat effectief aankwam; oudere regels verdwijnen vanzelf.</p>
+<p>Een beheerder kan <strong>belangrijk nieuws</strong> plaatsen: één mededeling tegelijk, bovenaan bij iedereen, met een einddatum. Ze kan met mail en melding meegaan of enkel in de app blijven staan. Iedereen kan ze zelf wegklikken; na de einddatum verdwijnt ze sowieso.</p>
+<h2>10. Onderhoud</h2>
+<p><strong>Bij het begin van een seizoen</strong>: het seizoen ophogen in het beheerpaneel, teams opnieuw laden, en aanvinken welke ploegen gevolgd worden. Nieuwe ploegen met een onbekende categorie staan bewust uit.</p>
+<p><strong>Elke maand</strong>: de vorige maand afsluiten bij Vergoedingen Club.</p>
+<p><strong>Af en toe</strong>: een backup nemen. Dat is één JSON-bestand met alles erin. Er is geen knop om hem terug te zetten — dat gebeurt handmatig via de D1-console, met het bestand ernaast. In dat bestand staat in welke volgorde de tabellen ingelezen moeten worden.</p>
+<p><strong>Bij een nieuwe versie</strong>: de bestanden naar GitHub, en Cloudflare deployt vanzelf. Wijzigt de databank mee, dan staat erbij wat er moet gebeuren — meestal een <code>ALTER TABLE</code>, soms een <code>DROP</code> gevolgd door een blok uit <code>schema-console.sql</code>.</p>
+<hr>
+<h2>11. Als er iets misgaat</h2>
+<p><strong>&quot;no such column: …&quot;</strong> — de databank loopt achter op de code. Er is een schemawijziging niet uitgevoerd. Kijk in de release-uitleg welke.</p>
+<p><strong>Een official raakt niet binnen</strong> — zijn adres staat niet in de Access-policy in Zero Trust. Zie hoofdstuk 8.</p>
+<p><strong>Een official komt binnen maar krijgt een foutmelding</strong> — hij staat wel in Access maar niet in <code>users</code>, of hij is daar op inactief gezet.</p>
+<p><strong>Er komt geen mail</strong> — controleer het afzenderadres in het beheerpaneel en of het domein nog geverifieerd is bij Resend.</p>
+<p><strong>Synchroniseren geeft niets terug</strong> — de API van Basketbal Vlaanderen is ongedocumenteerd en kan zonder waarschuwing veranderen. Het logboek en het scherm Synchronisatie tonen wat de laatste run deed.</p>
+<p><strong>Het logboek</strong> is de eerste plek om te kijken bij een vraag als &quot;waarom staat deze wedstrijd er zo bij&quot;. Elke wijziging, aanduiding en beheeractie staat er, met wie het deed.</p>
+<hr>
+<h2>12. Als iemand het overneemt</h2>
+<p>Wat er nodig is om verder te kunnen:</p>
+<p>geverifieerde domein</p>
+<ul><li>Toegang tot het <strong>Cloudflare-account</strong> (Workers, D1, Zero Trust)</li><li>Toegang tot de <strong>GitHub-repo</strong>: <code>github.com/jurgenvang/YOAssist</code></li><li>Toegang tot het <strong>Resend-account</strong>, of een eigen account met hetzelfde</li><li>Beheerder zijn in YOAssist zelf</li></ul>
+<p>De code staat onder de <strong>EUPL v1.2</strong>: vrij te gebruiken, aan te passen en door te geven onder dezelfde voorwaarden. Zie <code>LICENSE</code>.</p>
+<p>Voor wie eraan verder wil bouwen zijn er 1233 tests die zonder netwerk draaien met <code>cd test &amp;&amp; npm test</code>. Ze zijn er niet voor de vorm: verschillende ervan kwamen er nadat iets stil was misgegaan, en houden dat nu tegen.</p>
+</main>
+</body>
+</html>

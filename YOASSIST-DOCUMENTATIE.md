@@ -1,6 +1,6 @@
 # YOAssist — hoe het werkt
 
-Versie 1.0.0
+Versie 1.7.1
 
 Dit document legt uit wat YOAssist doet, waar het draait en wat er nodig is om
 het draaiende te houden. Bedoeld voor wie de app beheert, en voor wie hem ooit
@@ -141,7 +141,7 @@ tarief. Op nul zetten zou stil verkeerd zijn.
 | De databank | Cloudflare D1 (SQLite) |
 | Aanmelden | Cloudflare Access (Zero Trust) |
 | Mail | Resend |
-| Broncode | GitHub |
+| Broncode | GitHub — `github.com/jurgenvang/YOAssist` |
 | Adres | `https://yoassist.org` |
 
 Het oude adres `https://yoassist.jurgenvang.workers.dev` blijft ook werken.
@@ -176,6 +176,21 @@ komt hij binnen en krijgt hij een foutmelding.
 
 ---
 
+## 8b. Namens een kind invullen
+
+Een ouder kan de beschikbaarheid van zijn kinderen opgeven. Het kind heeft een
+eigen account met eigen beschikbaarheden, aanduidingen en vergoedingsoverzicht;
+de ouder krijgt enkel het recht om er namens hem in te vullen.
+
+Een beheerder legt die koppeling in het gebruikersbeheer — een ouder kan ze niet
+zelf aanvragen, anders zou iemand een willekeurig kind aan zichzelf kunnen
+hangen. Meerdere ouders per kind kan; gescheiden ouders die allebei invullen
+past dus.
+
+De ouder ziet bovenaan een keuzelijst: zichzelf, of een van zijn kinderen.
+Krijgt het kind later een eigen e-mailadres, dan blijft alles staan — enkel de
+aanmelding verandert.
+
 ## 9. Meldingen op de telefoon
 
 Naast mail kan de app meldingen sturen naar het toestel. Elke gebruiker zet dat
@@ -190,13 +205,23 @@ Mail blijft daarom het betrouwbare kanaal en staat standaard aan.
 
 ---
 
+## 9b. Berichten en nieuws
+
+Bij je naam staat **Mijn berichten**: wat de app naar jou stuurde, als korte
+samenvatting. Enkel wat effectief aankwam; oudere regels verdwijnen vanzelf.
+
+Een beheerder kan **belangrijk nieuws** plaatsen: één mededeling tegelijk,
+bovenaan bij iedereen, met een einddatum. Ze kan met mail en melding meegaan of
+enkel in de app blijven staan. Iedereen kan ze zelf wegklikken; na de einddatum
+verdwijnt ze sowieso.
+
 ## 10. Onderhoud
 
 **Bij het begin van een seizoen**: het seizoen ophogen in het beheerpaneel, teams
 opnieuw laden, en aanvinken welke ploegen gevolgd worden. Nieuwe ploegen met een
 onbekende categorie staan bewust uit.
 
-**Elke maand**: de vorige maand afsluiten bij Vergoedingen club.
+**Elke maand**: de vorige maand afsluiten bij Vergoedingen Club.
 
 **Af en toe**: een backup nemen. Dat is één JSON-bestand met alles erin. Er is
 geen knop om hem terug te zetten — dat gebeurt handmatig via de D1-console, met
@@ -239,7 +264,7 @@ met wie het deed.
 Wat er nodig is om verder te kunnen:
 
 - Toegang tot het **Cloudflare-account** (Workers, D1, Zero Trust)
-- Toegang tot de **GitHub-repo**
+- Toegang tot de **GitHub-repo**: `github.com/jurgenvang/YOAssist`
 - Toegang tot het **Resend-account**, of een eigen account met hetzelfde
   geverifieerde domein
 - Beheerder zijn in YOAssist zelf
@@ -247,6 +272,6 @@ Wat er nodig is om verder te kunnen:
 De code staat onder de **EUPL v1.2**: vrij te gebruiken, aan te passen en door te
 geven onder dezelfde voorwaarden. Zie `LICENSE`.
 
-Voor wie eraan verder wil bouwen zijn er 1034 tests die zonder netwerk draaien
+Voor wie eraan verder wil bouwen zijn er 1233 tests die zonder netwerk draaien
 met `cd test && npm test`. Ze zijn er niet voor de vorm: verschillende ervan
 kwamen er nadat iets stil was misgegaan, en houden dat nu tegen.

@@ -1,3 +1,7 @@
+DROP TABLE IF EXISTS ouder_kind;
+DROP TABLE IF EXISTS mededeling_gezien;
+DROP TABLE IF EXISTS mededelingen;
+DROP TABLE IF EXISTS berichten;
 DROP TABLE IF EXISTS vergoeding_verwerkt;
 DROP TABLE IF EXISTS vergoeding_regels;
 DROP TABLE IF EXISTS afgesloten_maanden;
@@ -65,7 +69,7 @@ CREATE TABLE IF NOT EXISTS users (
   kanaal_push INTEGER NOT NULL DEFAULT 0,
   herinner_avond   INTEGER NOT NULL DEFAULT 1,
   herinner_ochtend INTEGER NOT NULL DEFAULT 1,
-  verborgen_tabs TEXT NOT NULL DEFAULT '',
+  verborgen_tabs TEXT NOT NULL DEFAULT 'log',
   gsm_delen   INTEGER NOT NULL DEFAULT 1
 );
 CREATE INDEX IF NOT EXISTS idx_users_naam
@@ -187,6 +191,44 @@ CREATE TABLE IF NOT EXISTS vergoeding_verwerkt (
   PRIMARY KEY (match_guid, user_email, maand)
 );
 CREATE INDEX IF NOT EXISTS idx_verwerkt_user ON vergoeding_verwerkt (user_email);
+CREATE TABLE IF NOT EXISTS ouder_kind (
+  ouder_email TEXT NOT NULL REFERENCES users (email) ON DELETE CASCADE,
+  kind_email  TEXT NOT NULL REFERENCES users (email) ON DELETE CASCADE,
+  gekoppeld   TEXT NOT NULL DEFAULT (datetime('now')),
+  door        TEXT NOT NULL,
+  PRIMARY KEY (ouder_email, kind_email)
+);
+CREATE INDEX IF NOT EXISTS idx_ouder_kind_ouder ON ouder_kind (ouder_email);
+CREATE INDEX IF NOT EXISTS idx_ouder_kind_kind ON ouder_kind (kind_email);
+CREATE TABLE IF NOT EXISTS berichten (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_email  TEXT NOT NULL,
+  soort       TEXT NOT NULL,
+  titel       TEXT NOT NULL,
+  tekst       TEXT,
+  match_guid  TEXT,
+  verstuurd   TEXT NOT NULL DEFAULT (datetime('now')),
+  kanalen     TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_berichten_user ON berichten (user_email, id DESC);
+CREATE INDEX IF NOT EXISTS idx_berichten_tijd ON berichten (verstuurd);
+CREATE TABLE IF NOT EXISTS mededelingen (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  tekst       TEXT NOT NULL,
+  link        TEXT,
+  link_tekst  TEXT,
+  geldig_tot  TEXT NOT NULL,
+  gezet_door  TEXT NOT NULL,
+  gezet_op    TEXT NOT NULL DEFAULT (datetime('now')),
+  actief      INTEGER NOT NULL DEFAULT 1
+);
+CREATE INDEX IF NOT EXISTS idx_mededeling_actief ON mededelingen (actief, geldig_tot);
+CREATE TABLE IF NOT EXISTS mededeling_gezien (
+  mededeling_id INTEGER NOT NULL REFERENCES mededelingen (id) ON DELETE CASCADE,
+  user_email    TEXT NOT NULL,
+  weggeklikt_op TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (mededeling_id, user_email)
+);
 CREATE TABLE IF NOT EXISTS logboek (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
   categorie    TEXT NOT NULL CHECK (categorie IN ('wedstrijd', 'aanduiding', 'beheer')),

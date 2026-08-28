@@ -3,6 +3,8 @@
 Beschikbaarheden en aanduidingen voor Youth Officials, gekoppeld aan de
 wedstrijdkalender van Basketbal Vlaanderen.
 
+Broncode: https://github.com/jurgenvang/YOAssist — uitgebracht onder de EUPL v1.2.
+
 Dit bestand beschrijft de code. Voor uitleg over hoe de app werkt en wat er
 nodig is om ze draaiende te houden: `YOASSIST-DOCUMENTATIE.md`.
 

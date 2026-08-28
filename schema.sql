@@ -108,7 +108,11 @@ CREATE TABLE IF NOT EXISTS users (
   -- Komma-gescheiden lijst van tabbladen die deze gebruiker niet wil zien.
   -- Een persoonlijke voorkeur, geen rechten: de backend blijft weigeren wat
   -- iemand niet mag, ongeacht wat hier staat.
-  verborgen_tabs TEXT NOT NULL DEFAULT '',
+  --
+  -- Het logboek staat standaard uit. Het is een controle-instrument dat je
+  -- opent wanneer je iets wil nakijken, geen dagelijks scherm — en een tabblad
+  -- dat je zelden gebruikt kost elke dag ruimte op een telefoon.
+  verborgen_tabs TEXT NOT NULL DEFAULT 'log',
   -- Of het gsm-nummer zichtbaar mag zijn voor wie samen op dezelfde wedstrijd
   -- staat. Beheerders zien het altijd; dit gaat enkel over collega's onderling.
   -- Staat standaard aan, want elkaar kunnen bereiken is het punt.
@@ -349,6 +353,93 @@ CREATE TABLE IF NOT EXISTS vergoeding_verwerkt (
 );
 
 CREATE INDEX IF NOT EXISTS idx_verwerkt_user ON vergoeding_verwerkt (user_email);
+
+
+
+-- ---------------------------------------------------------------------------
+-- ouder_kind: wie mag namens wie handelen.
+--
+-- Een aparte tabel en geen kolom op `users`, omdat een kind meerdere ouders kan
+-- hebben (gescheiden ouders die allebei willen invullen) en een ouder meerdere
+-- kinderen.
+--
+-- Het kind blijft een gewone rij in `users`, met alles wat daarbij hoort:
+-- beschikbaarheden, aanduidingen, een eigen vergoedingsoverzicht. Krijgt het
+-- later een eigen e-mailadres, dan hoeft er niets verplaatst te worden.
+--
+-- Enkel een beheerder maakt deze koppeling. Zou een ouder ze zelf kunnen
+-- aanvragen, dan kan iemand een willekeurig kind aan zichzelf hangen.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ouder_kind (
+  ouder_email TEXT NOT NULL REFERENCES users (email) ON DELETE CASCADE,
+  kind_email  TEXT NOT NULL REFERENCES users (email) ON DELETE CASCADE,
+  gekoppeld   TEXT NOT NULL DEFAULT (datetime('now')),
+  door        TEXT NOT NULL,
+  PRIMARY KEY (ouder_email, kind_email)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ouder_kind_ouder ON ouder_kind (ouder_email);
+CREATE INDEX IF NOT EXISTS idx_ouder_kind_kind ON ouder_kind (kind_email);
+
+-- ---------------------------------------------------------------------------
+-- berichten: wat er naar een gebruiker is gestuurd.
+--
+-- Een samenvatting, geen kopie van de mailtekst. Die tekst staat al in de
+-- templates; hier bewaren zou hem dubbel opslaan en verouderd laten raken zodra
+-- een wedstrijd verschuift. De verwijzing naar de wedstrijd blijft wel kloppen.
+--
+-- Enkel wat effectief verstuurd is. Mislukte pogingen horen in het logboek, niet
+-- in het overzicht van een official — die kan er toch niets mee.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS berichten (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_email  TEXT NOT NULL,
+  soort       TEXT NOT NULL,        -- aanduiding, vrijgave, herinnering, probleem, nieuws
+  titel       TEXT NOT NULL,
+  tekst       TEXT,                 -- korte samenvatting, niet de volledige mail
+  match_guid  TEXT,
+  verstuurd   TEXT NOT NULL DEFAULT (datetime('now')),
+  kanalen     TEXT                  -- 'mail', 'push' of 'mail,push'
+);
+
+CREATE INDEX IF NOT EXISTS idx_berichten_user ON berichten (user_email, id DESC);
+CREATE INDEX IF NOT EXISTS idx_berichten_tijd ON berichten (verstuurd);
+
+-- ---------------------------------------------------------------------------
+-- mededelingen: het belangrijke nieuws.
+--
+-- Eén actieve rij tegelijk; een nieuwe vervangt de vorige als banner. De oude
+-- blijft wel in `berichten` staan bij wie ze toen kreeg — daarom een aparte
+-- tabel en geen instelling.
+--
+-- `geldig_tot` is een echt veld en geen aan/uit-vlag: na dat moment verdwijnt
+-- de banner vanzelf, ook zonder dat iemand ze wegklikte.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS mededelingen (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  tekst       TEXT NOT NULL,
+  link        TEXT,
+  link_tekst  TEXT,
+  geldig_tot  TEXT NOT NULL,
+  gezet_door  TEXT NOT NULL,
+  gezet_op    TEXT NOT NULL DEFAULT (datetime('now')),
+  actief      INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE INDEX IF NOT EXISTS idx_mededeling_actief ON mededelingen (actief, geldig_tot);
+
+-- ---------------------------------------------------------------------------
+-- mededeling_gezien: wie welke mededeling heeft weggeklikt.
+--
+-- Per persoon, want wegklikken is een persoonlijke handeling. Verdwijnt mee met
+-- de mededeling zelf.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS mededeling_gezien (
+  mededeling_id INTEGER NOT NULL REFERENCES mededelingen (id) ON DELETE CASCADE,
+  user_email    TEXT NOT NULL,
+  weggeklikt_op TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (mededeling_id, user_email)
+);
 
 -- ---------------------------------------------------------------------------
 -- logboek: één chronologisch spoor van alles wat er gebeurt.
