@@ -1,6 +1,6 @@
 # YOAssist — hoe het werkt
 
-Versie 1.7.1
+Versie 1.8.0
 
 Dit document legt uit wat YOAssist doet, waar het draait en wat er nodig is om
 het draaiende te houden. Bedoeld voor wie de app beheert, en voor wie hem ooit
@@ -191,6 +191,45 @@ De ouder ziet bovenaan een keuzelijst: zichzelf, of een van zijn kinderen.
 Krijgt het kind later een eigen e-mailadres, dan blijft alles staan — enkel de
 aanmelding verandert.
 
+### Welk e-mailadres voor een kind zonder eigen mailbox
+
+`email` is de sleutel van elke gebruiker in YOAssist; twee accounts met
+hetzelfde adres kan niet. Heeft een kind geen eigen mailbox, dan zijn er twee
+manieren om toch een uniek adres te krijgen:
+
+- **Een plusadres**, als de mailprovider van de ouder dat ondersteunt (Gmail,
+  Outlook.com, en de meeste moderne providers wel): `papa+jan@gmail.com` en
+  `papa+pieter@gmail.com`. Mail naar zo'n adres komt gewoon bij de ouder terecht.
+- **Een fictief adres op het eigen domein**, bijvoorbeeld `jan@yoassist.org`.
+  Hoeft geen echte mailbox te zijn; het moet enkel uniek zijn in de
+  gebruikerslijst.
+
+Beide werken enkel zolang het kind niet zelf inlogt — de ouder doet alles via de
+keuzelijst in de kopbalk. Zulke adressen horen dus **niet** in de Access-policy
+in Zero Trust; daar staat enkel het echte adres van de ouder, want alleen hij
+meldt zich aan.
+
+Gaat er ooit toch een bericht naar zo'n fictief adres (een aanduiding, een
+herinnering), dan komt die mail nergens aan — er is immers geen mailbox. Dat
+breekt niets; het bericht staat wel in Mijn berichten wanneer de ouder als het
+kind is aangemeld, ongeacht of de mail effectief aankwam.
+
+### Stap voor stap koppelen
+
+1. Zorg dat het kind als gewone gebruiker in de lijst staat (Beheer →
+   Gebruikers → Gebruiker toevoegen), met een adres zoals hierboven.
+2. Zorg dat de ouder er ook in staat — ook als hij zelf niet fluit, want de
+   koppeling gaat tussen twee bestaande accounts.
+3. Zoek het kind in de lijst en klik op het knopje **ouder** ernaast.
+4. Vul het e-mailadres van de ouder in en bevestig.
+5. Herhaal voor een tweede kind indien nodig; hetzelfde ouderadres kan bij
+   meerdere kinderen ingevuld worden.
+
+Onder de naam van de ouder verschijnt voortaan 'vult in voor …'; onder elk kind
+'ingevuld door …'. Om te ontkoppelen: hetzelfde knopje opnieuw aanklikken — de
+app toont dan de bestaande koppeling en vraagt om bevestiging om ze weg te
+halen.
+
 ## 9. Meldingen op de telefoon
 
 Naast mail kan de app meldingen sturen naar het toestel. Elke gebruiker zet dat
@@ -214,6 +253,33 @@ Een beheerder kan **belangrijk nieuws** plaatsen: één mededeling tegelijk,
 bovenaan bij iedereen, met een einddatum. Ze kan met mail en melding meegaan of
 enkel in de app blijven staan. Iedereen kan ze zelf wegklikken; na de einddatum
 verdwijnt ze sowieso.
+
+## 9c. Van buitenaf lezen
+
+Twee manieren om aan de gegevens te komen zonder in de app te zitten. Allebei
+alleen lezen; er is geen enkel pad waarlangs iets van buitenaf gewijzigd kan
+worden.
+
+**Een API voor een andere toepassing.** `GET /api/extern/aanduidingen` geeft de
+komende wedstrijden met wie erop staat. Beveiligd met een sleutel in de
+`Authorization`-header, vergeleken met de secret `EXTERN_API_SLEUTEL` bij de
+Worker. Bedoeld voor een server die de gegevens ophaalt, bijvoorbeeld voor een
+widget op de clubwebsite.
+
+**Een persoonlijke agenda.** Elke official kan bij Mijn voorkeuren een eigen
+agendalink kopiëren en die in Google Agenda, Apple Kalender of Outlook
+abonneren. Daar zit de beveiliging in de link zelf — een lange, willekeurige
+sleutel — want een agenda-app kan geen header meesturen. Raakt die link bij
+iemand anders terecht, dan is er een knop om een nieuwe te maken; de oude stopt
+dan te werken.
+
+De agenda toont enkel wedstrijden die je effectief fluit, geen
+beschikbaarheden. Wordt een aanduiding vrijgegeven of verschuift een wedstrijd,
+dan is dat bij de volgende ophaling verwerkt. Let op: agenda-apps verversen zo'n
+abonnement doorgaans pas na enkele uren tot een dag, nooit onmiddellijk.
+
+**Namen.** Standaard tonen beide alleen initialen. Volledige namen is een
+instelling die een beheerder aanzet bij Beheer.
 
 ## 10. Onderhoud
 
@@ -267,6 +333,9 @@ Wat er nodig is om verder te kunnen:
 - Toegang tot de **GitHub-repo**: `github.com/jurgenvang/YOAssist`
 - Toegang tot het **Resend-account**, of een eigen account met hetzelfde
   geverifieerde domein
+- De secrets bij de Worker: `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`,
+  `RESEND_API_KEY`, `VAPID_PUBLIEK`, `VAPID_PRIVE`, `VAPID_CONTACT`, en
+  `EXTERN_API_SLEUTEL` als de externe API gebruikt wordt
 - Beheerder zijn in YOAssist zelf
 
 De code staat onder de **EUPL v1.2**: vrij te gebruiken, aan te passen en door te

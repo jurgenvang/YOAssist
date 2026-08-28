@@ -4,7 +4,7 @@
   "type": "module",
   "description": "Testgereedschap, bewust NIET in de hoofdmap: staat er een package.json naast public/, dan draait Cloudflare Pages een npm-installatie voor een app die geen buildstap heeft.",
   "scripts": {
-    "test": "node venster.test.mjs && node csv.test.mjs && node telefoon.test.mjs && node frontend.test.mjs && node push.test.mjs && node berichten.test.mjs && node namens.test.mjs && node sync.test.mjs && node zicht.test.mjs && node worker.test.mjs && node domein.test.mjs && node beheer.test.mjs && node aanduiding.test.mjs && node planner.test.mjs && node mail.test.mjs && node auto.test.mjs && node mailer.test.mjs && node wedstrijden.test.mjs && node vrijgeven.test.mjs && node logboek.test.mjs && node reset.test.mjs && node backup.test.mjs && node vergoeding.test.mjs"
+    "test": "node venster.test.mjs && node csv.test.mjs && node telefoon.test.mjs && node frontend.test.mjs && node push.test.mjs && node berichten.test.mjs && node extern.test.mjs && node namens.test.mjs && node sync.test.mjs && node zicht.test.mjs && node worker.test.mjs && node domein.test.mjs && node beheer.test.mjs && node aanduiding.test.mjs && node planner.test.mjs && node mail.test.mjs && node auto.test.mjs && node mailer.test.mjs && node wedstrijden.test.mjs && node vrijgeven.test.mjs && node logboek.test.mjs && node reset.test.mjs && node backup.test.mjs && node vergoeding.test.mjs"
   },
   "devDependencies": {
     "better-sqlite3": "^13.0.3"

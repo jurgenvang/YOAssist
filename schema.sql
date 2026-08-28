@@ -33,6 +33,10 @@ INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('facturatie_ontvangers'
 -- Mogelijke waarden: pin, google, apple, microsoft, github
 INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('aanmeld_methodes', 'pin');
 
+-- Toont de externe API en de agendafeed initialen (standaard) of volledige
+-- namen. Mogelijke waarden: 'initialen', 'volledig'.
+INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('extern_namen', 'initialen');
+
 
 -- ---------------------------------------------------------------------------
 -- categorieen: de drieletterige code uit de ploeg-GUID (BVBL1125J16  1 -> J16)
@@ -116,7 +120,12 @@ CREATE TABLE IF NOT EXISTS users (
   -- Of het gsm-nummer zichtbaar mag zijn voor wie samen op dezelfde wedstrijd
   -- staat. Beheerders zien het altijd; dit gaat enkel over collega's onderling.
   -- Staat standaard aan, want elkaar kunnen bereiken is het punt.
-  gsm_delen   INTEGER NOT NULL DEFAULT 1
+  gsm_delen   INTEGER NOT NULL DEFAULT 1,
+  -- Voor de persoonlijke agendafeed (.ics). Leeg tot iemand voor het eerst op
+  -- 'Kopieer mijn agenda-link' klikt; dan pas wordt hij aangemaakt. De
+  -- beveiliging zit in deze lange, willekeurige waarde zelf, want een
+  -- agenda-app kan geen header meesturen zoals de externe API dat wel kan.
+  agenda_sleutel TEXT
 );
 
 -- Officials sorteer je op achternaam. Tussenvoegsels ('Van der Elst') horen bij
@@ -399,7 +408,11 @@ CREATE TABLE IF NOT EXISTS berichten (
   tekst       TEXT,                 -- korte samenvatting, niet de volledige mail
   match_guid  TEXT,
   verstuurd   TEXT NOT NULL DEFAULT (datetime('now')),
-  kanalen     TEXT                  -- 'mail', 'push' of 'mail,push'
+  kanalen     TEXT,                 -- 'mail', 'push' of 'mail,push'
+  -- Pas gezet bij het individueel aanklikken van een bericht, niet automatisch
+  -- bij het openen of sluiten van het paneel — zo kan iemand eerst scannen
+  -- zonder dat de stipjes al verdwijnen.
+  gelezen_op  TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_berichten_user ON berichten (user_email, id DESC);

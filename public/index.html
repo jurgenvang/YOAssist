@@ -310,6 +310,23 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
   border: 1px solid #c5d0e0; border-radius: 6px; background: #fff; color: var(--inkt);
 }
 
+/* Rechtstreeks klikbaar, geen omweg via het naammenu. Enkel zichtbaar als er
+   iets te tonen valt, anders staat er een leeg icoontje in de weg. */
+.envelop-knop {
+  position: fixed; top: .6rem; right: .6rem; z-index: 40;
+  background: rgba(0,0,0,.35); border: 0; border-radius: 999px;
+  width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
+  color: #fff; cursor: pointer;
+}
+.envelop-knop[hidden] { display: none; }
+.envelop-teller {
+  position: absolute; top: -2px; right: -2px; min-width: 17px; height: 17px;
+  border-radius: 999px; background: var(--rood); color: #fff;
+  font-size: .66rem; font-weight: 700; line-height: 17px; text-align: center;
+  padding: 0 3px; box-shadow: 0 0 0 2px var(--inkt);
+}
+.envelop-teller[hidden] { display: none; }
+
 .mededeling {
   display: flex; align-items: flex-start; gap: .7rem;
   background: #fdf4e0; color: var(--inkt); border-bottom: 1px solid #f0dcae;
@@ -325,6 +342,31 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
 .sluit-klein:hover { color: var(--inkt); }
 
 /* ---- Mijn berichten ----------------------------------------------------- */
+.bericht-filters { display: flex; gap: .35rem; flex-wrap: wrap; margin-bottom: .6rem; }
+.chip-filter {
+  border: 1px solid var(--lijn); background: #fff; color: var(--grijs);
+  border-radius: 999px; padding: .25rem .6rem; font-size: .74rem; cursor: pointer;
+}
+.chip-filter.aan { background: var(--inkt); color: #fff; border-color: var(--inkt); }
+
+.bericht {
+  cursor: pointer; position: relative;
+  transition: transform .15s ease, opacity .15s ease;
+}
+.bericht.ongelezen { background: #fdfaf1; border-color: #f0e2bb; }
+.bericht-stip {
+  display: inline-block; width: 7px; height: 7px; border-radius: 999px;
+  background: var(--amber); flex-shrink: 0;
+}
+.bericht-weg {
+  margin-left: auto; background: none; border: 0; color: var(--grijs);
+  font-size: 1.1rem; line-height: 1; padding: 0 .15rem; cursor: pointer; flex-shrink: 0;
+}
+.bericht-weg:hover { color: var(--rood); }
+/* Wegvegen op mobiel: horizontaal slepen laat het bericht meebewegen en bij
+   voldoende afstand loslaten verwijdert het, net als in een e-mail-app. */
+.bericht.wordt-weggeveegd { opacity: 0; transform: translateX(-100%); }
+
 .bericht {
   background: var(--kaart); border: 1px solid var(--lijn); border-left: 3px solid var(--lijn);
   border-radius: 8px; padding: .6rem .75rem; margin-bottom: .4rem; box-shadow: var(--schaduw);
@@ -784,6 +826,11 @@ select {
     <select id="namens-keuze"></select>
   </div>
 
+  <button class="envelop-knop" id="envelop-knop" title="Mijn berichten" hidden>
+    ${'<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M3 6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6zm2 0l7 5 7-5H5zm0 2.2V18h14V8.2l-7 5-7-5z"/></svg>'}
+    <span class="envelop-teller" id="envelop-teller" hidden>0</span>
+  </button>
+
   <div class="mededeling" id="mededeling" hidden>
     <span id="mededeling-tekst"></span>
     <button class="sluit-klein" id="mededeling-weg" aria-label="Wegklikken">&times;</button>
@@ -1137,6 +1184,11 @@ async function laadHoofd() {
     pasKijkstandToe();
     pasNamensbalkToe();
     laadMededeling();
+    verversEnvelop();
+
+    if (new URLSearchParams(location.search).get('open') === 'berichten') {
+      openBerichten();
+    }
 
     if (data.clubKeuze) {
       toonClubKeuze(data.clubKeuze, ik.isAdmin);
@@ -2465,9 +2517,26 @@ function pasTabbalkToe() {
 async function laadVoorkeuren() {
   try {
     staat.voorkeuren = await api('/api/voorkeuren');
-    toonVoorkeuren(staat.voorkeuren);
+    await toonVoorkeuren(staat.voorkeuren);
   } catch (err) {
     $('voorkeur-inhoud').innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+  }
+}
+
+/**
+ * Is er op dít toestel een werkend browserabonnement? Dit is de bron van
+ * waarheid voor de meldingenschakelaar — niet de voorkeur in de databank, die
+ * enkel zegt wat iemand ooit wilde en niet of het hier ooit gelukt is.
+ */
+async function ditToestelHeeftAbonnement() {
+  if (!pushMogelijk()) return null;
+  try {
+    const registratie = await navigator.serviceWorker.getRegistration('/sw.js');
+    if (!registratie) return null;
+    const abonnement = await registratie.pushManager.getSubscription();
+    return abonnement;
+  } catch {
+    return null;
   }
 }
 
@@ -2488,7 +2557,7 @@ function pushMogelijk() {
   return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 }
 
-function toonVoorkeuren(v) {
+async function toonVoorkeuren(v) {
   const rij = (sleutel, titel, uitleg, aan, uit = false) => `
     <div class="keuzerij">
       <span class="tekst"><b>${titel}</b><small>${uitleg}</small></span>
@@ -2499,6 +2568,10 @@ function toonVoorkeuren(v) {
 
   const pushKan = pushMogelijk() && v.pushBeschikbaar;
   const toestemming = 'Notification' in window ? Notification.permission : 'default';
+  // Het echte abonnement van dit toestel, niet de voorkeur in de databank.
+  // Die twee kunnen uiteenlopen: iemand kan 'ja' hebben aangevinkt zonder dat
+  // dit specifieke toestel ooit werkelijk is ingeschreven.
+  const ditAbonnement = pushKan ? await ditToestelHeeftAbonnement() : null;
 
   let pushUitleg = 'Meldingen op dit toestel.';
   if (!v.pushBeschikbaar) pushUitleg = 'Nog niet ingesteld door de beheerder.';
@@ -2517,12 +2590,10 @@ function toonVoorkeuren(v) {
     <section class="blok">
       <h3>Hoe wil je bericht krijgen</h3>
       ${rij('mail', 'E-mail', 'Het betrouwbare kanaal. Blijft best aan staan.', v.mail)}
-      ${rij('push', 'Meldingen', pushUitleg, v.push, !pushKan || toestemming === 'denied')}
-      ${toestellen ? `<p class="hint" style="margin:.7rem 0 0">Toestellen met meldingen:</p>${toestellen}` : ''}
-      ${pushKan && !v.push
-        ? '<button class="knop breed zacht" id="push-aan">Meldingen op dit toestel aanzetten</button>'
-        : ''}
-      ${!v.push && opIphone() && !alsApp()
+      ${rij('push', 'Meldingen op dit toestel', pushUitleg, Boolean(ditAbonnement),
+            !pushKan || toestemming === 'denied')}
+      ${toestellen ? `<p class="hint" style="margin:.7rem 0 0">Ook actief op:</p>${toestellen}` : ''}
+      ${!ditAbonnement && opIphone() && !alsApp()
         ? `<div class="melding let" style="margin-top:.5rem">
              <b>Op een iPhone eerst dit</b><br>
              Meldingen werken pas als YOAssist op je beginscherm staat. Tik in Safari
@@ -2547,6 +2618,19 @@ function toonVoorkeuren(v) {
       <div id="v-gsm-melding"></div>
       ${rij('gsmDelen', 'Deel met wie ik samen fluit',
             'Alleen bij wedstrijden waar jullie allebei op staan.', v.gsmDelen)}
+    </section>
+
+    <section class="blok">
+      <h3>Agenda</h3>
+      <p class="hint">Neem je wedstrijden op in Google Agenda, Apple Kalender of
+        Outlook. Enkel wat je effectief fluit, dus geen 'misschien'. De
+        agenda-app ververst dit zelf, meestal binnen een paar uur — niet
+        onmiddellijk.</p>
+      <button class="knop breed zacht" id="agenda-link">Kopieer mijn agenda-link</button>
+      <button class="knop zacht" id="agenda-vernieuw" style="margin-top:.4rem">
+        Nieuwe link (oude stopt te werken)
+      </button>
+      <div id="agenda-melding"></div>
     </section>
 
     <section class="blok">
@@ -2591,6 +2675,18 @@ function toonVoorkeuren(v) {
     </section>`;
 
   document.querySelectorAll('[data-voorkeur]').forEach((vak) => {
+    // 'push' is geen gewone databankvoorkeur: aan- of afzetten moet de
+    // browser echt (de-)abonneren, niet enkel een veld patchen.
+    if (vak.dataset.voorkeur === 'push') {
+      vak.onchange = async () => {
+        vak.disabled = true;
+        if (vak.checked) await zetPushAan(v.vapidPubliek);
+        else await zetPushUit();
+        vak.disabled = false;
+      };
+      return;
+    }
+
     vak.onchange = async () => {
       vak.disabled = true;
       try {
@@ -2619,9 +2715,6 @@ function toonVoorkeuren(v) {
     };
   });
 
-  const aanKnop = $('push-aan');
-  if (aanKnop) aanKnop.onclick = () => zetPushAan(v.vapidPubliek);
-
   document.querySelectorAll('[data-tab]').forEach((vak) => {
     vak.onchange = async () => {
       const verborgen = [...document.querySelectorAll('[data-tab]')]
@@ -2647,6 +2740,30 @@ function toonVoorkeuren(v) {
     // Even wachten tot het paneel dicht is, anders wijst het gat naar iets
     // dat achter de overlay zit.
     setTimeout(() => startRondleiding(welke), 250);
+  };
+
+  $('agenda-link').onclick = async () => {
+    const doel = $('agenda-melding');
+    try {
+      const r = await api('/api/voorkeuren/agenda-sleutel', { method: 'POST' });
+      await navigator.clipboard.writeText(`${location.origin}${r.url}`);
+      doel.innerHTML = '<div class="melding ok">Gekopieerd. Plak dit adres bij "abonneren op een ' +
+        'kalender" in je agenda-app.</div>';
+    } catch (err) {
+      doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+    }
+  };
+
+  $('agenda-vernieuw').onclick = async () => {
+    const doel = $('agenda-melding');
+    if (!confirm('De oude link stopt dan te werken. Doorgaan?')) return;
+    try {
+      const r = await api('/api/voorkeuren/agenda-sleutel/vernieuw', { method: 'POST' });
+      await navigator.clipboard.writeText(`${location.origin}${r.url}`);
+      doel.innerHTML = '<div class="melding ok">Nieuwe link gekopieerd.</div>';
+    } catch (err) {
+      doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+    }
   };
 
   $('v-gsm-bewaar').onclick = async () => {
@@ -2734,6 +2851,31 @@ async function zetPushAan(vapidPubliek) {
   } catch (err) {
     melding.innerHTML = `<div class="melding fout">Meldingen aanzetten lukte niet:
       ${tekst(err.message)}</div>`;
+  }
+}
+
+/**
+ * Meldingen uitzetten op dit toestel: het browserabonnement opzeggen én het
+ * bij de server verwijderen. Beide, in die volgorde — anders blijft de
+ * browser meldingen ontvangen terwijl de server denkt dat het toestel weg is,
+ * of omgekeerd blijft de server iets aanroepen dat niet meer bestaat.
+ */
+async function zetPushUit() {
+  const melding = $('voorkeur-melding');
+  try {
+    const registratie = await navigator.serviceWorker.getRegistration('/sw.js');
+    const abonnement = registratie && await registratie.pushManager.getSubscription();
+
+    if (abonnement) {
+      await api(`/api/push/abonneer?endpoint=${encodeURIComponent(abonnement.endpoint)}`,
+        { method: 'DELETE' }).catch(() => {});
+      await abonnement.unsubscribe();
+    }
+
+    melding.innerHTML = '<div class="melding ok">Meldingen staan uit op dit toestel.</div>';
+    await laadVoorkeuren();
+  } catch (err) {
+    melding.innerHTML = `<div class="melding fout">Uitzetten lukte niet: ${tekst(err.message)}</div>`;
   }
 }
 
@@ -2980,6 +3122,16 @@ function toonPaneel() {
     </section>
 
     <section class="blok">
+      <h3 data-vouw="beheer-extern">Extern lezen</h3>
+      <p class="hint">Namen in de externe API en de agendafeed van officials.</p>
+      <select id="extern-namen">
+        <option value="initialen">Initialen (A.A.)</option>
+        <option value="volledig">Volledige naam</option>
+      </select>
+      <div id="extern-namen-melding"></div>
+    </section>
+
+    <section class="blok">
       <h3 data-vouw="beheer-nieuws">Belangrijk nieuws</h3>
       <p class="hint">Eén mededeling tegelijk, bovenaan bij iedereen. Ze verdwijnt
         vanzelf op het moment dat je opgeeft, of eerder als iemand ze wegklikt.</p>
@@ -3133,7 +3285,20 @@ function bindPaneel() {
   laadVrijgeven();
   laadOntvangers();
   laadNieuws();
+  laadExternNamen();
   laadBackup();
+
+  $('extern-namen').onchange = async () => {
+    try {
+      await api('/api/admin/extern-namen', {
+        method: 'POST',
+        body: JSON.stringify({ waarde: $('extern-namen').value }),
+      });
+      toast('Bewaard');
+    } catch (err) {
+      toast(err.message);
+    }
+  };
 
   $('nieuws-zet').onclick = async () => {
     const doel = $('nieuws-melding');
@@ -3387,6 +3552,30 @@ $('berichten-sluit').addEventListener('click', sluitBerichten);
 $('berichten-overlay').addEventListener('click', (e) => {
   if (e.target === $('berichten-overlay')) sluitBerichten();
 });
+$('envelop-knop').addEventListener('click', openBerichten);
+
+/** Enkel de teller, licht genoeg om los van het paneel te verversen. */
+async function verversEnvelop() {
+  try {
+    const r = await api('/api/berichten/ongelezen');
+    const teller = $('envelop-teller');
+    $('envelop-knop').hidden = false;
+    if (r.ongelezen > 0) {
+      teller.textContent = r.ongelezen > 99 ? '99+' : String(r.ongelezen);
+      teller.hidden = false;
+    } else {
+      teller.hidden = true;
+    }
+  } catch { /* zonder teller werkt het icoontje nog gewoon als knop */ }
+}
+
+const BERICHT_FILTERS = [
+  ['alles', 'Alles'],
+  ['aanduiding', 'Aanduidingen'],
+  ['vrijgave', 'Vrijgaves'],
+  ['herinnering', 'Herinneringen'],
+  ['nieuws', 'Nieuws'],
+];
 
 async function openBerichten() {
   $('berichten-overlay').setAttribute('open', '');
@@ -3394,18 +3583,42 @@ async function openBerichten() {
   $('berichten-inhoud').innerHTML = '<div class="leeg"><span class="spinner"></span> Laden…</div>';
 
   try {
-    const data = await api('/api/berichten');
+    staat.berichten = (await api('/api/berichten')).berichten;
+    staat.berichtenFilter = staat.berichtenFilter ?? 'alles';
+    tekenBerichten();
+  } catch (err) {
+    $('berichten-inhoud').innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+  }
+}
 
-    if (data.aantal === 0) {
-      $('berichten-inhoud').innerHTML = `<div class="leeg">Je hebt nog geen berichten
-        gekregen.<br>Zodra je aangeduid wordt of er iets wijzigt, verschijnt het hier.</div>`;
-      return;
-    }
+function tekenBerichten() {
+  const alle = staat.berichten ?? [];
+  const filter = staat.berichtenFilter ?? 'alles';
+  const berichten = filter === 'alles' ? alle : alle.filter((b) => b.soort === filter);
+  const ongelezen = alle.filter((b) => !b.gelezen).length;
 
+  const filterbalk = `<div class="bericht-filters">${BERICHT_FILTERS
+    .filter(([sleutel]) => sleutel === 'alles' || alle.some((b) => b.soort === sleutel))
+    .map(([sleutel, naam]) => `<button class="chip-filter ${sleutel === filter ? 'aan' : ''}"
+        data-filter="${sleutel}">${tekst(naam)}</button>`).join('')}
+    ${ongelezen > 0
+      ? '<button class="mini" id="berichten-alles-gelezen" style="margin-left:auto">alles gelezen</button>'
+      : ''}</div>`;
+
+  if (alle.length === 0) {
+    $('berichten-inhoud').innerHTML = `<div class="leeg">Je hebt nog geen berichten
+      gekregen.<br>Zodra je aangeduid wordt of er iets wijzigt, verschijnt het hier.</div>`;
+    return;
+  }
+
+  if (berichten.length === 0) {
+    $('berichten-inhoud').innerHTML = filterbalk +
+      '<div class="leeg">Niets in deze categorie.</div>';
+  } else {
     let vorigeDag = null;
-    const delen = [];
+    const delen = [filterbalk];
 
-    for (const b of data.berichten) {
+    for (const b of berichten) {
       const dag = b.verstuurd.slice(0, 10);
       if (dag !== vorigeDag) {
         const d = ontleedDatum(dag);
@@ -3415,10 +3628,13 @@ async function openBerichten() {
       }
 
       delen.push(`
-        <article class="bericht ${tekst(b.soort)}">
+        <article class="bericht ${tekst(b.soort)} ${b.gelezen ? '' : 'ongelezen'}"
+                  data-bericht="${b.id}">
           <div class="bericht-kop">
+            ${b.gelezen ? '' : '<span class="bericht-stip" aria-hidden="true"></span>'}
             <span class="bericht-soort">${tekst(BERICHT_NAMEN[b.soort] ?? b.soort)}</span>
             <span class="bericht-tijd">${tekst(b.verstuurd.slice(11, 16))}</span>
+            <button class="bericht-weg" data-weg="${b.id}" title="Verwijderen" aria-label="Verwijderen">&times;</button>
           </div>
           <div class="bericht-titel">${tekst(b.titel)}</div>
           ${b.tekst ? `<div class="bericht-tekst">${tekst(b.tekst)}</div>` : ''}
@@ -3427,9 +3643,103 @@ async function openBerichten() {
     }
 
     $('berichten-inhoud').innerHTML = delen.join('');
-  } catch (err) {
-    $('berichten-inhoud').innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
   }
+
+  $('berichten-inhoud').querySelectorAll('[data-filter]').forEach((knop) => {
+    knop.onclick = () => {
+      staat.berichtenFilter = knop.dataset.filter;
+      tekenBerichten();
+    };
+  });
+
+  const allesKnop = $('berichten-alles-gelezen');
+  if (allesKnop) allesKnop.onclick = async () => {
+    try {
+      await api('/api/berichten/alles-gelezen', { method: 'PATCH' });
+      staat.berichten = staat.berichten.map((b) => ({ ...b, gelezen: true }));
+      tekenBerichten();
+      verversEnvelop();
+    } catch (err) {
+      toast(err.message);
+    }
+  };
+
+  // Pas gelezen bij het individueel aanklikken — niet automatisch bij het
+  // openen of sluiten van het paneel, zodat je eerst kan scannen zonder dat
+  // de stipjes meteen verdwijnen.
+  $('berichten-inhoud').querySelectorAll('[data-bericht]').forEach((el) => {
+    el.addEventListener('click', async (e) => {
+      if (e.target.closest('[data-weg]')) return;
+      const id = Number(el.dataset.bericht);
+      const bericht = staat.berichten.find((b) => b.id === id);
+      if (!bericht || bericht.gelezen) return;
+
+      bericht.gelezen = true;
+      el.classList.remove('ongelezen');
+      el.querySelector('.bericht-stip')?.remove();
+      verversEnvelop();
+
+      try {
+        await api(`/api/berichten/gelezen?id=${id}`, { method: 'PATCH' });
+      } catch { /* de stip blijft dan lokaal weg; volgend bezoek herstelt het wel */ }
+    });
+  });
+
+  // Wegvegen op mobiel: horizontaal slepen, en bij voldoende afstand loslaten
+  // verwijdert het bericht — hetzelfde gebaar als in de meeste mail-apps.
+  // Enkel bij een overwegend horizontale sleep reageren, anders vecht dit met
+  // het verticaal scrollen van de lijst.
+  $('berichten-inhoud').querySelectorAll('[data-bericht]').forEach((el) => {
+    let startX = null, startY = null, dx = 0;
+
+    el.addEventListener('touchstart', (e) => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      dx = 0;
+      el.style.transition = 'none';
+    }, { passive: true });
+
+    el.addEventListener('touchmove', (e) => {
+      if (startX === null) return;
+      const x = e.touches[0].clientX - startX;
+      const y = e.touches[0].clientY - startY;
+      if (Math.abs(y) > Math.abs(x)) return;   // eerder verticaal: laten scrollen
+      dx = x;
+      if (dx < 0) el.style.transform = `translateX(${dx}px)`;
+    }, { passive: true });
+
+    el.addEventListener('touchend', async () => {
+      el.style.transition = '';
+      el.style.transform = '';
+      if (dx < -90) {
+        const id = Number(el.dataset.bericht);
+        staat.berichten = staat.berichten.filter((b) => b.id !== id);
+        tekenBerichten();
+        verversEnvelop();
+        try {
+          await api(`/api/berichten?id=${id}`, { method: 'DELETE' });
+        } catch (err) {
+          toast(err.message);
+        }
+      }
+      startX = null;
+    });
+  });
+
+  $('berichten-inhoud').querySelectorAll('[data-weg]').forEach((knop) => {
+    knop.onclick = async (e) => {
+      e.stopPropagation();
+      const id = Number(knop.dataset.weg);
+      staat.berichten = staat.berichten.filter((b) => b.id !== id);
+      tekenBerichten();
+      verversEnvelop();
+      try {
+        await api(`/api/berichten?id=${id}`, { method: 'DELETE' });
+      } catch (err) {
+        toast(err.message);
+      }
+    };
+  });
 }
 
 function sluitBerichten() {
@@ -3545,6 +3855,25 @@ function openDocumenten() {
 function sluitDocumenten() {
   $('doc-overlay').removeAttribute('open');
   document.body.style.overflow = '';
+}
+
+/* --- Vanuit een melding rechtstreeks naar Mijn berichten --------------------
+   Twee gevallen: de app stond nog niet open (nieuw tabblad met ?open=berichten
+   in de URL), of stond al open (de service worker stuurt dan een boodschap in
+   plaats van de pagina te herladen, want dat voelt trager aan).
+------------------------------------------------------------------------- */
+if (new URLSearchParams(location.search).get('open') === 'berichten') {
+  // De opschoning van de URL wacht tot na het openen: anders verliest een
+  // eventuele herlaadbeurt tijdens het laden de aanwijzing.
+  window.addEventListener('DOMContentLoaded', () => {
+    history.replaceState(null, '', location.pathname);
+  });
+}
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', (e) => {
+    if (e.data?.type === 'open-berichten') openBerichten();
+  });
 }
 
 $('over-sluit').addEventListener('click', sluitOver);
@@ -3728,6 +4057,13 @@ async function laadNieuws() {
       }
     };
   } catch { /* zonder mededeling is er niets te tonen */ }
+}
+
+async function laadExternNamen() {
+  try {
+    const data = await api('/api/admin/mail');
+    $('extern-namen').value = data.externNamen ?? 'initialen';
+  } catch { /* dan blijft de standaard staan */ }
 }
 
 async function laadOntvangers() {

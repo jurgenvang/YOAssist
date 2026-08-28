@@ -49,7 +49,7 @@
 </div>
 <main>
 <h1>YOAssist — hoe het werkt</h1>
-<p>Versie 1.7.1</p>
+<p>Versie 1.8.0</p>
 <p>Dit document legt uit wat YOAssist doet, waar het draait en wat er nodig is om het draaiende te houden. Bedoeld voor wie de app beheert, en voor wie hem ooit overneemt.</p>
 <hr>
 <h2>1. Waarvoor het dient</h2>
@@ -108,6 +108,19 @@
 <p>Een ouder kan de beschikbaarheid van zijn kinderen opgeven. Het kind heeft een eigen account met eigen beschikbaarheden, aanduidingen en vergoedingsoverzicht; de ouder krijgt enkel het recht om er namens hem in te vullen.</p>
 <p>Een beheerder legt die koppeling in het gebruikersbeheer — een ouder kan ze niet zelf aanvragen, anders zou iemand een willekeurig kind aan zichzelf kunnen hangen. Meerdere ouders per kind kan; gescheiden ouders die allebei invullen past dus.</p>
 <p>De ouder ziet bovenaan een keuzelijst: zichzelf, of een van zijn kinderen. Krijgt het kind later een eigen e-mailadres, dan blijft alles staan — enkel de aanmelding verandert.</p>
+<h3>Welk e-mailadres voor een kind zonder eigen mailbox</h3>
+<p><code>email</code> is de sleutel van elke gebruiker in YOAssist; twee accounts met hetzelfde adres kan niet. Heeft een kind geen eigen mailbox, dan zijn er twee manieren om toch een uniek adres te krijgen:</p>
+<p>Outlook.com, en de meeste moderne providers wel): <code>papa+jan@gmail.com</code> en <code>papa+pieter@gmail.com</code>. Mail naar zo&#x27;n adres komt gewoon bij de ouder terecht.</p>
+<p>Hoeft geen echte mailbox te zijn; het moet enkel uniek zijn in de gebruikerslijst.</p>
+<ul><li><strong>Een plusadres</strong>, als de mailprovider van de ouder dat ondersteunt (Gmail,</li><li><strong>Een fictief adres op het eigen domein</strong>, bijvoorbeeld <code>jan@yoassist.org</code>.</li></ul>
+<p>Beide werken enkel zolang het kind niet zelf inlogt — de ouder doet alles via de keuzelijst in de kopbalk. Zulke adressen horen dus <strong>niet</strong> in de Access-policy in Zero Trust; daar staat enkel het echte adres van de ouder, want alleen hij meldt zich aan.</p>
+<p>Gaat er ooit toch een bericht naar zo&#x27;n fictief adres (een aanduiding, een herinnering), dan komt die mail nergens aan — er is immers geen mailbox. Dat breekt niets; het bericht staat wel in Mijn berichten wanneer de ouder als het kind is aangemeld, ongeacht of de mail effectief aankwam.</p>
+<h3>Stap voor stap koppelen</h3>
+<p>Gebruikers → Gebruiker toevoegen), met een adres zoals hierboven.</p>
+<p>koppeling gaat tussen twee bestaande accounts.</p>
+<p>meerdere kinderen ingevuld worden.</p>
+<ul><li>Zorg dat het kind als gewone gebruiker in de lijst staat (Beheer →</li><li>Zorg dat de ouder er ook in staat — ook als hij zelf niet fluit, want de</li><li>Zoek het kind in de lijst en klik op het knopje <strong>ouder</strong> ernaast.</li><li>Vul het e-mailadres van de ouder in en bevestig.</li><li>Herhaal voor een tweede kind indien nodig; hetzelfde ouderadres kan bij</li></ul>
+<p>Onder de naam van de ouder verschijnt voortaan &#x27;vult in voor …&#x27;; onder elk kind &#x27;ingevuld door …&#x27;. Om te ontkoppelen: hetzelfde knopje opnieuw aanklikken — de app toont dan de bestaande koppeling en vraagt om bevestiging om ze weg te halen.</p>
 <h2>9. Meldingen op de telefoon</h2>
 <p>Naast mail kan de app meldingen sturen naar het toestel. Elke gebruiker zet dat zelf aan bij Mijn voorkeuren.</p>
 <p><strong>Op een iPhone werkt dat alleen als de app op het beginscherm staat.</strong> Openen in Safari, tikken op het deelicoon, &quot;Zet op beginscherm&quot;, en de app daarna via dat icoon openen. Dat is een beperking van Apple, niet van YOAssist. Officials die nog geen meldingen hebben, krijgen die uitleg onderaan elke mail.</p>
@@ -116,6 +129,12 @@
 <h2>9b. Berichten en nieuws</h2>
 <p>Bij je naam staat <strong>Mijn berichten</strong>: wat de app naar jou stuurde, als korte samenvatting. Enkel wat effectief aankwam; oudere regels verdwijnen vanzelf.</p>
 <p>Een beheerder kan <strong>belangrijk nieuws</strong> plaatsen: één mededeling tegelijk, bovenaan bij iedereen, met een einddatum. Ze kan met mail en melding meegaan of enkel in de app blijven staan. Iedereen kan ze zelf wegklikken; na de einddatum verdwijnt ze sowieso.</p>
+<h2>9c. Van buitenaf lezen</h2>
+<p>Twee manieren om aan de gegevens te komen zonder in de app te zitten. Allebei alleen lezen; er is geen enkel pad waarlangs iets van buitenaf gewijzigd kan worden.</p>
+<p><strong>Een API voor een andere toepassing.</strong> <code>GET /api/extern/aanduidingen</code> geeft de komende wedstrijden met wie erop staat. Beveiligd met een sleutel in de <code>Authorization</code>-header, vergeleken met de secret <code>EXTERN_API_SLEUTEL</code> bij de Worker. Bedoeld voor een server die de gegevens ophaalt, bijvoorbeeld voor een widget op de clubwebsite.</p>
+<p><strong>Een persoonlijke agenda.</strong> Elke official kan bij Mijn voorkeuren een eigen agendalink kopiëren en die in Google Agenda, Apple Kalender of Outlook abonneren. Daar zit de beveiliging in de link zelf — een lange, willekeurige sleutel — want een agenda-app kan geen header meesturen. Raakt die link bij iemand anders terecht, dan is er een knop om een nieuwe te maken; de oude stopt dan te werken.</p>
+<p>De agenda toont enkel wedstrijden die je effectief fluit, geen beschikbaarheden. Wordt een aanduiding vrijgegeven of verschuift een wedstrijd, dan is dat bij de volgende ophaling verwerkt. Let op: agenda-apps verversen zo&#x27;n abonnement doorgaans pas na enkele uren tot een dag, nooit onmiddellijk.</p>
+<p><strong>Namen.</strong> Standaard tonen beide alleen initialen. Volledige namen is een instelling die een beheerder aanzet bij Beheer.</p>
 <h2>10. Onderhoud</h2>
 <p><strong>Bij het begin van een seizoen</strong>: het seizoen ophogen in het beheerpaneel, teams opnieuw laden, en aanvinken welke ploegen gevolgd worden. Nieuwe ploegen met een onbekende categorie staan bewust uit.</p>
 <p><strong>Elke maand</strong>: de vorige maand afsluiten bij Vergoedingen Club.</p>
@@ -133,7 +152,8 @@
 <h2>12. Als iemand het overneemt</h2>
 <p>Wat er nodig is om verder te kunnen:</p>
 <p>geverifieerde domein</p>
-<ul><li>Toegang tot het <strong>Cloudflare-account</strong> (Workers, D1, Zero Trust)</li><li>Toegang tot de <strong>GitHub-repo</strong>: <code>github.com/jurgenvang/YOAssist</code></li><li>Toegang tot het <strong>Resend-account</strong>, of een eigen account met hetzelfde</li><li>Beheerder zijn in YOAssist zelf</li></ul>
+<p><code>RESEND_API_KEY</code>, <code>VAPID_PUBLIEK</code>, <code>VAPID_PRIVE</code>, <code>VAPID_CONTACT</code>, en <code>EXTERN_API_SLEUTEL</code> als de externe API gebruikt wordt</p>
+<ul><li>Toegang tot het <strong>Cloudflare-account</strong> (Workers, D1, Zero Trust)</li><li>Toegang tot de <strong>GitHub-repo</strong>: <code>github.com/jurgenvang/YOAssist</code></li><li>Toegang tot het <strong>Resend-account</strong>, of een eigen account met hetzelfde</li><li>De secrets bij de Worker: <code>CF_ACCESS_TEAM_DOMAIN</code>, <code>CF_ACCESS_AUD</code>,</li><li>Beheerder zijn in YOAssist zelf</li></ul>
 <p>De code staat onder de <strong>EUPL v1.2</strong>: vrij te gebruiken, aan te passen en door te geven onder dezelfde voorwaarden. Zie <code>LICENSE</code>.</p>
 <p>Voor wie eraan verder wil bouwen zijn er 1233 tests die zonder netwerk draaien met <code>cd test &amp;&amp; npm test</code>. Ze zijn er niet voor de vorm: verschillende ervan kwamen er nadat iets stil was misgegaan, en houden dat nu tegen.</p>
 </main>

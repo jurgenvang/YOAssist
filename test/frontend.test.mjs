@@ -428,5 +428,40 @@ console.log('\n18. Namens een kind invullen');
   check('koppelen zit in het beheerscherm', /data-ouder="1"/.test(html), true);
 }
 
+console.log('\n19. Een melding opent rechtstreeks Mijn berichten');
+{
+  const sw = readFileSync(new URL('../public/sw.js', import.meta.url), 'utf8');
+
+  check('altijd naar berichten, niet naar de wedstrijd',
+    /const doel = '\/\?open=berichten'/.test(sw), true);
+  check('bij een al open tabblad: een boodschap sturen', /postMessage/.test(sw), true);
+  check('en dat gebeurt vóór focus, niet erna',
+    sw.indexOf('postMessage') < sw.indexOf("return venster.focus()"), true);
+
+  check('de app leest de parameter uit de URL',
+    /URLSearchParams\(location\.search\)\.get\('open'\)/.test(html), true);
+  check('en luistert naar de service worker als ze al open is',
+    /serviceWorker\.addEventListener\('message'/.test(html), true);
+  check('de URL wordt opgekuist na het openen', /history\.replaceState/.test(html), true);
+}
+
+console.log('\n20. V22: één schakelaar die het echte abonnement van dit toestel meet');
+{
+  check('toonVoorkeuren is async', /async function toonVoorkeuren/.test(html), true);
+  check('meet het echte abonnement', /ditToestelHeeftAbonnement/.test(html), true);
+  check('geen losse knop meer', /id="push-aan"/.test(html), false);
+
+  const koppeling = haalFunctie('bindPaneel') || html;
+  check('aan zet echt aan', /zetPushAan\(v\.vapidPubliek\)/.test(html), true);
+  check('uit zet echt af', /zetPushUit\(\)/.test(html), true);
+
+  const uitFn = haalFunctie('zetPushUit');
+  check('haalt het echte abonnement op', /getSubscription\(\)/.test(uitFn), true);
+  check('verwijdert het bij de server', /abonneer\?endpoint=/.test(uitFn), true);
+  check('en zegt het browserabonnement op', /abonnement\.unsubscribe\(\)/.test(uitFn), true);
+
+  check('de toestellenlijst blijft bestaan', /Ook actief op:/.test(html), true);
+}
+
 console.log(f === 0 ? '\n=== ALLE FRONTENDTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);
 process.exit(f ? 1 : 0);

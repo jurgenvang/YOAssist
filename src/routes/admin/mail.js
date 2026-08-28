@@ -140,3 +140,16 @@ export async function zetAanmeldMethodes({ request, env, user }) {
   await zetInstelling(env.DB, 'aanmeld_methodes', gekozen.join(','));
   return json({ methodes: gekozen });
 }
+
+/**
+ * POST /api/admin/extern-namen   { waarde: 'initialen' | 'volledig' }
+ *
+ * Bepaalt hoe namen getoond worden in de externe API en de agendafeed.
+ * Standaard initialen; volledige namen is een bewuste keuze van een beheerder.
+ */
+export async function zetExternNamen({ request, env, user }) {
+  const body = await leesJson(request);
+  const waarde = body.waarde === 'volledig' ? 'volledig' : 'initialen';
+  await zetInstelling(env.DB, 'extern_namen', waarde);
+  return json({ waarde });
+}

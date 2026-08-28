@@ -29,6 +29,7 @@ INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('mail_afzender', '');
 INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('mail_afzender_naam', 'YOAssist');
 INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('facturatie_ontvangers', '');
 INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('aanmeld_methodes', 'pin');
+INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('extern_namen', 'initialen');
 CREATE TABLE IF NOT EXISTS categorieen (
   code        TEXT PRIMARY KEY,
   label       TEXT NOT NULL,
@@ -70,7 +71,8 @@ CREATE TABLE IF NOT EXISTS users (
   herinner_avond   INTEGER NOT NULL DEFAULT 1,
   herinner_ochtend INTEGER NOT NULL DEFAULT 1,
   verborgen_tabs TEXT NOT NULL DEFAULT 'log',
-  gsm_delen   INTEGER NOT NULL DEFAULT 1
+  gsm_delen   INTEGER NOT NULL DEFAULT 1,
+  agenda_sleutel TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_users_naam
   ON users (achternaam COLLATE NOCASE, voornaam COLLATE NOCASE);
@@ -208,7 +210,8 @@ CREATE TABLE IF NOT EXISTS berichten (
   tekst       TEXT,
   match_guid  TEXT,
   verstuurd   TEXT NOT NULL DEFAULT (datetime('now')),
-  kanalen     TEXT
+  kanalen     TEXT,
+  gelezen_op  TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_berichten_user ON berichten (user_email, id DESC);
 CREATE INDEX IF NOT EXISTS idx_berichten_tijd ON berichten (verstuurd);

@@ -39,6 +39,7 @@ import * as facturatie from './routes/admin/facturatie.js';
 import { vergoeding } from './routes/vergoeding.js';
 import * as berichtenRoute from './routes/berichten.js';
 import * as mededelingRoute from './routes/admin/mededeling.js';
+import * as kalenderRoute from './routes/extern.js';
 
 // ---------------------------------------------------------------------------
 // Routetabel. beheer: true betekent dat de route alleen voor admins is.
@@ -55,6 +56,13 @@ const ROUTES = [
   { methode: 'GET',    pad: '/api/berichten',          handler: berichtenRoute.berichten },
   { methode: 'GET',    pad: '/api/mededeling',         handler: berichtenRoute.mededeling },
   { methode: 'POST',   pad: '/api/mededeling/wegklikken', handler: berichtenRoute.wegklikken },
+  { methode: 'PATCH',  pad: '/api/berichten/gelezen',       handler: berichtenRoute.markeerGelezen },
+  { methode: 'PATCH',  pad: '/api/berichten/alles-gelezen', handler: berichtenRoute.markeerAllesGelezen },
+  { methode: 'DELETE', pad: '/api/berichten',                handler: berichtenRoute.verwijder },
+  { methode: 'GET',    pad: '/api/berichten/ongelezen',      handler: berichtenRoute.ongelezen },
+  { methode: 'POST',   pad: '/api/voorkeuren/agenda-sleutel',        handler: kalenderRoute.maakAgendaSleutel },
+  { methode: 'POST',   pad: '/api/voorkeuren/agenda-sleutel/vernieuw', handler: kalenderRoute.vernieuwAgendaSleutel },
+  { methode: 'GET',    pad: '/api/extern/aanduidingen', handler: kalenderRoute.aanduidingen, publiek: true },
 
   { methode: 'GET',    pad: '/api/voorkeuren',         handler: voorkeuren.voorkeuren },
   { methode: 'PATCH',  pad: '/api/voorkeuren',         handler: voorkeuren.zetVoorkeuren },
@@ -122,6 +130,7 @@ const ROUTES = [
   { methode: 'POST',   pad: '/api/admin/users/ouder',  handler: gebruikers.koppelOuder,   beheer: true },
   { methode: 'DELETE', pad: '/api/admin/users/ouder',  handler: gebruikers.ontkoppelOuder, beheer: true },
   { methode: 'POST',   pad: '/api/admin/aanmeldmethodes', handler: mail.zetAanmeldMethodes, beheer: true },
+  { methode: 'POST',   pad: '/api/admin/extern-namen', handler: mail.zetExternNamen, beheer: true },
 
   { methode: 'GET',    pad: '/api/admin/mededeling',   handler: mededelingRoute.huidige, beheer: true },
   { methode: 'POST',   pad: '/api/admin/mededeling',   handler: mededelingRoute.zet,     beheer: true },
@@ -167,6 +176,21 @@ async function laadGebruiker(env, identiteit) {
 }
 
 async function behandelApi(request, env, ctx, url) {
+  // De agendafeed heeft een dynamisch pad (de sleutel zit erin) en kan dus
+  // niet op exacte padvergelijking matchen zoals de rest. Apart afgehandeld,
+  // en bewust zonder Cloudflare Access: een agenda-app kan zich niet aanmelden,
+  // de sleutel in de URL is hier de volledige beveiliging.
+  if (url.pathname.startsWith('/api/kalender/')) {
+    if (request.method !== 'GET') return fout(405, 'Methode niet toegestaan', 'Enkel GET.');
+    try {
+      return await kalenderRoute.kalender({ request, env, ctx, url });
+    } catch (err) {
+      if (err instanceof Response) return err;
+      console.error(`[YOAssist] ${request.method} ${url.pathname}:`, err);
+      return fout(500, 'Er ging iets mis', err.message);
+    }
+  }
+
   const kandidaten = ROUTES.filter((r) => r.pad === url.pathname);
 
   if (kandidaten.length === 0) {
@@ -183,6 +207,20 @@ async function behandelApi(request, env, ctx, url) {
         headers: { 'Content-Type': 'application/json', Allow: toegestaan, 'Cache-Control': 'no-store' },
       },
     );
+  }
+
+  // Routes met een eigen beveiliging (een sleutel in de header, bijvoorbeeld)
+  // slaan de Cloudflare Access-controle over. Dat is enkel de externe API:
+  // die is bedoeld voor een server-naar-server aanroep, niet voor een
+  // ingelogde persoon.
+  if (route.publiek) {
+    try {
+      return await route.handler({ request, env, ctx, url });
+    } catch (err) {
+      if (err instanceof Response) return err;
+      console.error(`[YOAssist] ${request.method} ${url.pathname}:`, err);
+      return fout(500, 'Er ging iets mis', err.message);
+    }
   }
 
   let identiteit;

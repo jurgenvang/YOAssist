@@ -225,5 +225,102 @@ console.log('\n10. Enkel in de app, zonder te versturen');
     (await vraag(env, '/api/berichten', { alsWie: 'ann@club.be' })).json.aantal, 0);
 }
 
+console.log('\n11. Gelezen/ongelezen (V23)');
+{
+  const env = nieuweEnv();
+  stil();
+  await vraag(env, '/api/admin/aanduiding',
+    { methode: 'POST', body: { matchGuid: 'M1', email: 'ann@club.be' } });
+
+  const eerst = await vraag(env, '/api/berichten', { alsWie: 'ann@club.be' });
+  check('nieuw bericht is ongelezen', eerst.json.berichten[0].gelezen, false);
+  check('en telt mee in de teller', eerst.json.ongelezen, 1);
+
+  const id = eerst.json.berichten[0].id;
+  const markeer = await vraag(env, `/api/berichten/gelezen?id=${id}`,
+    { methode: 'PATCH', alsWie: 'ann@club.be' });
+  check('gemarkeerd', markeer.json.gewijzigd, 1);
+
+  const daarna = await vraag(env, '/api/berichten', { alsWie: 'ann@club.be' });
+  check('nu gelezen', daarna.json.berichten[0].gelezen, true);
+  check('teller op nul', daarna.json.ongelezen, 0);
+
+  // Nogmaals markeren mag, maar verandert niets (was al gelezen).
+  const nogmaals = await vraag(env, `/api/berichten/gelezen?id=${id}`,
+    { methode: 'PATCH', alsWie: 'ann@club.be' });
+  check('nogmaals markeren doet niets', nogmaals.json.gewijzigd, 0);
+
+  // Iemand anders kan het bericht van Ann niet markeren.
+  const vreemd = await vraag(env, `/api/berichten/gelezen?id=${id}`,
+    { methode: 'PATCH', alsWie: 'bert@club.be' });
+  check('een ander kan het niet markeren', vreemd.json.gewijzigd, 0);
+}
+
+console.log('\n12. Alles als gelezen markeren');
+{
+  const env = nieuweEnv();
+  stil();
+  await vraag(env, '/api/admin/aanduiding',
+    { methode: 'POST', body: { matchGuid: 'M1', email: 'ann@club.be' } });
+  await vraag(env, '/api/admin/aanduiding?matchGuid=M1&email=ann@club.be', { methode: 'DELETE' });
+
+  const voor = await vraag(env, '/api/berichten', { alsWie: 'ann@club.be' });
+  check('twee ongelezen', voor.json.ongelezen, 2);
+
+  const alles = await vraag(env, '/api/berichten/alles-gelezen',
+    { methode: 'PATCH', alsWie: 'ann@club.be' });
+  check('allebei gewijzigd', alles.json.gewijzigd, 2);
+
+  const na = await vraag(env, '/api/berichten', { alsWie: 'ann@club.be' });
+  check('niets meer ongelezen', na.json.ongelezen, 0);
+
+  // Enkel de eigen berichten, niet die van een ander.
+  check('bert blijft ongemoeid',
+    (await vraag(env, '/api/berichten', { alsWie: 'bert@club.be' })).json.ongelezen, 0);
+}
+
+console.log('\n13. Wegvegen');
+{
+  const env = nieuweEnv();
+  stil();
+  await vraag(env, '/api/admin/aanduiding',
+    { methode: 'POST', body: { matchGuid: 'M1', email: 'ann@club.be' } });
+
+  const id = (await vraag(env, '/api/berichten',
+    { alsWie: 'ann@club.be' })).json.berichten[0].id;
+
+  const weg = await vraag(env, `/api/berichten?id=${id}`,
+    { methode: 'DELETE', alsWie: 'ann@club.be' });
+  check('verwijderd', weg.json.verwijderd, 1);
+
+  check('is echt weg', (await vraag(env, '/api/berichten',
+    { alsWie: 'ann@club.be' })).json.aantal, 0);
+
+  // Iemand anders kan het bericht van Ann niet verwijderen. Eerst vrijgeven,
+  // want de eerdere aanduiding staat nog steeds — die is nooit ingetrokken,
+  // enkel het bericht erover werd weggeveegd.
+  await vraag(env, '/api/admin/aanduiding?matchGuid=M1&email=ann@club.be', { methode: 'DELETE' });
+  await vraag(env, '/api/admin/aanduiding',
+    { methode: 'POST', body: { matchGuid: 'M1', email: 'ann@club.be' } });
+  const id2 = (await vraag(env, '/api/berichten',
+    { alsWie: 'ann@club.be' })).json.berichten[0].id;
+  const poging = await vraag(env, `/api/berichten?id=${id2}`,
+    { methode: 'DELETE', alsWie: 'bert@club.be' });
+  check('een ander kan het niet verwijderen', poging.json.verwijderd, 0);
+}
+
+console.log('\n14. De losse tellerroute');
+{
+  const env = nieuweEnv();
+  stil();
+  check('start op nul', (await vraag(env, '/api/berichten/ongelezen',
+    { alsWie: 'ann@club.be' })).json.ongelezen, 0);
+
+  await vraag(env, '/api/admin/aanduiding',
+    { methode: 'POST', body: { matchGuid: 'M1', email: 'ann@club.be' } });
+  check('telt na een aanduiding', (await vraag(env, '/api/berichten/ongelezen',
+    { alsWie: 'ann@club.be' })).json.ongelezen, 1);
+}
+
 console.log(f === 0 ? '\n=== ALLE BERICHTENTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);
 process.exit(f ? 1 : 0);
