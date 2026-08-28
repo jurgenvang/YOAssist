@@ -74,9 +74,10 @@ button { font: inherit; cursor: pointer; }
 /* De naam is zelf de menuknop. Twee naamloze icoontjes naast elkaar dwingen
    de gebruiker te raden welk van de twee hij nodig heeft; je eigen naam is de
    plek waar mensen hun eigen dingen verwachten. */
+.balk-info-wrap { position: relative; margin-left: auto; flex-shrink: 0; }
 .balk-info {
-  margin-left: auto; text-align: right; font-size: .78rem; line-height: 1.3;
-  color: #a8b0bb; background: transparent; border: 0; cursor: pointer;
+  text-align: right; font-size: .78rem;
+  line-height: 1.3; color: #a8b0bb; background: transparent; border: 0; cursor: pointer;
   padding: .3rem .5rem; border-radius: 8px; font-family: inherit;
   display: flex; align-items: center; gap: .4rem;
 }
@@ -310,25 +311,17 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
   border: 1px solid #c5d0e0; border-radius: 6px; background: #fff; color: var(--inkt);
 }
 
-/* Rechtstreeks klikbaar, geen omweg via het naammenu. Enkel zichtbaar als er
-   iets te tonen valt, anders staat er een leeg icoontje in de weg.
-   Staat gewoon ín de kopbalk, niet los boven de pagina geplakt: die balk houdt
-   zelf al rekening met de systeembalk van het toestel (batterij, klok, …).
-   Een losse 'position: fixed' bovenaan negeert dat en botst ermee. */
-.envelop-knop {
-  position: relative; flex-shrink: 0;
-  background: rgba(255,255,255,.12); border: 0; border-radius: 999px;
-  width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
-  color: #fff; cursor: pointer;
-}
-.envelop-knop[hidden] { display: none; }
-.envelop-teller {
-  position: absolute; top: -3px; right: -3px; min-width: 17px; height: 17px;
+/* Geen apart element in de kopbalk — dat brak af bij een lange naam of
+   clubnaam. In plaats daarvan een klein badge bovenop de bestaande naam-knop,
+   net als een notificatiebolletje op een app-icoon. Klik je op je naam, dan
+   zit Mijn berichten daar toch al in het menu. */
+.envelop-badge {
+  position: absolute; top: -3px; right: -3px; min-width: 16px; height: 16px;
   border-radius: 999px; background: var(--rood); color: #fff;
-  font-size: .66rem; font-weight: 700; line-height: 17px; text-align: center;
-  padding: 0 3px; box-shadow: 0 0 0 2px var(--inkt);
+  font-size: .62rem; font-weight: 700; line-height: 16px; text-align: center;
+  padding: 0 3px; box-shadow: 0 0 0 2px var(--inkt); pointer-events: none;
 }
-.envelop-teller[hidden] { display: none; }
+.envelop-badge[hidden] { display: none; }
 
 .mededeling {
   display: flex; align-items: flex-start; gap: .7rem;
@@ -807,11 +800,10 @@ select {
 <header class="balk">
   <div class="balk-rij">
     <div class="merk">YO<span class="accent">Assist</span><span class="versie" id="versie"></span></div>
-    <button class="envelop-knop" id="envelop-knop" title="Mijn berichten" hidden>
-      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M3 6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6zm2 0l7 5 7-5H5zm0 2.2V18h14V8.2l-7 5-7-5z"/></svg>
-      <span class="envelop-teller" id="envelop-teller" hidden>0</span>
-    </button>
-    <button class="balk-info" id="balk-info" aria-haspopup="menu" aria-expanded="false"></button>
+    <span class="balk-info-wrap">
+      <button class="balk-info" id="balk-info" aria-haspopup="menu" aria-expanded="false"></button>
+      <span class="envelop-badge" id="envelop-badge" hidden>0</span>
+    </span>
     <div class="naammenu" id="naammenu" role="menu" hidden>
       <button role="menuitem" data-menu="beheer" hidden>Beheer</button>
       <button role="menuitem" data-menu="clubgeld" hidden>Vergoedingen Club</button>
@@ -3554,21 +3546,18 @@ $('berichten-sluit').addEventListener('click', sluitBerichten);
 $('berichten-overlay').addEventListener('click', (e) => {
   if (e.target === $('berichten-overlay')) sluitBerichten();
 });
-$('envelop-knop').addEventListener('click', openBerichten);
-
 /** Enkel de teller, licht genoeg om los van het paneel te verversen. */
 async function verversEnvelop() {
   try {
     const r = await api('/api/berichten/ongelezen');
-    const teller = $('envelop-teller');
-    $('envelop-knop').hidden = false;
+    const badge = $('envelop-badge');
     if (r.ongelezen > 0) {
-      teller.textContent = r.ongelezen > 99 ? '99+' : String(r.ongelezen);
-      teller.hidden = false;
+      badge.textContent = r.ongelezen > 99 ? '99+' : String(r.ongelezen);
+      badge.hidden = false;
     } else {
-      teller.hidden = true;
+      badge.hidden = true;
     }
-  } catch { /* zonder teller werkt het icoontje nog gewoon als knop */ }
+  } catch { /* zonder teller blijft de naam-knop gewoon zonder badge */ }
 }
 
 const BERICHT_FILTERS = [

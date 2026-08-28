@@ -470,20 +470,30 @@ console.log('\n21. Geen letterlijke template-syntax in de statische HTML');
   // zo'n vorm terechtkwam en op het scherm verscheen als rare tekens.
   const zonderScript = html.replace(/<script>[\s\S]*?<\/script>/g, '');
   check('geen ${ in de statische opmaak', zonderScript.includes('${'), false);
-
-  check('het envelopicoontje is een echte SVG', /<svg[^>]*>.*<\/svg>/.test(html), true);
 }
 
-console.log('\n22. Het envelopicoontje zit in de kopbalk, niet los boven de pagina');
+console.log('\n22. Ongelezen berichten: badge op de naam-knop, geen los icoontje');
 {
-  // De oorspronkelijke plaatsing (position: fixed, los boven de pagina) botste
-  // met de systeembalk van iOS (batterij, klok) omdat de app onder die balk
-  // doorloopt (apple-mobile-web-app-status-bar-style: black-translucent).
-  check('niet meer los gepositioneerd', /position: fixed; top: \.6rem/.test(html), false);
+  // Eerst een los icoontje in de kopbalk (v1.8.1), maar dat brak af bij een
+  // lange naam of clubnaam: drie elementen (merk, envelop, naam-info) passen
+  // dan niet meer op één regel. Nu een klein badge bovenop de bestaande
+  // naam-knop, zoals een notificatiebolletje op een app-icoon — geen nieuw
+  // element, dus geen extra breedte nodig.
+  check('geen los envelop-knop-element meer', /id="envelop-knop"/.test(html), false);
+  check('position: fixed bovenaan is weg', /position: fixed; top: \.6rem/.test(html), false);
 
   const balkRij = html.slice(html.indexOf('class="balk-rij"'), html.indexOf('</header>'));
-  check('het envelopicoontje staat in de kopbalk', /id="envelop-knop"/.test(balkRij), true);
-  check('vóór de naam-knop', balkRij.indexOf('envelop-knop') < balkRij.indexOf('balk-info'), true);
+  check('het badge staat in de kopbalk', /id="envelop-badge"/.test(balkRij), true);
+
+  // Het badge moet ná de innerHTML-toewijzing van balk-info blijven bestaan:
+  // die overschrijft de inhoud van de knop bij elke laadMe(). Vandaar dat het
+  // badge een broer van de knop is, niet erbinnen.
+  const wrapper = balkRij.slice(balkRij.indexOf('balk-info-wrap'), balkRij.indexOf('naammenu'));
+  check('het badge zit buiten <button class="balk-info">, niet erbinnen',
+    /<\/button>\s*<span class="envelop-badge"/.test(wrapper), true);
+
+  const versverFn = haalFunctie('verversEnvelop');
+  check('verversEnvelop richt zich op het badge', /envelop-badge/.test(versverFn), true);
 }
 
 console.log(f === 0 ? '\n=== ALLE FRONTENDTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);
