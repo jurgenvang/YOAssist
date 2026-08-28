@@ -113,10 +113,11 @@ CREATE TABLE IF NOT EXISTS users (
   -- Een persoonlijke voorkeur, geen rechten: de backend blijft weigeren wat
   -- iemand niet mag, ongeacht wat hier staat.
   --
-  -- Het logboek staat standaard uit. Het is een controle-instrument dat je
-  -- opent wanneer je iets wil nakijken, geen dagelijks scherm — en een tabblad
-  -- dat je zelden gebruikt kost elke dag ruimte op een telefoon.
-  verborgen_tabs TEXT NOT NULL DEFAULT 'log',
+  -- Het logboek en de aandachtspagina staan standaard uit. Beide zijn
+  -- controle-instrumenten die je opent wanneer je iets wil nakijken, geen
+  -- dagelijkse schermen — en elk tabblad dat je zelden gebruikt kost elke dag
+  -- ruimte op een telefoon.
+  verborgen_tabs TEXT NOT NULL DEFAULT 'log,aandacht',
   -- Of het gsm-nummer zichtbaar mag zijn voor wie samen op dezelfde wedstrijd
   -- staat. Beheerders zien het altijd; dit gaat enkel over collega's onderling.
   -- Staat standaard aan, want elkaar kunnen bereiken is het punt.
@@ -239,6 +240,10 @@ CREATE TABLE IF NOT EXISTS matches (
   -- ze staan niet in de API, dus zouden ze anders elke nacht als 'verdwenen'
   -- gemarkeerd worden.
   bron          TEXT NOT NULL DEFAULT 'vbl' CHECK (bron IN ('vbl', 'handmatig')),
+  -- De eindstand, thuis-uit, bv. '63-92'. Alleen gevuld als de wedstrijd
+  -- gespeeld is en Basketbal Vlaanderen ze doorgeeft. Puur ter info bij de
+  -- wedstrijd zelf, telt nergens anders in mee.
+  uitslag       TEXT,
   hash          TEXT NOT NULL,
   status        TEXT NOT NULL DEFAULT 'actief' CHECK (status IN ('actief', 'verdwenen')),
   laatst_gezien TEXT NOT NULL DEFAULT (datetime('now')),
@@ -389,6 +394,50 @@ CREATE TABLE IF NOT EXISTS ouder_kind (
 
 CREATE INDEX IF NOT EXISTS idx_ouder_kind_ouder ON ouder_kind (ouder_email);
 CREATE INDEX IF NOT EXISTS idx_ouder_kind_kind ON ouder_kind (kind_email);
+
+
+-- ---------------------------------------------------------------------------
+-- volg_clubs: externe clubs waarvan een beheerder de bezetting wil zien,
+-- los van de eigen club. Voor de aandachtspagina (V31): welke wedstrijden bij
+-- ándere clubs weinig of geen scheidsrechters hebben.
+--
+-- Geen relatie met `clubs`: dat is de eigen club met de volledige
+-- aanduidingsmodule erbij. Dit is een kale lijst, enkel om te weten welke
+-- clubs de aparte synchronisatie moet ophalen.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS volg_clubs (
+  guid        TEXT PRIMARY KEY,
+  naam        TEXT,
+  toegevoegd_door TEXT NOT NULL,
+  toegevoegd  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- ---------------------------------------------------------------------------
+-- volg_wedstrijden: wedstrijden van de gevolgde clubs, met enkel wat nodig is
+-- om te tonen waar het krap is.
+--
+-- Bewust een eigen, kleine tabel en niet hergebruik van `matches`: die tabel
+-- is gebouwd rond de eigen aanduidingsmodule (scope, assignments,
+-- beschikbaarheden) en dat past niet bij externe clubs waar YOAssist geen
+-- enkele official aanduidt. Enkel VBL-scheidsrechters tellen hier, nooit
+-- eigen aanduidingen — dat geldt zelfs voor de eigen club, moest die ook in
+-- de volglijst staan, voor een consistente telling.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS volg_wedstrijden (
+  guid        TEXT PRIMARY KEY,
+  club_guid   TEXT NOT NULL REFERENCES volg_clubs (guid) ON DELETE CASCADE,
+  club_naam   TEXT,
+  thuis_naam  TEXT NOT NULL,
+  uit_naam    TEXT NOT NULL,
+  datum       TEXT NOT NULL,
+  uur         TEXT NOT NULL,
+  cat_code    TEXT,
+  vbl_aantal  INTEGER NOT NULL DEFAULT 0,
+  laatst_gezien TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_volg_wedstrijden_datum ON volg_wedstrijden (datum, uur);
+CREATE INDEX IF NOT EXISTS idx_volg_wedstrijden_club ON volg_wedstrijden (club_guid);
 
 -- ---------------------------------------------------------------------------
 -- berichten: wat er naar een gebruiker is gestuurd.

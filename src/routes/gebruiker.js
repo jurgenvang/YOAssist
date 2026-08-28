@@ -144,7 +144,7 @@ export async function matches({ url, env, user }) {
 
   const { results } = await env.DB.prepare(
     `SELECT m.guid, m.datum, m.uur, m.thuis_naam, m.uit_naam, m.locatie, m.poule_naam,
-            m.cat_code, m.off_aantal, m.off_namen, m.off_gewist, m.scope_reden,
+            m.cat_code, m.off_aantal, m.off_namen, m.off_gewist, m.scope_reden, m.uitslag,
             cat.label AS cat_label, cat.groep AS cat_groep,
             a.status AS beschikbaarheid,
             eigen.status AS aanduiding
@@ -248,6 +248,9 @@ export async function matches({ url, env, user }) {
         nodig: aantalNodig(r.off_aantal),
         bezet: club.length,
         opkomst: opkomstUur(r.uur),
+        // Puur ter info: enkel gevuld als de wedstrijd gespeeld is en
+        // Basketbal Vlaanderen de uitslag doorgeeft.
+        uitslag: r.uitslag ?? null,
         // Scheidsrechters van de bond. De namen worden een dag na de wedstrijd
         // gewist; het aantal blijft, vandaar beide velden.
         vblRefs,

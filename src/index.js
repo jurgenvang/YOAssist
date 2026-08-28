@@ -40,6 +40,9 @@ import { vergoeding } from './routes/vergoeding.js';
 import * as berichtenRoute from './routes/berichten.js';
 import * as mededelingRoute from './routes/admin/mededeling.js';
 import * as kalenderRoute from './routes/extern.js';
+import * as herinneringRoute from './routes/admin/herinnering.js';
+import * as aandachtRoute from './routes/admin/aandacht.js';
+import { synchroniseerVolgClubs } from './lib/volgsync.js';
 
 // ---------------------------------------------------------------------------
 // Routetabel. beheer: true betekent dat de route alleen voor admins is.
@@ -131,6 +134,13 @@ const ROUTES = [
   { methode: 'DELETE', pad: '/api/admin/users/ouder',  handler: gebruikers.ontkoppelOuder, beheer: true },
   { methode: 'POST',   pad: '/api/admin/aanmeldmethodes', handler: mail.zetAanmeldMethodes, beheer: true },
   { methode: 'POST',   pad: '/api/admin/extern-namen', handler: mail.zetExternNamen, beheer: true },
+  { methode: 'POST',   pad: '/api/admin/vul-nog-in', handler: herinneringRoute.verstuur, beheer: true },
+
+  { methode: 'GET',    pad: '/api/admin/volg-clubs', handler: aandachtRoute.lijst,       beheer: true },
+  { methode: 'POST',   pad: '/api/admin/volg-clubs', handler: aandachtRoute.toevoegen,   beheer: true },
+  { methode: 'DELETE', pad: '/api/admin/volg-clubs', handler: aandachtRoute.verwijderen, beheer: true },
+  { methode: 'GET',    pad: '/api/admin/aandacht',      handler: aandachtRoute.aandacht, beheer: true },
+  { methode: 'POST',   pad: '/api/admin/aandacht/sync', handler: aandachtRoute.syncNu,   beheer: true },
 
   { methode: 'GET',    pad: '/api/admin/mededeling',   handler: mededelingRoute.huidige, beheer: true },
   { methode: 'POST',   pad: '/api/admin/mededeling',   handler: mededelingRoute.zet,     beheer: true },
@@ -311,6 +321,10 @@ export function takenVoor({ uur, weekdag }) {
   // Eén keer per dag oude berichten opkuisen, op een rustig uur.
   if (uur === 4) taken.push('opkuis');
 
+  // Aparte, lichte synchronisatie voor de aandachtspagina — los van de
+  // hoofdcyclus, op een ander uur zodat ze elkaar niet in de weg zitten.
+  if (uur === 5) taken.push('volg-sync');
+
   // Herinneringen: 's avonds voor morgen, 's ochtends voor vandaag.
   if (uur === 19) taken.push('herinnering-avond');
   if (uur === 7) taken.push('herinnering-ochtend');
@@ -428,6 +442,14 @@ async function voerTakenUit(taken, env, tijdstip) {
       if (taak === 'opkuis') {
         const weg = await kuisBerichtenOp(env.DB);
         if (weg > 0) console.log(`[YOAssist] ${weg} oude bericht(en) opgekuist`);
+      }
+
+      if (taak === 'volg-sync') {
+        const rapport = await synchroniseerVolgClubs(env.DB);
+        if (rapport.clubs > 0) {
+          console.log(`[YOAssist] aandachtspagina: ${rapport.clubs} clubs, ` +
+            `${rapport.gevonden} wedstrijden${rapport.fouten.length ? `, fouten: ${rapport.fouten.join(' | ')}` : ''}`);
+        }
       }
 
       if (taak === 'weekoverzicht') {

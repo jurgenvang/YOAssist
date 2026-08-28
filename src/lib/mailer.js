@@ -123,6 +123,32 @@ export function templateHerinnering({ naam, wedstrijden, wanneer }) {
   };
 }
 
+/**
+ * Herinnering voor wie nog geen beschikbaarheid opgaf voor een specifiek
+ * weekend. Anders dan templateHerinnering hierboven: die gaat over wie al
+ * aangeduid is en morgen fluit, dit gaat over wie nog helemaal niets heeft
+ * ingevuld. Twee losse dingen die op elkaar lijken maar een andere doelgroep
+ * raken.
+ */
+export function templateVulNogIn({ naam, wedstrijden, van, tot }) {
+  const kort = `${wedstrijden.length} wedstrijden nog te beantwoorden`;
+  const lijst = wedstrijden
+    .map((w) => `- ${w.datum} ${w.uur} ${w.thuis} - ${w.uit}`)
+    .join('\n');
+
+  return {
+    soort: 'nog-in-te-vullen',
+    kort,
+    onderwerp: `Nog te beantwoorden: weekend van ${van}`,
+    tekst:
+      `Hallo ${naam},\n\n` +
+      `Voor het weekend van ${van} tot ${tot} heb je nog niet aangegeven of je ` +
+      `kan fluiten bij:\n\n${lijst}\n\n` +
+      `Zet je beschikbaarheid in YOAssist, ook als het nee is — dan weet de ` +
+      `beheerder waar hij aan toe is.`,
+  };
+}
+
 export function templateProbleem({ naam, wedstrijd, bericht, official }) {
   return {
     onderwerp: `Probleem gemeld: ${wedstrijd}`,

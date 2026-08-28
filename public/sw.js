@@ -32,14 +32,22 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const doel = event.notification.data?.url ?? '/';
+
+  // Een melding tikken opent altijd Mijn berichten, niet de wedstrijd zelf.
+  // Het bericht staat daar toch al met een samenvatting; op deze manier land
+  // je altijd op hetzelfde vertrouwde scherm in plaats van soms hier, soms
+  // daar, afhankelijk van welk soort bericht het toevallig was.
+  const doel = '/?open=berichten';
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((vensters) => {
-      // Staat de app al open, breng die naar voren in plaats van een tweede
-      // tabblad te openen.
+      // Staat de app al open, breng die naar voren en laat de pagina zelf het
+      // paneel openen — een tab herladen voelt trager aan dan een boodschap.
       for (const venster of vensters) {
-        if ('focus' in venster) return venster.focus();
+        if ('focus' in venster) {
+          venster.postMessage({ type: 'open-berichten' });
+          return venster.focus();
+        }
       }
       return self.clients.openWindow(doel);
     }),

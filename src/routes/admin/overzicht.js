@@ -49,7 +49,7 @@ export async function overzicht({ url, env }) {
 
   const { results: wedstrijden } = await env.DB.prepare(
     `SELECT m.guid, m.datum, m.uur, m.thuis_naam, m.uit_naam, m.locatie, m.acc_guid,
-            m.poule_naam, m.cat_code, m.off_namen, m.off_aantal, m.off_gewist,
+            m.poule_naam, m.cat_code, m.off_namen, m.off_aantal, m.off_gewist, m.uitslag,
             m.club_guid, c.naam AS club_naam,
             m.scope, m.scope_reden, m.scope_uit,
             m.refs_bevestigd, m.refs_bevestigd_door,
@@ -154,6 +154,7 @@ export async function overzicht({ url, env }) {
       locatie: w.locatie,
       accGuid: w.acc_guid,
       poule: w.poule_naam,
+      uitslag: w.uitslag ?? null,
       clubGuid: w.club_guid,
       clubNaam: w.club_naam,
       catCode: w.cat_code,

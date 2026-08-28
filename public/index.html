@@ -172,6 +172,10 @@ main { max-width: 46rem; margin: 0 auto; padding: 1rem 1rem 5rem; }
 .wed-ploegen { font-weight: 600; font-size: .97rem; }
 .wed-ploegen .tegen { color: var(--grijs); font-weight: 400; white-space: nowrap; }
 .wed-ploegen .ploeg { white-space: nowrap; }
+.wed-ploegen .uitslag {
+  margin-left: .5rem; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--inkt-zacht);
+}
 .wed-meta { font-size: .82rem; color: var(--grijs);
             display: flex; align-items: baseline; gap: .45rem; flex-wrap: wrap; }
 .blad {
@@ -805,7 +809,8 @@ select {
       <span class="envelop-badge" id="envelop-badge" hidden>0</span>
     </span>
     <div class="naammenu" id="naammenu" role="menu" hidden>
-      <button role="menuitem" data-menu="beheer" hidden>Beheer</button>
+      <button role="menuitem" data-menu="beheer-dagelijks" hidden>Dagelijks beheer</button>
+      <button role="menuitem" data-menu="beheer-config" hidden>Configuratie</button>
       <button role="menuitem" data-menu="clubgeld" hidden>Vergoedingen Club</button>
       <button role="menuitem" data-menu="vergoeding">Mijn vergoeding</button>
       <button role="menuitem" data-menu="voorkeuren">Mijn voorkeuren</button>
@@ -839,6 +844,7 @@ select {
     <button class="tab" id="tab-mijn" role="tab" aria-selected="true">Aanduidingen</button>
     <button class="tab" id="tab-club" role="tab" aria-selected="false">Cluboverzicht</button>
     <button class="tab" id="tab-log" role="tab" aria-selected="false">Logboek</button>
+    <button class="tab" id="tab-aandacht" role="tab" aria-selected="false">Aandacht</button>
   </div>
   <div id="hoofd">
     <div class="leeg"><span class="spinner"></span> Laden…</div>
@@ -848,7 +854,7 @@ select {
 <div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-label="Beheer">
   <div class="paneel">
     <div class="paneel-kop">
-      <h2>Beheer</h2>
+      <h2 id="paneel-titel">Dagelijks beheer</h2>
       <button class="sluit" id="paneel-sluit" aria-label="Sluiten">&times;</button>
     </div>
     <div id="paneel-inhoud"><div class="leeg"><span class="spinner"></span> Laden…</div></div>
@@ -1166,7 +1172,7 @@ async function laadHoofd() {
       `<span><strong>${tekst(ik.naam)}</strong>${tekst(ik.profiel)}` +
       `${ik.clubNaam ? ' &middot; ' + tekst(ik.clubNaam) : ''}${beheerRegel}</span>`;
 
-    for (const sleutel of ['beheer', 'clubgeld', 'alsyo']) {
+    for (const sleutel of ['beheer-dagelijks', 'beheer-config', 'clubgeld', 'alsyo']) {
       document.querySelector(`[data-menu="${sleutel}"]`).hidden = !ik.isAdmin;
     }
     // De tabbalk is er alleen voor beheerders: een gewone YO heeft één scherm,
@@ -1421,7 +1427,8 @@ function kaart(m) {
       <span class="uur">${tekst(m.uur)}</span>
     </div>
     <div class="wed-ploegen"><span class="ploeg">${tekst(m.thuis)}</span>
-      <span class="tegen">&ndash; ${tekst(m.uit)}</span></div>
+      <span class="tegen">&ndash; ${tekst(m.uit)}</span>
+      ${m.uitslag ? `<span class="uitslag">${tekst(m.uitslag)}</span>` : ''}</div>
     <div class="wed-meta">
       ${m.catLabel ? `<span class="cat">${tekst(m.catCode)}</span>` : ''}
       ${m.locatie
@@ -1522,7 +1529,7 @@ $('tab-log').addEventListener('click', () => wisselWeergave('log'));
 
 async function wisselWeergave(welke) {
   staat.weergave = welke;
-  for (const [id, sleutel] of [['tab-mijn', 'mijn'], ['tab-club', 'club'], ['tab-log', 'log']]) {
+  for (const [id, sleutel] of [['tab-mijn', 'mijn'], ['tab-club', 'club'], ['tab-log', 'log'], ['tab-aandacht', 'aandacht']]) {
     $(id).setAttribute('aria-selected', String(welke === sleutel));
   }
 
@@ -1544,6 +1551,11 @@ async function wisselWeergave(welke) {
 
   if (welke === 'log') {
     await laadLogboek();
+    return;
+  }
+
+  if (welke === 'aandacht') {
+    await laadAandacht();
     return;
   }
 
@@ -1640,6 +1652,70 @@ async function laadLogboek() {
   } catch (err) {
     $('hoofd').innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
   }
+}
+
+/* --- Aandacht (V31) -------------------------------------------------------
+   Wedstrijden bij gevolgde externe clubs met nul of één VBL-scheidsrechter,
+   komende twee weekends. Los van de eigen aanduidingsmodule: hier wordt
+   niemand aangeduid, dit is enkel een signaal om zelf actie te ondernemen
+   (bijvoorbeeld die club bellen om te helpen invallen).
+------------------------------------------------------------------------- */
+async function laadAandacht() {
+  $('hoofd').innerHTML = '<div class="leeg"><span class="spinner"></span> Laden…</div>';
+  try {
+    toonAandacht(await api('/api/admin/aandacht'));
+  } catch (err) {
+    $('hoofd').innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+  }
+}
+
+function toonAandacht(data) {
+  if (data.aantalClubs === 0) {
+    $('hoofd').innerHTML = `
+      <div class="leeg">
+        Nog geen clubs om te volgen.<br>
+        Voeg ze toe bij Configuratie, onderaan bij 'Aandachtspagina'.
+      </div>`;
+    return;
+  }
+
+  if (data.aantal === 0) {
+    $('hoofd').innerHTML = `<div class="leeg">Niets krap bij de ${
+      data.aantalClubs} gevolgde ${data.aantalClubs === 1 ? 'club' : 'clubs'} de komende twee weekends.</div>`;
+    return;
+  }
+
+  let vorigeDag = null;
+  const delen = [];
+
+  for (const w of data.wedstrijden) {
+    if (w.datum !== vorigeDag) {
+      const d = ontleedDatum(w.datum);
+      delen.push(`<div class="dag-kop">${DAGEN[d.getUTCDay()]} ${d.getUTCDate()} ${MAANDEN[d.getUTCMonth()]}</div>`);
+      vorigeDag = w.datum;
+    }
+
+    delen.push(`
+      <article class="wed" data-status="${w.aantalRefs === 0 ? 'nee' : 'ja'}">
+        <div class="wed-datum">
+          <span class="uur">${tekst(w.uur)}</span>
+        </div>
+        <div class="wed-ploegen"><span class="ploeg">${tekst(w.wedstrijd)}</span></div>
+        <div class="wed-meta">
+          <span class="cat">${tekst(w.clubNaam ?? w.clubGuid)}</span>
+          <span>${w.aantalRefs === 0
+            ? 'geen scheidsrechter aangeduid'
+            : 'nog maar één scheidsrechter aangeduid'}</span>
+        </div>
+      </article>`);
+  }
+
+  $('hoofd').innerHTML = `
+    <div class="teller ${data.aantal === 0 ? 'klaar' : 'open'}">
+      <b>${data.aantal}</b>
+      <span>krap bij ${data.aantalClubs} gevolgde ${data.aantalClubs === 1 ? 'club' : 'clubs'}.</span>
+    </div>
+    ${delen.join('')}`;
 }
 
 function toonLogboek(data) {
@@ -2494,12 +2570,12 @@ function pasTabbalkToe() {
   const isAdmin = staat.ik?.isAdmin && !kijktAlsYo();
   const verborgen = staat.verborgenTabs ?? [];
 
-  for (const [id, sleutel] of [['tab-club', 'club'], ['tab-log', 'log']]) {
+  for (const [id, sleutel] of [['tab-club', 'club'], ['tab-log', 'log'], ['tab-aandacht', 'aandacht']]) {
     $(id).hidden = !isAdmin || verborgen.includes(sleutel);
   }
 
   // Blijft er maar één tabblad over, dan heeft een balk geen zin.
-  const zichtbaar = ['tab-mijn', 'tab-club', 'tab-log'].filter((id) => !$(id).hidden);
+  const zichtbaar = ['tab-mijn', 'tab-club', 'tab-log', 'tab-aandacht'].filter((id) => !$(id).hidden);
   $('tabs').hidden = zichtbaar.length < 2;
 
   // Staat de huidige weergave op een verborgen tabblad, ga dan terug.
@@ -2639,7 +2715,7 @@ async function toonVoorkeuren(v) {
       <h3>Tabbladen</h3>
       <p class="hint">Welke schermen je in de balk bovenaan wil zien.
         Aanduidingen staat er altijd.</p>
-      ${[['club', 'Cluboverzicht'], ['log', 'Logboek']].map(([sleutel, naam]) => `
+      ${[['club', 'Cluboverzicht'], ['log', 'Logboek'], ['aandacht', 'Aandacht']].map(([sleutel, naam]) => `
         <div class="keuzerij">
           <span class="tekst"><b>${naam}</b></span>
           <label class="schakelaar">
@@ -2901,7 +2977,8 @@ $('naammenu').addEventListener('click', (e) => {
   if (knop.dataset.menu === 'vergoeding') openVergoeding();
   else if (knop.dataset.menu === 'clubgeld') openClubgeld();
   else if (knop.dataset.menu === 'voorkeuren') openVoorkeuren();
-  else if (knop.dataset.menu === 'beheer') openPaneel();
+  else if (knop.dataset.menu === 'beheer-dagelijks') openPaneel('dagelijks');
+  else if (knop.dataset.menu === 'beheer-config') openPaneel('configuratie');
   else if (knop.dataset.menu === 'rondleiding') setTimeout(() => startRondleiding(), 100);
   else if (knop.dataset.menu === 'over') openOver();
   else if (knop.dataset.menu === 'berichten') openBerichten();
@@ -2924,7 +3001,8 @@ document.addEventListener('keydown', (e) => {
   if (staat.rond) stopRondleiding();
 });
 
-async function openPaneel() {
+async function openPaneel(modus = 'dagelijks') {
+  staat.paneelModus = modus;
   $('overlay').setAttribute('open', '');
   document.body.style.overflow = 'hidden';
   await laadConfig();
@@ -2987,7 +3065,7 @@ function toonPaneel() {
     : 'Nog nooit gesynchroniseerd.';
 
   $('paneel-inhoud').innerHTML = `
-    <section class="blok">
+    <section class="blok" data-groep="configuratie">
       <h3 data-vouw="beheer-seizoen">Seizoen</h3>
       <p class="hint">Een seizoen loopt van juli tot juni. Volgens de kalender is dat nu
         ${tekst(c.seizoen.voorstelUitDatum)}-${tekst(c.seizoen.voorstelUitDatum + 1)}.</p>
@@ -2998,7 +3076,7 @@ function toonPaneel() {
       </div>
     </section>
 
-    <section class="blok">
+    <section class="blok" data-groep="configuratie">
       <h3 data-vouw="beheer-clubs">Clubs</h3>
       <p class="hint">Vervang XXXX door de vier cijfers van je club-GUID.
         Controleer eerst, voeg daarna toe.</p>
@@ -3011,7 +3089,7 @@ function toonPaneel() {
       ${clubLijst}
     </section>
 
-    <section class="blok">
+    <section class="blok" data-groep="configuratie">
       <h3 data-vouw="beheer-teams">Teams</h3>
       <p class="hint">Vink aan van welke ploegen de wedstrijden opgehaald moeten worden.
         Of een wedstrijd in de aanduidingslijst komt, hangt af van de categorie
@@ -3025,7 +3103,7 @@ function toonPaneel() {
       ${teamBlokken || '<p class="hint" style="margin:.7rem 0 0">Nog geen teams geladen.</p>'}
     </section>
 
-    <section class="blok">
+    <section class="blok" data-groep="configuratie">
       <h3 data-vouw="beheer-mail">Mail</h3>
       <p class="hint">Het afzenderadres wijzig je hier. De API-sleutel van de
         maildienst is een secret bij de Worker en staat niet in dit scherm.
@@ -3046,7 +3124,7 @@ function toonPaneel() {
       <div id="mail-melding"></div>
     </section>
 
-    <section class="blok">
+    <section class="blok" data-groep="dagelijks">
       <h3>Gebruikers</h3>
       <p class="hint">Wie hier staat én in de Access-policy, raakt binnen.
         Beide lijsten moeten kloppen.</p>
@@ -3082,7 +3160,7 @@ function toonPaneel() {
       <div id="gebr-import-uitslag"></div>
     </section>
 
-    <section class="blok">
+    <section class="blok" data-groep="dagelijks">
       <h3 data-vouw="beheer-wedstrijden">Eigen wedstrijden</h3>
       <p class="hint">Voor wat niet in de kalender van Basketbal Vlaanderen staat:
         oefenwedstrijden, toernooien. Ze worden bij een synchronisatie met rust gelaten.</p>
@@ -3096,7 +3174,7 @@ function toonPaneel() {
       <div id="wed-uitslag"></div>
     </section>
 
-    <section class="blok">
+    <section class="blok" data-groep="dagelijks">
       <h3 data-vouw="beheer-vrijgeven">Vrijgeven</h3>
       <p class="hint">Aanduidingen worden op vrijgegeven gezet en blijven zichtbaar
         in de historiek. Beschikbaarheden worden gewist, want die kennen geen
@@ -3106,7 +3184,7 @@ function toonPaneel() {
       <div id="vrij-uitslag"></div>
     </section>
 
-    <section class="blok">
+    <section class="blok" data-groep="dagelijks">
       <h3 data-vouw="beheer-sync">Synchronisatie</h3>
       <p class="hint">Draait automatisch om 6, 12, 18 en 24 uur.
         ${c.openWijzigingen > 0 ? `<b>${c.openWijzigingen} openstaande wijziging(en).</b>` : ''}</p>
@@ -3115,7 +3193,7 @@ function toonPaneel() {
       <div id="sync-melding"></div>
     </section>
 
-    <section class="blok">
+    <section class="blok" data-groep="configuratie">
       <h3 data-vouw="beheer-extern">Extern lezen</h3>
       <p class="hint">Namen in de externe API en de agendafeed van officials.</p>
       <select id="extern-namen">
@@ -3125,7 +3203,38 @@ function toonPaneel() {
       <div id="extern-namen-melding"></div>
     </section>
 
-    <section class="blok">
+    <section class="blok" data-groep="configuratie">
+      <h3 data-vouw="beheer-aandacht">Aandachtspagina</h3>
+      <p class="hint">Clubs waarvan je wil zien welke wedstrijden krap zitten
+        (nul of één scheidsrechter), ook al doet YOAssist zelf niets voor die
+        club. Verschijnt als tabblad 'Aandacht', standaard uitgezet — een
+        beheerder zet het zelf aan bij Mijn voorkeuren, Tabbladen.</p>
+      <div class="veld-rij">
+        <input type="text" id="volgclub-guid" placeholder="club-GUID, bv. BVBL1053">
+        <button class="knop zacht" id="volgclub-toevoegen">Toevoegen</button>
+      </div>
+      <div id="volgclub-lijst"></div>
+      <button class="knop zacht breed" id="volgclub-sync" style="margin-top:.5rem">
+        Nu synchroniseren
+      </button>
+      <div id="volgclub-melding"></div>
+    </section>
+
+    <section class="blok" data-groep="dagelijks">
+      <h3 data-vouw="beheer-herinnering">Herinner wie nog niet invulde</h3>
+      <p class="hint">Stuurt meteen — geen droogloop — naar elke official die voor
+        geen enkele wedstrijd van het gekozen weekend een beschikbaarheid heeft
+        opgegeven, via mail en/of melding, wat die persoon zelf heeft aanstaan.</p>
+      <div class="veld-rij">
+        <input type="date" id="herinner-datum">
+        <button class="knop" id="herinner-verstuur">Nu versturen</button>
+      </div>
+      <p class="hint" style="margin-top:.3rem">Kies een zaterdag; dat weekend
+        (zaterdag + zondag) wordt gebruikt.</p>
+      <div id="herinner-melding"></div>
+    </section>
+
+    <section class="blok" data-groep="dagelijks">
       <h3 data-vouw="beheer-nieuws">Belangrijk nieuws</h3>
       <p class="hint">Eén mededeling tegelijk, bovenaan bij iedereen. Ze verdwijnt
         vanzelf op het moment dat je opgeeft, of eerder als iemand ze wegklikt.</p>
@@ -3147,7 +3256,7 @@ function toonPaneel() {
       <div id="nieuws-melding"></div>
     </section>
 
-    <section class="blok">
+    <section class="blok" data-groep="configuratie">
       <h3 data-vouw="beheer-facturatie">Vergoedingen</h3>
       <p class="hint">Afsluiten en de overzichten staan in het naammenu bij
         <b>Vergoedingen Club</b>. Hier staat alleen wat je één keer instelt.</p>
@@ -3160,7 +3269,7 @@ function toonPaneel() {
       <div id="fact-ontvangers-melding"></div>
     </section>
 
-    <section class="blok">
+    <section class="blok" data-groep="configuratie">
       <h3 data-vouw="beheer-backup">Backup</h3>
       <p class="hint">Eén bestand met alles erin. Terugzetten gebeurt handmatig
         via de D1-console; er is geen knop die een backup terugplaatst.</p>
@@ -3169,13 +3278,22 @@ function toonPaneel() {
       <div id="backup-melding"></div>
     </section>
 
-    <section class="blok reset-blok">
+    <section class="blok reset-blok" data-groep="configuratie">
       <h3 data-vouw="beheer-reset">Opnieuw beginnen</h3>
       <p class="hint">Wat je hier wist, komt niet terug. Alleen wat opnieuw bij
         Basketbal Vlaanderen op te halen is, is echt herstelbaar.</p>
       <div id="reset-lijst"><span class="spinner"></span> Laden…</div>
       <div id="reset-melding"></div>
     </section>`;
+
+  // Beide menu's delen dezelfde inhoud; enkel de secties van de gekozen groep
+  // blijven zichtbaar. Zo blijft er precies één render- en bindpad, zonder
+  // twee keer bijna dezelfde 250 regels bindingscode te moeten onderhouden.
+  const modus = staat.paneelModus ?? 'dagelijks';
+  $('paneel-inhoud').querySelectorAll('[data-groep]').forEach((sectie) => {
+    sectie.hidden = sectie.dataset.groep !== modus;
+  });
+  $('paneel-titel').textContent = modus === 'dagelijks' ? 'Dagelijks beheer' : 'Configuratie';
 
   bindPaneel();
   koppelVouwknoppen($('paneel-inhoud'));
@@ -3280,7 +3398,64 @@ function bindPaneel() {
   laadOntvangers();
   laadNieuws();
   laadExternNamen();
+  laadVolgClubs();
   laadBackup();
+
+  $('volgclub-toevoegen').onclick = async () => {
+    const doel = $('volgclub-melding');
+    const guid = $('volgclub-guid').value.trim();
+    if (!guid) { doel.innerHTML = '<div class="melding fout">Vul een GUID in.</div>'; return; }
+
+    try {
+      await api('/api/admin/volg-clubs', { method: 'POST', body: JSON.stringify({ guid }) });
+      $('volgclub-guid').value = '';
+      doel.innerHTML = '';
+      await laadVolgClubs();
+    } catch (err) {
+      doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+    }
+  };
+
+  $('volgclub-sync').onclick = async () => {
+    const doel = $('volgclub-melding');
+    $('volgclub-sync').disabled = true;
+    doel.innerHTML = '<div class="melding let"><span class="spinner"></span>Ophalen…</div>';
+    try {
+      const r = await api('/api/admin/aandacht/sync', { method: 'POST' });
+      doel.innerHTML = r.fouten.length
+        ? `<div class="melding let">${r.clubs} clubs, ${r.gevonden} wedstrijden.
+             Mislukt: ${r.fouten.map(tekst).join(', ')}</div>`
+        : `<div class="melding ok">${r.clubs} clubs, ${r.gevonden} wedstrijden opgehaald.</div>`;
+    } catch (err) {
+      doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+    } finally {
+      $('volgclub-sync').disabled = false;
+    }
+  };
+
+  $('herinner-verstuur').onclick = async () => {
+    const doel = $('herinner-melding');
+    const zaterdag = $('herinner-datum').value;
+    if (!zaterdag) {
+      doel.innerHTML = '<div class="melding fout">Kies eerst een datum.</div>';
+      return;
+    }
+
+    $('herinner-verstuur').disabled = true;
+    doel.innerHTML = '<div class="melding let"><span class="spinner"></span>Versturen…</div>';
+    try {
+      const r = await api('/api/admin/vul-nog-in', {
+        method: 'POST', body: JSON.stringify({ zaterdag }),
+      });
+      doel.innerHTML = r.aantal === 0
+        ? `<div class="melding ok">${tekst(r.boodschap ?? 'Iedereen had al geantwoord.')}</div>`
+        : `<div class="melding ok">Verstuurd naar ${r.verstuurd} van ${r.aantal}.</div>`;
+    } catch (err) {
+      doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+    } finally {
+      $('herinner-verstuur').disabled = false;
+    }
+  };
 
   $('extern-namen').onchange = async () => {
     try {
@@ -4055,6 +4230,32 @@ async function laadExternNamen() {
     const data = await api('/api/admin/mail');
     $('extern-namen').value = data.externNamen ?? 'initialen';
   } catch { /* dan blijft de standaard staan */ }
+}
+
+async function laadVolgClubs() {
+  try {
+    const data = await api('/api/admin/volg-clubs');
+    $('volgclub-lijst').innerHTML = data.clubs.length === 0
+      ? '<p class="hint" style="margin:.5rem 0 0">Nog geen clubs.</p>'
+      : `<ul class="lijst" style="margin-top:.5rem">${data.clubs.map((c) => `
+          <li>
+            <span class="naam">${tekst(c.naam || '(naam onbekend)')}</span>
+            <span class="code">${tekst(c.guid)}</span>
+            <button class="mini" data-volgclub-weg="${tekst(c.guid)}">verwijder</button>
+          </li>`).join('')}</ul>`;
+
+    $('volgclub-lijst').querySelectorAll('[data-volgclub-weg]').forEach((knop) => {
+      knop.onclick = async () => {
+        try {
+          await api(`/api/admin/volg-clubs?guid=${encodeURIComponent(knop.dataset.volgclubWeg)}`,
+            { method: 'DELETE' });
+          await laadVolgClubs();
+        } catch (err) {
+          toast(err.message);
+        }
+      };
+    });
+  } catch { /* dan blijft de lijst leeg */ }
 }
 
 async function laadOntvangers() {

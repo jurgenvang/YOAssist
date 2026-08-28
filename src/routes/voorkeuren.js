@@ -86,7 +86,7 @@ export async function zetVoorkeuren({ request, env, user }) {
   // Welke tabbladen iemand wil zien. Puur een weergavevoorkeur: de backend
   // blijft weigeren wat iemand niet mag, ongeacht wat hier staat.
   if (Array.isArray(body.verborgenTabs)) {
-    const toegestaan = ['club', 'log', 'geld'];
+    const toegestaan = ['club', 'log', 'geld', 'aandacht'];
     const gekozen = body.verborgenTabs.filter((s) => toegestaan.includes(s));
     velden.push('verborgen_tabs = ?');
     waarden.push(gekozen.join(','));

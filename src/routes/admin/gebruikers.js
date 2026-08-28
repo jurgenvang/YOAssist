@@ -81,7 +81,7 @@ export async function lijst({ env }) {
 }
 
 /** POST /api/admin/users */
-export async function toevoegen({ request, env }) {
+export async function toevoegen({ request, env, user }) {
   const body = await leesJson(request);
   const email = normaliseerEmail(body.email);
 
@@ -121,6 +121,14 @@ export async function toevoegen({ request, env }) {
   )
     .bind(email, voornaam, achternaam, body.isAdmin ? 1 : 0, profiel, clubGuid, gsm)
     .run();
+
+  await log(env.DB, {
+    categorie: 'beheer',
+    soort: 'gebruiker',
+    wie: user.email,
+    veld: 'gebruiker toegevoegd',
+    nieuw: `${email} (${voornaam} ${achternaam}, ${profiel})`,
+  });
 
   return json({
     email,
@@ -215,6 +223,30 @@ export async function wijzigen({ request, env, user }) {
     .bind(...waarden)
     .run();
 
+  // Vooral de gevoelige velden zijn de moeite van het loggen waard: wie
+  // beheerder werd of niet meer, wie op inactief ging. De rest komt er kort
+  // bij zodat het overzicht compleet blijft.
+  const wijzigingen = [];
+  if (typeof body.isAdmin === 'boolean') {
+    wijzigingen.push(body.isAdmin ? 'beheerder gemaakt' : 'beheerder afgehaald');
+  }
+  if (typeof body.actief === 'boolean') {
+    wijzigingen.push(body.actief ? 'geactiveerd' : 'op inactief gezet');
+  }
+  if (PROFIELEN.includes(body.profiel)) wijzigingen.push(`profiel naar ${body.profiel}`);
+  if (body.clubGuid !== undefined) wijzigingen.push('club gewijzigd');
+  if (typeof body.gsm === 'string') wijzigingen.push('gsm-nummer gewijzigd');
+  if (typeof body.voornaam === 'string' || typeof body.achternaam === 'string') {
+    wijzigingen.push('naam gewijzigd');
+  }
+
+  await log(env.DB, {
+    categorie: 'beheer',
+    soort: 'gebruiker',
+    wie: user.email,
+    veld: `${email}: ${wijzigingen.join(', ') || 'gewijzigd'}`,
+  });
+
   return json({ email, gewijzigd: velden.length });
 }
 
@@ -250,6 +282,14 @@ export async function verwijderen({ url, env, user }) {
   }
 
   await env.DB.prepare('DELETE FROM users WHERE email = ?').bind(email).run();
+
+  await log(env.DB, {
+    categorie: 'beheer',
+    soort: 'gebruiker',
+    wie: user.email,
+    veld: 'gebruiker verwijderd',
+    oud: email,
+  });
 
   return json({
     email,
@@ -477,12 +517,20 @@ export async function welkom({ request, env, user }) {
     if (res.mail) verstuurd++;
   }
 
+  // De ontvangers zelf in het log, niet enkel een aantal — anders is achteraf
+  // niet meer te zien wíe die welkomstmail kreeg, en lijkt de log-regel enkel
+  // over de beheerder te gaan die op de knop klikte.
+  const adressen = ontvangers.map((o) => o.email);
+  const genoemd = adressen.length <= 8
+    ? adressen.join(', ')
+    : `${adressen.slice(0, 8).join(', ')}, en nog ${adressen.length - 8}`;
+
   await log(env.DB, {
     categorie: 'beheer',
     soort: 'welkom',
     wie: user.email,
-    veld: 'welkomstmail verstuurd',
-    nieuw: `${verstuurd} van ${ontvangers.length}`,
+    veld: `welkomstmail verstuurd (${verstuurd} van ${ontvangers.length})`,
+    nieuw: genoemd,
   });
 
   return json({ uitgevoerd: true, aantal: ontvangers.length, verstuurd });

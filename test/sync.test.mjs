@@ -36,8 +36,8 @@ function wed(nr, opties = {}) {
     beginTijd: opties.uur ?? '20.30',
     accNaam: opties.locatie ?? 'Sporthal Noord',
     pouleNaam: 'IJ16 F',
-    gespeeld: 'N',
-    uitslag: '',
+    gespeeld: opties.gespeeld ?? 'N',
+    uitslag: opties.uitslag ?? '',
   };
 }
 
@@ -369,6 +369,45 @@ console.log('\nX. Een handmatige bevestiging verdwijnt zodra de bond zelf refs a
 
   const rij = await db.prepare("SELECT refs_bevestigd FROM matches WHERE guid = 'BEV'").first();
   check('vlag automatisch gewist', rij.refs_bevestigd, 0);
+}
+
+console.log('\n16. De uitslag komt mee bij een nieuwe wedstrijd');
+{
+  const db = nieuweDb();
+  zetApi([wed(1, { gespeeld: 'G', uitslag: ' 63- 92' })]);
+  await synchroniseer(db, 'handmatig');
+
+  const rij = await db.prepare('SELECT uitslag FROM matches WHERE guid = ?')
+    .bind('BVBL26279170INJ1621F1').first();
+  check('uitslag meteen bewaard', rij.uitslag, '63-92');
+}
+
+console.log('\n17. De uitslag komt binnen zonder de wedstrijd als gewijzigd te loggen');
+{
+  const db = nieuweDb();
+  zetApi([wed(2)]);   // nog niet gespeeld
+  await synchroniseer(db, 'handmatig');
+
+  zetApi([wed(2, { gespeeld: 'G', uitslag: '80-75' })]);   // nu wel
+  const rapport = await synchroniseer(db, 'handmatig');
+
+  const rij = await db.prepare('SELECT uitslag FROM matches WHERE guid = ?')
+    .bind('BVBL26279170INJ1621F2').first();
+  check('uitslag bijgewerkt', rij.uitslag, '80-75');
+  // De uitslag zit niet in de hash, dus dit telt niet als een inhoudelijke
+  // wijziging — net als de scheidsrechteraanduiding.
+  check('niet als gewijzigde wedstrijd geteld', rapport.gewijzigd, 0);
+}
+
+console.log('\n18. Niet gespeeld blijft null');
+{
+  const db = nieuweDb();
+  zetApi([wed(3)]);
+  await synchroniseer(db, 'handmatig');
+
+  const rij = await db.prepare('SELECT uitslag FROM matches WHERE guid = ?')
+    .bind('BVBL26279170INJ1621F3').first();
+  check('geen uitslag zolang niet gespeeld', rij.uitslag, null);
 }
 
 console.log(mislukt === 0 ? '\n=== ALLE SYNCTESTS GESLAAGD ===' : `\n=== ${mislukt} TESTS GEFAALD ===`);

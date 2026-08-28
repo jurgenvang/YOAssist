@@ -394,5 +394,59 @@ console.log('\n15. Grote aantallen wedstrijden');
   check('automaat draait ook', auto.status, 200);
 }
 
+
+console.log('\n9. Elke gebruikersactie komt in het logboek (V — audit)');
+{
+  const env = nieuweEnv();
+
+  await vraag(env, '/api/admin/users', {
+    methode: 'POST', alsWie: 'baas@club.be',
+    body: { email: 'nieuw@club.be', voornaam: 'Nieuwe', achternaam: 'Speler', profiel: 'YO' },
+  });
+
+  const logNaToevoegen = await vraag(env, '/api/admin/logboek', { alsWie: 'baas@club.be' });
+  const toegevoegd = logNaToevoegen.json.regels.find((r) => r.veld === 'gebruiker toegevoegd');
+  check('toevoegen komt in het logboek', Boolean(toegevoegd), true);
+  check('met de juiste beheerder erbij', toegevoegd?.wie, 'baas@club.be');
+  check('en met de nieuwe speler erin', toegevoegd?.nieuw.includes('nieuw@club.be'), true);
+
+  await vraag(env, '/api/admin/users', {
+    methode: 'PATCH', alsWie: 'baas@club.be',
+    body: { email: 'nieuw@club.be', actief: false },
+  });
+  const logNaWijzigen = await vraag(env, '/api/admin/logboek', { alsWie: 'baas@club.be' });
+  const gewijzigd = logNaWijzigen.json.regels.find((r) => r.veld?.includes('inactief'));
+  check('wijzigen komt in het logboek', Boolean(gewijzigd), true);
+  check('met de juiste beheerder', gewijzigd?.wie, 'baas@club.be');
+
+  await vraag(env, '/api/admin/users?email=nieuw@club.be',
+    { methode: 'DELETE', alsWie: 'baas2@club.be' });
+  const logNaVerwijderen = await vraag(env, '/api/admin/logboek', { alsWie: 'baas@club.be' });
+  const verwijderd = logNaVerwijderen.json.regels.find((r) => r.veld === 'gebruiker verwijderd');
+  check('verwijderen komt in het logboek', Boolean(verwijderd), true);
+  // De tweede beheerder deed dit, niet de eerste — dat moet ook zo in het log staan.
+  check('met de beheerder die het echt deed', verwijderd?.wie, 'baas2@club.be');
+  check('en welk adres het was', verwijderd?.oud, 'nieuw@club.be');
+}
+
+console.log('\n10. De welkomstmail toont wie ze kreeg, niet enkel wie op de knop klikte');
+{
+  const env = nieuweEnv();
+  env.DB.exec("UPDATE settings SET waarde = 'aanduidingen@club.be' WHERE sleutel = 'mail_afzender'");
+  env.RESEND_API_KEY = 're_test';
+  globalThis.fetch = async () => ({ ok: true, json: async () => ({}) });
+
+  await vraag(env, '/api/admin/users/welkom', {
+    methode: 'POST', alsWie: 'baas@club.be',
+    body: { email: 'yo@club.be', uitvoeren: true },
+  });
+
+  const log = (await vraag(env, '/api/admin/logboek', { alsWie: 'baas@club.be' })).json.regels;
+  const regel = log.find((r) => r.soort === 'welkom');
+  check('de ontvanger staat in het log', regel?.nieuw.includes('yo@club.be'), true);
+  check('niet enkel het adres van de beheerder',
+    regel?.nieuw.includes('baas@club.be'), false);
+}
+
 console.log(mislukt === 0 ? '\n=== ALLE BEHEERTESTS GESLAAGD ===' : `\n=== ${mislukt} TESTS GEFAALD ===`);
 process.exit(mislukt ? 1 : 0);

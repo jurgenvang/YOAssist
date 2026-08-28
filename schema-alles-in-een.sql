@@ -1,3 +1,5 @@
+DROP TABLE IF EXISTS volg_wedstrijden;
+DROP TABLE IF EXISTS volg_clubs;
 DROP TABLE IF EXISTS ouder_kind;
 DROP TABLE IF EXISTS mededeling_gezien;
 DROP TABLE IF EXISTS mededelingen;
@@ -70,7 +72,7 @@ CREATE TABLE IF NOT EXISTS users (
   kanaal_push INTEGER NOT NULL DEFAULT 0,
   herinner_avond   INTEGER NOT NULL DEFAULT 1,
   herinner_ochtend INTEGER NOT NULL DEFAULT 1,
-  verborgen_tabs TEXT NOT NULL DEFAULT 'log',
+  verborgen_tabs TEXT NOT NULL DEFAULT 'log,aandacht',
   gsm_delen   INTEGER NOT NULL DEFAULT 1,
   agenda_sleutel TEXT
 );
@@ -125,6 +127,7 @@ CREATE TABLE IF NOT EXISTS matches (
   refs_bevestigd_door TEXT,
   refs_bevestigd_op   TEXT,
   bron          TEXT NOT NULL DEFAULT 'vbl' CHECK (bron IN ('vbl', 'handmatig')),
+  uitslag       TEXT,
   hash          TEXT NOT NULL,
   status        TEXT NOT NULL DEFAULT 'actief' CHECK (status IN ('actief', 'verdwenen')),
   laatst_gezien TEXT NOT NULL DEFAULT (datetime('now')),
@@ -202,6 +205,26 @@ CREATE TABLE IF NOT EXISTS ouder_kind (
 );
 CREATE INDEX IF NOT EXISTS idx_ouder_kind_ouder ON ouder_kind (ouder_email);
 CREATE INDEX IF NOT EXISTS idx_ouder_kind_kind ON ouder_kind (kind_email);
+CREATE TABLE IF NOT EXISTS volg_clubs (
+  guid        TEXT PRIMARY KEY,
+  naam        TEXT,
+  toegevoegd_door TEXT NOT NULL,
+  toegevoegd  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS volg_wedstrijden (
+  guid        TEXT PRIMARY KEY,
+  club_guid   TEXT NOT NULL REFERENCES volg_clubs (guid) ON DELETE CASCADE,
+  club_naam   TEXT,
+  thuis_naam  TEXT NOT NULL,
+  uit_naam    TEXT NOT NULL,
+  datum       TEXT NOT NULL,
+  uur         TEXT NOT NULL,
+  cat_code    TEXT,
+  vbl_aantal  INTEGER NOT NULL DEFAULT 0,
+  laatst_gezien TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_volg_wedstrijden_datum ON volg_wedstrijden (datum, uur);
+CREATE INDEX IF NOT EXISTS idx_volg_wedstrijden_club ON volg_wedstrijden (club_guid);
 CREATE TABLE IF NOT EXISTS berichten (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   user_email  TEXT NOT NULL,

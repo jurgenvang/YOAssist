@@ -25,6 +25,21 @@ function bestaatSelector(selector) {
     // Klassen kunnen ook in een template-literal staan, vandaar de losse match.
     return new RegExp(`class="[^"]*\\b${selector.slice(1)}\\b`).test(html);
   }
+  if (selector.startsWith('[')) {
+    // Een attribuutselector zoals [data-menu="clubgeld"]: eerst letterlijk
+    // opzoeken. Sommige attributen worden pas op het scherm gebouwd via een
+    // sjabloonvariabele (bv. data-voorkeur="${sleutel}"); dan is het genoeg
+    // dat zowel de attribuutnaam als de sleutel ergens in de bron voorkomen.
+    const zonderHaakjes = selector.slice(1, -1);
+    if (html.includes(zonderHaakjes)) return true;
+
+    const match = zonderHaakjes.match(/^([\w-]+)="([^"]+)"$/);
+    if (match) {
+      const [, naam, waarde] = match;
+      return html.includes(`${naam}="\${`) && html.includes(`'${waarde}'`);
+    }
+    return false;
+  }
   return new RegExp(`<${selector}[\\s>]`).test(html);
 }
 
@@ -250,16 +265,17 @@ console.log('\n11. Het naammenu');
   check('geen losse icoonknoppen meer',
     /id="voorkeur-knop"|id="menu-knop"/.test(html), false);
 
-  const items = [...html.matchAll(/data-menu="(\w+)"/g)].map((m) => m[1]);
-  check('tien menu-items', [...new Set(items)].sort(),
-    ['alsyo', 'beheer', 'berichten', 'clubgeld', 'documenten', 'handleiding',
-     'over', 'rondleiding', 'vergoeding', 'voorkeuren']);
+  const items = [...html.matchAll(/data-menu="([\w-]+)"/g)].map((m) => m[1]);
+  check('elf menu-items', [...new Set(items)].sort(),
+    ['alsyo', 'beheer-config', 'beheer-dagelijks', 'berichten', 'clubgeld',
+     'documenten', 'handleiding', 'over', 'rondleiding', 'vergoeding', 'voorkeuren']);
 
   // Beheer hoort bovenaan: dat is wat een beheerder het vaakst nodig heeft.
-  check('Beheer staat eerst', items[0], 'beheer');
-  check('daarna Vergoedingen Club', items[1], 'clubgeld');
-  check('dan Mijn vergoeding', items[2], 'vergoeding');
-  check('dan Mijn voorkeuren', items[3], 'voorkeuren');
+  check('Dagelijks beheer staat eerst', items[0], 'beheer-dagelijks');
+  check('daarna Configuratie', items[1], 'beheer-config');
+  check('dan Vergoedingen Club', items[2], 'clubgeld');
+  check('dan Mijn vergoeding', items[3], 'vergoeding');
+  check('dan Mijn voorkeuren', items[4], 'voorkeuren');
   check('hoofdletter in Vergoedingen Club', /Vergoedingen Club</.test(html), true);
 
   // De kijkstand mag nooit iets toevoegen, enkel wegnemen.
@@ -267,8 +283,9 @@ console.log('\n11. Het naammenu');
   check('kijkstand verbergt de beheerderstabbladen', /kijktAlsYo\(\)/.test(kijk), true);
   check('er is een balk die het toont', /id="kijkbalk"/.test(html), true);
   check('en een knop om terug te gaan', /id="kijk-terug"/.test(html), true);
-  check('beheer staat standaard verborgen',
-    /data-menu="beheer" hidden/.test(html), true);
+  check('beide beheer-items staan standaard verborgen',
+    /data-menu="beheer-dagelijks" hidden/.test(html)
+      && /data-menu="beheer-config" hidden/.test(html), true);
 
   const zet = haalFunctie('zetNaammenu');
   check('meldt de stand aan schermlezers', /aria-expanded/.test(zet), true);
@@ -323,7 +340,7 @@ console.log('\n13. Rondleiding komt door het menu en de meldingen');
     official.some((s) => s.doel.includes('herinnerAvond')), true);
 
   const beheer = reeksen.beheerder;
-  check('beheer wordt aangewezen', beheer.some((s) => s.doel.includes('data-menu="beheer"')), true);
+  check('beheer wordt aangewezen', beheer.some((s) => s.doel.includes('data-menu="beheer-dagelijks"')), true);
   check('vergoedingen ook', beheer.some((s) => s.doel.includes('clubgeld')), true);
   check('kijken als official ook', beheer.some((s) => s.doel.includes('alsyo')), true);
 
@@ -383,7 +400,7 @@ console.log('\n15. Het aanduidingenscherm');
 
 console.log('\n16. Berichten, mededeling en documenten');
 {
-  const items = [...html.matchAll(/data-menu="(\w+)"/g)].map((m) => m[1]);
+  const items = [...html.matchAll(/data-menu="([\w-]+)"/g)].map((m) => m[1]);
   check('Mijn berichten in het menu', items.includes('berichten'), true);
   check('Documenten in het menu', items.includes('documenten'), true);
 
@@ -494,6 +511,54 @@ console.log('\n22. Ongelezen berichten: badge op de naam-knop, geen los icoontje
 
   const versverFn = haalFunctie('verversEnvelop');
   check('verversEnvelop richt zich op het badge', /envelop-badge/.test(versverFn), true);
+}
+
+console.log('\n23. Beheer gesplitst in dagelijks beheer en configuratie (V28)');
+{
+  check('twee menu-items in plaats van één', /data-menu="beheer-dagelijks"/.test(html), true);
+  check('en configuratie ernaast', /data-menu="beheer-config"/.test(html), true);
+  check('het oude enkelvoudige menu-item is weg',
+    /data-menu="beheer"[^-]/.test(html.replace(/beheer-\w+/g, '')), false);
+
+  // Elke sectie in het paneel moet een groep hebben, anders verschijnt ze
+  // in geen van beide en is ze onbereikbaar.
+  const paneelStart = html.indexOf("function toonPaneel()");
+  const paneelEind = html.indexOf('bindPaneel();', paneelStart);
+  const paneelHtml = html.slice(paneelStart, paneelEind);
+  const secties = [...paneelHtml.matchAll(/<section class="blok[^"]*"/g)];
+  const gemarkeerd = [...paneelHtml.matchAll(/<section class="blok[^"]*" data-groep="(dagelijks|configuratie)"/g)];
+  check('elke sectie in het paneel heeft een groep', secties.length, gemarkeerd.length);
+  check('en er zijn secties van allebei de soorten',
+    gemarkeerd.some((m) => m[1] === 'dagelijks') && gemarkeerd.some((m) => m[1] === 'configuratie'),
+    true);
+
+  // De filterlogica zelf: verbergen wat niet bij de gekozen modus hoort.
+  const toonFn = haalFunctie('toonPaneel');
+  check('filtert op staat.paneelModus', /staat\.paneelModus/.test(toonFn), true);
+  check('verbergt secties van de andere groep',
+    /sectie\.dataset\.groep !== modus/.test(toonFn), true);
+  check('past de paneeltitel aan', /paneel-titel/.test(toonFn), true);
+
+  check('openPaneel neemt de modus als parameter',
+    /function openPaneel\(modus/.test(html), true);
+}
+
+console.log('\n24. De aandachtspagina (V31)');
+{
+  check('tabblad Aandacht bestaat', /id="tab-aandacht"/.test(html), true);
+  check('standaard verborgen, samen met het logboek',
+    /verborgen_tabs TEXT NOT NULL DEFAULT 'log,aandacht'/.test(
+      readFileSync(new URL('../schema.sql', import.meta.url), 'utf8')), true);
+  check('instelbaar bij Mijn voorkeuren, Tabbladen', /\['aandacht', 'Aandacht'\]/.test(html), true);
+
+  const wissel = haalFunctie('wisselWeergave');
+  check('wisselWeergave kent de aandachtweergave', /welke === 'aandacht'/.test(wissel), true);
+  check('laadt via laadAandacht', /laadAandacht\(\)/.test(wissel), true);
+
+  check('configuratieblok om clubs te beheren', /id="volgclub-guid"/.test(html), true);
+  check('met een handmatige synchronisatieknop', /id="volgclub-sync"/.test(html), true);
+  check('dat blok hoort bij Configuratie',
+    /data-groep="configuratie">\s*<h3 data-vouw="beheer-aandacht">/.test(html), true);
 }
 
 console.log(f === 0 ? '\n=== ALLE FRONTENDTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);

@@ -111,12 +111,12 @@ window.YOASSIST_RONDLEIDING = {
       plaats: 'onder',
     },
     {
-      doel: '[data-menu="beheer"]',
+      doel: '[data-menu="beheer-dagelijks"]',
       titel: 'Beheer',
       tekst:
-        'Clubs en ploegen, gebruikers, synchronisatie, vrijgeven, backup en ' +
-        'opnieuw beginnen. Hier stuur je ook de welkomstmail naar nieuwe ' +
-        'officials, met uitleg hoe ze de app installeren.',
+        'Nu in twee delen: Dagelijks beheer voor gebruikers, synchronisatie, ' +
+        'vrijgeven en de welkomstmail. Configuratie ernaast voor clubs, teams, ' +
+        'backup en opnieuw beginnen — dingen die je zelden aanraakt.',
       plaats: 'onder',
       opent: 'menu',
     },

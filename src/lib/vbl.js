@@ -245,7 +245,29 @@ export function normaliseerWedstrijd(rauw) {
     uur,
     locatie: (rauw.accNaam ?? '').trim() || null,
     pouleNaam: (rauw.pouleNaam ?? '').trim() || null,
+    uitslag: normaliseerUitslag(rauw.gespeeld, rauw.uitslag),
   };
+}
+
+/**
+ * De eindstand, thuis-uit, bv. '63-92'. Null als er niet gespeeld is.
+ *
+ * Twee valkuilen uit de VBL-API: 'gespeeld' is 'G', niet het voor de hand
+ * liggende 'J' — dus testen op 'niet N en niet leeg', niet op gelijkheid met
+ * 'G', met een ingevulde uitslag als extra bewijs. En 'uitslag' komt met
+ * opvulspaties op wisselende posities ('  63- 92'), dus splitsen op '-' en
+ * strippen in plaats van vaste tekenposities te gebruiken.
+ */
+export function normaliseerUitslag(gespeeldVlag, uitslagRuw) {
+  const vlag = String(gespeeldVlag ?? '').trim();
+  const ruw = String(uitslagRuw ?? '').trim();
+  if (vlag === 'N' || !ruw) return null;
+
+  const delen = ruw.split('-').map((s) => s.trim());
+  if (delen.length !== 2 || !delen[0] || !delen[1]) return null;
+  if (!/^\d+$/.test(delen[0]) || !/^\d+$/.test(delen[1])) return null;
+
+  return `${delen[0]}-${delen[1]}`;
 }
 
 /**

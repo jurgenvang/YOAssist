@@ -290,8 +290,9 @@ console.log('\n14. Tabbladen verbergen als voorkeur');
   const env = nieuweEnv();
   // Het logboek staat standaard uit: een controle-instrument dat je zelden
   // opent, hoort geen vaste plaats in de balk te krijgen.
-  check('logboek standaard verborgen',
-    (await vraag(env, '/api/voorkeuren', { alsWie: 'baas@club.be' })).json.verborgenTabs, ['log']);
+  check('logboek en aandachtspagina standaard verborgen',
+    (await vraag(env, '/api/voorkeuren', { alsWie: 'baas@club.be' })).json.verborgenTabs,
+    ['log', 'aandacht']);
 
   await vraag(env, '/api/voorkeuren',
     { methode: 'PATCH', alsWie: 'baas@club.be', body: { verborgenTabs: [] } });
@@ -311,7 +312,8 @@ console.log('\n14. Tabbladen verbergen als voorkeur');
     (await vraag(env, '/api/voorkeuren', { alsWie: 'baas@club.be' })).json.verborgenTabs, ['log']);
 
   check('per gebruiker apart: die ander staat nog op de standaard',
-    (await vraag(env, '/api/voorkeuren', { alsWie: 'ann@club.be' })).json.verborgenTabs, ['log']);
+    (await vraag(env, '/api/voorkeuren', { alsWie: 'ann@club.be' })).json.verborgenTabs,
+    ['log', 'aandacht']);
 }
 
 console.log('\n15. Uitleg over meldingen in de mail');

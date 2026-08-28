@@ -176,16 +176,16 @@ export async function synchroniseer(db, bron) {
             .prepare(
               `INSERT INTO matches (guid, wed_id, seizoen, club_guid, thuis_guid, thuis_naam,
                                     uit_guid, uit_naam, datum, uur, locatie, acc_guid, poule_naam,
-                                    cat_code, off_namen, off_aantal, off_gewist,
+                                    cat_code, off_namen, off_aantal, off_gewist, uitslag,
                                     scope, scope_reden, scope_op, bron, hash,
                                     status, laatst_gezien)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0,
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?,
                        ?, ?, ?, 'vbl', ?, 'actief', datetime('now'))`,
             )
             .bind(
               w.guid, w.wedId, w.seizoen, w.clubGuid, w.thuisGuid, w.thuisNaam,
               w.uitGuid, w.uitNaam, w.datum, w.uur, w.locatie, w.accGuid, w.pouleNaam,
-              w.catCode, JSON.stringify(w.offNamen), w.offAantal,
+              w.catCode, JSON.stringify(w.offNamen), w.offAantal, w.uitslag,
               w.autoScope ? 1 : 0,
               w.autoScope ? 'auto' : null,
               w.autoScope ? new Date().toISOString() : null,
@@ -211,10 +211,11 @@ export async function synchroniseer(db, bron) {
           db
             .prepare(
               `UPDATE matches
-                  SET off_namen = ?, off_aantal = ?, off_gewist = 0, laatst_gezien = datetime('now')
+                  SET off_namen = ?, off_aantal = ?, off_gewist = 0, uitslag = ?,
+                      laatst_gezien = datetime('now')
                 WHERE guid = ?`,
             )
-            .bind(JSON.stringify(w.offNamen), w.offAantal, guid),
+            .bind(JSON.stringify(w.offNamen), w.offAantal, w.uitslag, guid),
         );
         continue;
       }
@@ -226,13 +227,13 @@ export async function synchroniseer(db, bron) {
             `UPDATE matches
                 SET thuis_naam = ?, uit_guid = ?, uit_naam = ?, datum = ?, uur = ?,
                     locatie = ?, acc_guid = ?, poule_naam = ?, cat_code = ?,
-                    off_namen = ?, off_aantal = ?, off_gewist = 0,
+                    off_namen = ?, off_aantal = ?, off_gewist = 0, uitslag = ?,
                     hash = ?, status = 'actief', laatst_gezien = datetime('now')
               WHERE guid = ?`,
           )
           .bind(
             w.thuisNaam, w.uitGuid, w.uitNaam, w.datum, w.uur, w.locatie, w.accGuid,
-            w.pouleNaam, w.catCode, JSON.stringify(w.offNamen), w.offAantal, w.hash, guid,
+            w.pouleNaam, w.catCode, JSON.stringify(w.offNamen), w.offAantal, w.uitslag, w.hash, guid,
           ),
       );
 
