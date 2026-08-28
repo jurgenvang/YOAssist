@@ -463,5 +463,16 @@ console.log('\n20. V22: één schakelaar die het echte abonnement van dit toeste
   check('de toestellenlijst blijft bestaan', /Ook actief op:/.test(html), true);
 }
 
+console.log('\n21. Geen letterlijke template-syntax in de statische HTML');
+{
+  // Buiten een <script>-blok wordt ${...} nooit uitgevoerd; het staat er dan
+  // gewoon als tekst. Dit ving eerder het envelopicoontje, dat per ongeluk in
+  // zo'n vorm terechtkwam en op het scherm verscheen als rare tekens.
+  const zonderScript = html.replace(/<script>[\s\S]*?<\/script>/g, '');
+  check('geen ${ in de statische opmaak', zonderScript.includes('${'), false);
+
+  check('het envelopicoontje is een echte SVG', /<svg[^>]*>.*<\/svg>/.test(html), true);
+}
+
 console.log(f === 0 ? '\n=== ALLE FRONTENDTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);
 process.exit(f ? 1 : 0);
