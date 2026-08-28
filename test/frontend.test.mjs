@@ -559,6 +559,20 @@ console.log('\n24. De aandachtspagina (V31)');
   check('met een handmatige synchronisatieknop', /id="volgclub-sync"/.test(html), true);
   check('dat blok hoort bij Configuratie',
     /data-groep="configuratie">\s*<h3 data-vouw="beheer-aandacht">/.test(html), true);
+
+  // Elk tabblad moet een eigen klik-koppeling hebben; anders ziet iemand het
+  // wel verschijnen maar gebeurt er niets bij een tik erop.
+  check('het tabblad heeft een klik-koppeling',
+    /\$\('tab-aandacht'\)\.addEventListener\('click', \(\) => wisselWeergave\('aandacht'\)\)/.test(html), true);
+}
+
+console.log('\n25. Elk tabblad in de balk is ook echt klikbaar');
+{
+  const tabbladen = ['tab-mijn', 'tab-club', 'tab-log', 'tab-aandacht'];
+  for (const id of tabbladen) {
+    check(`${id} heeft een addEventListener('click', ...)`,
+      new RegExp(`\\$\\('${id}'\\)\\.addEventListener\\('click'`).test(html), true);
+  }
 }
 
 console.log(f === 0 ? '\n=== ALLE FRONTENDTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);
