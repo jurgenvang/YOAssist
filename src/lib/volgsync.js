@@ -40,12 +40,6 @@ export async function synchroniseerVolgClubs(db) {
   const vandaag = new Date().toISOString().slice(0, 10);
   const fouten = [];
   let totaalGevonden = 0;
-  // Elk guid dat deze ronde daadwerkelijk geldig bleek, per club. Gebruikt
-  // achteraf om exact op te ruimen wat er niet meer bij hoort — precieser dan
-  // afzonderlijke regels raden (datum, uur, categorie) die stuk voor stuk
-  // konden vergeten een rij te vangen die vroeger om een andere reden werd
-  // ingevoegd, zoals een uitwedstrijd die per ongeluk meetelde.
-  const geldigePerClub = new Map();
 
   for (const club of clubs) {
     let rauweLijst;
@@ -57,8 +51,17 @@ export async function synchroniseerVolgClubs(db) {
       continue;
     }
 
+    // Een vaste, in JavaScript bepaalde tijdstempel voor deze club — bewust
+    // niet SQL's datetime('now'), dat bij elke rij een net iets ander moment
+    // zou geven. Met exact dezelfde waarde op elke geldige rij kan de
+    // opruiming straks simpelweg vragen 'welke rijen kregen deze stempel
+    // niet', in plaats van een lijst van honderden GUID's te moeten meegeven.
+    // D1 staat maximaal honderd gebonden parameters per query toe; filteren
+    // op een lijst sleutels loopt daar bij een club met veel wedstrijden
+    // tegenaan — dezelfde les die al eerder bij de hoofdsynchronisatie is
+    // geleerd.
+    const stempel = new Date().toISOString();
     const opdrachten = [];
-    const geldig = [];
 
     for (const rauw of rauweLijst) {
       const w = normaliseerWedstrijd(rauw);
@@ -83,62 +86,47 @@ export async function synchroniseerVolgClubs(db) {
       // toch al niet op deze pagina.
       const naam = w.offAantal === 1 ? w.offNamen[0] : null;
 
-      geldig.push(w.guid);
       opdrachten.push(
         db
           .prepare(
             `INSERT INTO volg_wedstrijden
                (guid, club_guid, club_naam, thuis_naam, uit_naam, datum, uur,
                 cat_code, vbl_aantal, vbl_naam, laatst_gezien)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT (guid) DO UPDATE SET
                club_naam = excluded.club_naam, thuis_naam = excluded.thuis_naam,
                uit_naam = excluded.uit_naam, datum = excluded.datum, uur = excluded.uur,
                cat_code = excluded.cat_code, vbl_aantal = excluded.vbl_aantal,
-               vbl_naam = excluded.vbl_naam, laatst_gezien = datetime('now')`,
+               vbl_naam = excluded.vbl_naam, laatst_gezien = excluded.laatst_gezien`,
           )
           .bind(
             w.guid, club.guid, club.naam, w.thuisNaam, w.uitNaam, w.datum, w.uur,
-            catCode, w.offAantal, naam,
+            catCode, w.offAantal, naam, stempel,
           ),
       );
     }
 
     if (opdrachten.length > 0) await db.batch(opdrachten);
     totaalGevonden += opdrachten.length;
-    geldigePerClub.set(club.guid, geldig);
+
+    // Opruimen voor déze club: alles wat niet exact deze stempel kreeg, hoorde
+    // er deze ronde niet meer bij (verdwenen bij de bond, een uitwedstrijd
+    // geworden, U10/U12, het weekend voorbij, ...). Twee gebonden parameters,
+    // ongeacht hoeveel wedstrijden de club heeft — geen limiet om tegenaan te
+    // lopen. Werkt ook wanneer er deze ronde nul geldige wedstrijden waren:
+    // dan verschilt élke bestaande rij van de stempel en wordt alles geveegd.
+    await db
+      .prepare('DELETE FROM volg_wedstrijden WHERE club_guid = ? AND laatst_gezien != ?')
+      .bind(club.guid, stempel)
+      .run();
   }
 
-  // Opruimen: elke rij van een club die deze ronde succesvol werd opgehaald,
-  // moet nu een van de zonet geldig bevonden guid's zijn — anders hoort ze er
-  // niet meer bij (verdwenen bij de bond, uitwedstrijd, U10/U12, weekend
-  // voorbij, ...). Een club die deze ronde faalde (zie 'fouten'), laten we met
-  // rust: haar rijen blijven staan tot een latere, geslaagde synchronisatie.
-  const clubGuids = clubs.map((c) => c.guid);
-  if (clubGuids.length > 0) {
-    for (const [clubGuid, guids] of geldigePerClub) {
-      if (guids.length > 0) {
-        await db
-          .prepare(
-            `DELETE FROM volg_wedstrijden
-              WHERE club_guid = ? AND guid NOT IN (${guids.map(() => '?').join(',')})`,
-          )
-          .bind(clubGuid, ...guids)
-          .run();
-      } else {
-        await db.prepare('DELETE FROM volg_wedstrijden WHERE club_guid = ?').bind(clubGuid).run();
-      }
-    }
-    // Clubs die intussen ontkoppeld zijn: hun rijen horen nergens meer bij.
-    await db
-      .prepare(
-        `DELETE FROM volg_wedstrijden WHERE club_guid NOT IN (${clubGuids.map(() => '?').join(',')})`,
-      )
-      .bind(...clubGuids)
-      .run();
-  } else {
-    await db.prepare('DELETE FROM volg_wedstrijden').run();
-  }
+  // Clubs die intussen losgekoppeld zijn, horen nergens meer bij. Een
+  // subquery in plaats van een lijst GUID's: blijft altijd binnen de
+  // parametergrens, ongeacht hoeveel clubs er gevolgd worden.
+  await db
+    .prepare('DELETE FROM volg_wedstrijden WHERE club_guid NOT IN (SELECT guid FROM volg_clubs)')
+    .run();
 
   return { clubs: clubs.length, gevonden: totaalGevonden, fouten };
 }

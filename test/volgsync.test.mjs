@@ -290,5 +290,34 @@ console.log('\n14. Een club die deze ronde faalt, verliest haar bestaande rijen 
     (await db.prepare('SELECT COUNT(*) AS n FROM volg_wedstrijden').first()).n, 1);
 }
 
+console.log('\n15. Meer dan honderd wedstrijden botst niet op de D1-parametergrens');
+{
+  // Precies het gemelde probleem: een lijst GUID's als filter loopt bij veel
+  // wedstrijden tegen D1's grens van honderd gebonden parameters per query.
+  // De opruiming werkt nu met een tijdstempel in plaats van een lijst, dus dit
+  // hoort geen enkel probleem te geven, hoe groot de lijst ook is.
+  const db = nieuweDb();
+  db.exec("INSERT INTO volg_clubs (guid, naam, toegevoegd_door) VALUES ('BVBL9999', 'Verre Club', 'baas@club.be')");
+
+  const veel = Array.from({ length: 150 }, (_, i) =>
+    ({ ...wed(i, { datum: '20-09-2026' }), guid: `BVBLVEEL${i}`, wedID: `V${i}` }));
+  zetApi({ BVBL9999: veel });
+
+  const r = await synchroniseerVolgClubs(db);
+  check('alle 150 verwerkt zonder D1-fout', r.gevonden, 150);
+
+  const aantal = (await db.prepare('SELECT COUNT(*) AS n FROM volg_wedstrijden').first()).n;
+  check('en ook echt allemaal bewaard', aantal, 150);
+
+  // Een tweede ronde met minder wedstrijden moet de rest correct opruimen —
+  // ook dat gebeurt nu via de tijdstempel, niet via een lijst.
+  const minder = veel.slice(0, 30);
+  zetApi({ BVBL9999: minder });
+  await synchroniseerVolgClubs(db);
+
+  const aantalNa = (await db.prepare('SELECT COUNT(*) AS n FROM volg_wedstrijden').first()).n;
+  check('de overige 120 zijn opgeruimd, ook bij een grote lijst', aantalNa, 30);
+}
+
 console.log(f === 0 ? '\n=== ALLE VOLGSYNCTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);
 process.exit(f ? 1 : 0);
