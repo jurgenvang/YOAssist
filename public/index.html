@@ -1756,7 +1756,8 @@ function toonAandacht(data) {
         <div class="wed-datum">
           <span class="uur">${tekst(w.uur)}</span>
         </div>
-        <div class="wed-ploegen"><span class="ploeg">${tekst(w.wedstrijd)}</span></div>
+        <div class="wed-ploegen"><span class="ploeg">${tekst(w.thuis)}</span>
+          <span class="tegen">&ndash; ${tekst(w.uit)}</span></div>
         <div class="wed-meta">
           <span class="cat">${tekst(w.clubNaam ?? w.clubGuid)}</span>
           <span>${w.aantalRefs === 0

@@ -211,10 +211,11 @@ export function templateWeekoverzicht({ u10u12, overig, van, tot }) {
 const AANMELD_UITLEG = {
   pin: 'Vul je e-mailadres in. Je krijgt een code toegestuurd; die vul je in en ' +
        'je bent binnen. Geen wachtwoord om te onthouden.',
-  google: 'Kies "Google" en meld je aan met je Google-account. Dat moet wel het ' +
-          'adres zijn waarop je deze mail kreeg.',
-  apple: 'Kies "Apple" en meld je aan met je Apple ID. Dat moet wel het adres zijn ' +
-         'waarop je deze mail kreeg.',
+  google: 'Klik eerst op "Sign in with Cloudflare", kies dan "Google" en meld je ' +
+          'aan met je Google-account. Dat moet wel het adres zijn waarop je deze ' +
+          'mail kreeg.',
+  apple: 'Klik eerst op "Sign in with Cloudflare", kies dan "Apple" en meld je aan ' +
+         'met je Apple ID. Dat moet wel het adres zijn waarop je deze mail kreeg.',
   microsoft: 'Kies "Microsoft" en meld je aan met je Microsoft-account. Dat moet ' +
              'wel het adres zijn waarop je deze mail kreeg.',
   github: 'Kies "GitHub" en meld je aan met je GitHub-account. Dat moet wel het ' +
@@ -242,6 +243,9 @@ export function templateWelkom({ naam, clubNaam, adres, isAdmin, methodes }) {
       `Je bent toegevoegd aan YOAssist, de app waarmee ${clubNaam || 'de club'} de ` +
       `scheidsrechters voor de thuiswedstrijden regelt.\n\n` +
       `${rol}\n\n` +
+      `Het gaat om wedstrijden U10 en U12 — daar duidt de bond nooit zelf ` +
+      `scheidsrechters aan — en om wedstrijden vanaf U14 waarop Basketbal ` +
+      `Vlaanderen zelf geen scheidsrechters aanduidde.\n\n` +
 
       `AANMELDEN\n` +
       `Ga naar ${adres}. ` +
