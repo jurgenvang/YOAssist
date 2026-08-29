@@ -592,5 +592,60 @@ console.log('\n27. Knop om de wedstrijdenlijst van Regio leeg te maken');
   check('gebruikt DELETE', /method: 'DELETE'/.test(stuk), true);
 }
 
+console.log('\n28. Het bolletje is klikbaar en gaat rechtstreeks naar Mijn berichten');
+{
+  // Vervolg op sectie 22: het badge lag eerst bewust boven op de naam-knop
+  // met pointer-events: none, zodat de klik doorviel naar het menu. Dat bleek
+  // niet aan te voelen als een bolletje hoort te werken.
+  check('geen pointer-events: none meer op het badge',
+    /\.envelop-badge\s*\{[^}]*pointer-events:\s*none/.test(html), false);
+
+  check('het badge heeft een eigen click-listener',
+    /\$\('envelop-badge'\)\.addEventListener\('click'/.test(html), true);
+
+  const start = html.indexOf("$('envelop-badge').addEventListener('click'");
+  const stuk = html.slice(start, start + 250);
+  check('stopt de doorval naar het naammenu', /stopPropagation/.test(stuk), true);
+  check('opent Mijn berichten rechtstreeks', /openBerichten\(\)/.test(stuk), true);
+}
+
+console.log('\n29. De teller ververst ook terwijl het tabblad al open staat');
+{
+  // Voorheen werd de teller enkel bij het laden van de pagina opgehaald —
+  // niets veranderde op het scherm als er een bericht binnenkwam terwijl je
+  // op de aanduidingenpagina stond.
+  const startFn = haalFunctie('startEnvelopPolling');
+  check('startEnvelopPolling herhaalt verversEnvelop', /setInterval\(verversEnvelop/.test(startFn), true);
+
+  check('gepauzeerd zodra het tabblad niet zichtbaar is',
+    /visibilitychange[\s\S]{0,300}stopEnvelopPolling/.test(html), true);
+  check('en ververst meteen bij terugkeer',
+    /visibilitychange[\s\S]{0,300}verversEnvelop\(\)/.test(html), true);
+
+  const sw = readFileSync(new URL('../public/sw.js', import.meta.url), 'utf8');
+  check('een binnenkomende push waarschuwt open tabbladen ook zonder klik',
+    /self\.addEventListener\('push'[\s\S]*?venster\.postMessage\(\{ type: 'nieuw-bericht' \}\)/.test(sw), true);
+  check('de pagina luistert naar dat bericht en ververst dan de teller',
+    /type === 'nieuw-bericht'\)\s*verversEnvelop\(\)/.test(html), true);
+}
+
+console.log('\n30. Topbalk: club onder YOAssist, rol(len) onder de eigen naam');
+{
+  check('een aparte regel voor de gesynchroniseerde club, onder het merk',
+    /id="merk-club"/.test(html), true);
+
+  const laadFn = haalFunctie('laadHoofd');
+  check('de clubnaam gaat naar die regel, niet meer onder de eigen naam',
+    /\$\('merk-club'\)\.textContent = ik\.clubNaam/.test(laadFn), true);
+  check('rechts staat voortaan de rol, geen versienummer meer',
+    /rollenTekst/.test(laadFn), true);
+  check('geen dubbel versienummer meer rechts onder de naam',
+    /Beheerder &middot; v\$\{tekst\(ik\.versie\)\}/.test(laadFn), false);
+
+  check('een admin ziet Beheerder samen met zijn profiel',
+    /Beheerder &middot; \$\{tekst\(ik\.profiel\)\}/.test(laadFn), true);
+}
+
+
 console.log(f === 0 ? '\n=== ALLE FRONTENDTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);
 process.exit(f ? 1 : 0);

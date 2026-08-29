@@ -62,6 +62,7 @@ button { font: inherit; cursor: pointer; }
 }
 .balk-rij { display: flex; align-items: center; gap: .75rem; max-width: 46rem;
             margin: 0 auto; position: relative; }
+.merk-wrap { display: flex; flex-direction: column; gap: .08rem; }
 .merk { font-size: 1.15rem; font-weight: 700; letter-spacing: -.02em;
          display: flex; align-items: baseline; gap: .4rem; }
 .merk span.accent { color: var(--amber); }
@@ -71,6 +72,10 @@ button { font: inherit; cursor: pointer; }
   padding: .08rem .38rem; font-variant-numeric: tabular-nums;
   position: relative; top: -.1rem;
 }
+/* De club die gesynchroniseerd wordt, klein onder de merknaam — vervangt de
+   plek onder de eigen naam rechts, die nu enkel nog over de eigen rol gaat. */
+.merk-club { font-size: .68rem; color: #7d8794; letter-spacing: .01em; }
+.merk-club:empty { display: none; }
 /* De naam is zelf de menuknop. Twee naamloze icoontjes naast elkaar dwingen
    de gebruiker te raden welk van de twee hij nodig heeft; je eigen naam is de
    plek waar mensen hun eigen dingen verwachten. */
@@ -102,8 +107,9 @@ button { font: inherit; cursor: pointer; }
 .naammenu button:hover { background: #eef0f3; }
 .naammenu button[hidden] { display: none; }
 .balk-info strong { display: block; color: #fff; font-weight: 600; font-size: .85rem; }
-.balk-info .beheer { display: block; color: var(--amber); font-size: .7rem;
-                     letter-spacing: .04em; font-weight: 600; }
+.balk-info .rollen { display: block; font-size: .7rem; letter-spacing: .04em; }
+.balk-info .rollen.beheer { color: var(--amber); font-weight: 600; }
+.balk-info .rollen:not(.beheer) { color: #a8b0bb; }
 
 
 /* ---- Layout ------------------------------------------------------------- */
@@ -317,13 +323,14 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
 
 /* Geen apart element in de kopbalk — dat brak af bij een lange naam of
    clubnaam. In plaats daarvan een klein badge bovenop de bestaande naam-knop,
-   net als een notificatiebolletje op een app-icoon. Klik je op je naam, dan
-   zit Mijn berichten daar toch al in het menu. */
+   net als een notificatiebolletje op een app-icoon. Het bolletje heeft een
+   eigen klik die rechtstreeks naar Mijn berichten gaat, los van de knop
+   eronder die het naammenu opent. */
 .envelop-badge {
   position: absolute; top: -3px; right: -3px; min-width: 16px; height: 16px;
   border-radius: 999px; background: var(--rood); color: #fff;
   font-size: .62rem; font-weight: 700; line-height: 16px; text-align: center;
-  padding: 0 3px; box-shadow: 0 0 0 2px var(--inkt); pointer-events: none;
+  padding: 0 3px; box-shadow: 0 0 0 2px var(--inkt); cursor: pointer;
 }
 .envelop-badge[hidden] { display: none; }
 
@@ -803,7 +810,10 @@ select {
 
 <header class="balk">
   <div class="balk-rij">
-    <div class="merk">YO<span class="accent">Assist</span><span class="versie" id="versie"></span></div>
+    <div class="merk-wrap">
+      <div class="merk">YO<span class="accent">Assist</span><span class="versie" id="versie"></span></div>
+      <div class="merk-club" id="merk-club"></div>
+    </div>
     <span class="balk-info-wrap">
       <button class="balk-info" id="balk-info" aria-haspopup="menu" aria-expanded="false"></button>
       <span class="envelop-badge" id="envelop-badge" hidden>0</span>
@@ -1162,15 +1172,21 @@ async function laadHoofd() {
 
     $('versie').textContent = 'v' + ik.versie;
 
-    // Beheerders krijgen de versie ook onder hun naam: dat is de plek waar je
-    // kijkt als je iemand aan de telefoon hebt die een probleem meldt.
-    const beheerRegel = ik.isAdmin
-      ? `<span class="beheer">Beheerder &middot; v${tekst(ik.versie)}</span>`
-      : '';
+    // De gesynchroniseerde club hoort thuis bij het merk links, niet bij de
+    // eigen naam rechts — dat gaat voortaan enkel nog over de eigen rol(len).
+    $('merk-club').textContent = ik.clubNaam ?? '';
+
+    // Eén regel met de rol(len): voor een beheerder die ook YO+ is, allebei
+    // na elkaar. De versie stond hier ook al links naast YOAssist; dat is
+    // geen tweede plek nodig.
+    const rollenTekst = ik.isAdmin
+      ? `Beheerder &middot; ${tekst(ik.profiel)}`
+      : tekst(ik.profiel);
+    const rollenKlasse = ik.isAdmin ? 'rollen beheer' : 'rollen';
 
     $('balk-info').innerHTML =
-      `<span><strong>${tekst(ik.naam)}</strong>${tekst(ik.profiel)}` +
-      `${ik.clubNaam ? ' &middot; ' + tekst(ik.clubNaam) : ''}${beheerRegel}</span>`;
+      `<span><strong>${tekst(ik.naam)}</strong>` +
+      `<span class="${rollenKlasse}">${rollenTekst}</span></span>`;
 
     for (const sleutel of ['beheer-dagelijks', 'beheer-config', 'clubgeld', 'alsyo']) {
       document.querySelector(`[data-menu="${sleutel}"]`).hidden = !ik.isAdmin;
@@ -2965,6 +2981,14 @@ $('balk-info').addEventListener('click', (e) => {
   zetNaammenu($('naammenu').hidden);
 });
 
+// Het bolletje zelf gaat rechtstreeks naar Mijn berichten — dat is wat een
+// notificatiebolletje hoort te doen, in plaats van via het naammenu.
+$('envelop-badge').addEventListener('click', (e) => {
+  e.stopPropagation();
+  zetNaammenu(false);
+  openBerichten();
+});
+
 // Ergens anders klikken sluit het menu. Zonder dit blijft het openstaan terwijl
 // je al iets anders aan het doen bent.
 document.addEventListener('click', () => zetNaammenu(false));
@@ -3758,6 +3782,29 @@ async function verversEnvelop() {
   } catch { /* zonder teller blijft de naam-knop gewoon zonder badge */ }
 }
 
+/* Zonder dit verandert er niets op het scherm als er een bericht binnenkomt
+   terwijl je op de aanduidingenpagina staat — de teller werd voorheen enkel
+   bij het laden van de pagina opgehaald. Licht genoeg om gewoon elke paar
+   minuten te doen, en gepauzeerd zodra niemand naar het tabblad kijkt. */
+let envelopTimer = null;
+function startEnvelopPolling() {
+  stopEnvelopPolling();
+  envelopTimer = setInterval(verversEnvelop, 3 * 60 * 1000);
+}
+function stopEnvelopPolling() {
+  if (envelopTimer) clearInterval(envelopTimer);
+  envelopTimer = null;
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    verversEnvelop();
+    startEnvelopPolling();
+  } else {
+    stopEnvelopPolling();
+  }
+});
+if (document.visibilityState === 'visible') startEnvelopPolling();
+
 const BERICHT_FILTERS = [
   ['alles', 'Alles'],
   ['aanduiding', 'Aanduidingen'],
@@ -4062,6 +4109,7 @@ if (new URLSearchParams(location.search).get('open') === 'berichten') {
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', (e) => {
     if (e.data?.type === 'open-berichten') openBerichten();
+    else if (e.data?.type === 'nieuw-bericht') verversEnvelop();
   });
 }
 

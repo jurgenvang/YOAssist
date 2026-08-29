@@ -21,12 +21,19 @@ self.addEventListener('push', (event) => {
   }
 
   event.waitUntil(
-    self.registration.showNotification(gegevens.titel, {
-      body: gegevens.tekst,
-      tag: gegevens.tag ?? 'yoassist',
-      data: { url: gegevens.url },
-      requireInteraction: false,
-    }),
+    Promise.all([
+      self.registration.showNotification(gegevens.titel, {
+        body: gegevens.tekst,
+        tag: gegevens.tag ?? 'yoassist',
+        data: { url: gegevens.url },
+        requireInteraction: false,
+      }),
+      // Staat de app al open, dan hoeft die niet te wachten op een klik op de
+      // melding: het bolletje mag meteen meetellen.
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((vensters) => {
+        for (const venster of vensters) venster.postMessage({ type: 'nieuw-bericht' });
+      }),
+    ]),
   );
 });
 
