@@ -445,5 +445,29 @@ console.log('\n23. Zonder nummer valt er niets te tonen');
   check('geen nummer ingevuld', bert.gsm, null);
 }
 
+console.log('\n24. Herinnering om zelf een gsm-nummer in te vullen');
+{
+  const env = nieuweEnv();
+  await wijs(env, 'U12A', 'yo@club.be');
+  await wijs(env, 'U12A', 'plus@club.be');
+
+  const ann = await vraag(env, '/api/matches', { alsWie: 'yo@club.be' });
+  const zichzelf = ann.json.matches.find((m) => m.guid === 'U12A')
+    .clubRefs.find((p) => p.ikZelf);
+  check('geen eigen nummer ingevuld: gsmOntbreekt staat aan', zichzelf.gsmOntbreekt, true);
+
+  env.DB.exec("UPDATE users SET gsm = '0470123456' WHERE email = 'yo@club.be';");
+  const opnieuw = await vraag(env, '/api/matches', { alsWie: 'yo@club.be' });
+  const zichzelfMetNummer = opnieuw.json.matches.find((m) => m.guid === 'U12A')
+    .clubRefs.find((p) => p.ikZelf);
+  check('eenmaal ingevuld: gsmOntbreekt staat uit', zichzelfMetNummer.gsmOntbreekt, false);
+
+  // Bij een collega is dit veld altijd false, ook als die zelf niets invulde —
+  // het is enkel een duwtje naar jezelf, geen zichtbare vlag over een ander.
+  const bert = ann.json.matches.find((m) => m.guid === 'U12A')
+    .clubRefs.find((p) => p.naam === 'Bert Bosmans');
+  check('bij een collega altijd false, ook zonder diens nummer', bert.gsmOntbreekt, false);
+}
+
 console.log(mislukt === 0 ? '\n=== ALLE AANDUIDINGSTESTS GESLAAGD ===' : `\n=== ${mislukt} TESTS GEFAALD ===`);
 process.exit(mislukt ? 1 : 0);

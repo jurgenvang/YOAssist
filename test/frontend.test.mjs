@@ -270,13 +270,25 @@ console.log('\n11. Het naammenu');
     ['alsyo', 'beheer-config', 'beheer-dagelijks', 'berichten', 'clubgeld',
      'documenten', 'handleiding', 'over', 'rondleiding', 'vergoeding', 'voorkeuren']);
 
-  // Beheer hoort bovenaan: dat is wat een beheerder het vaakst nodig heeft.
+  // Beheer hoort bovenaan, als eigen groepje: dat is wat een beheerder het
+  // vaakst nodig heeft, en gescheiden van de persoonlijke dingen eronder.
   check('Dagelijks beheer staat eerst', items[0], 'beheer-dagelijks');
   check('daarna Configuratie', items[1], 'beheer-config');
   check('dan Vergoedingen Club', items[2], 'clubgeld');
-  check('dan Mijn vergoeding', items[3], 'vergoeding');
-  check('dan Mijn voorkeuren', items[4], 'voorkeuren');
+  check('dan Kijken als official, nog steeds bij Beheer', items[3], 'alsyo');
+  check('pas daarna het persoonlijke deel, met Mijn vergoeding', items[4], 'vergoeding');
+  check('dan Mijn voorkeuren', items[5], 'voorkeuren');
   check('hoofdletter in Vergoedingen Club', /Vergoedingen Club</.test(html), true);
+
+  // Het label en de scheidingslijn horen bij dezelfde groep als de
+  // beheerknoppen: zonder Beheer erboven heeft een lege koptekst geen nut.
+  check('label "Beheer" boven het bovenste deel',
+    /<div class="naammenu-label" data-menu-groep="beheer" hidden>Beheer<\/div>/.test(html), true);
+  check('scheidingslijn na Kijken als official, vóór Mijn vergoeding',
+    html.indexOf('data-menu="alsyo"') < html.indexOf('class="naammenu-scheiding"')
+      && html.indexOf('class="naammenu-scheiding"') < html.indexOf('data-menu="vergoeding"'), true);
+  check('label en scheiding volgen dezelfde admin-check als de beheerknoppen',
+    /data-menu-groep="beheer"\]'\)\.forEach\(\(el\) => \{\s*el\.hidden = !ik\.isAdmin/.test(html), true);
 
   // De kijkstand mag nooit iets toevoegen, enkel wegnemen.
   const kijk = haalFunctie('pasTabbalkToe');
@@ -644,6 +656,21 @@ console.log('\n30. Topbalk: club onder YOAssist, rol(len) onder de eigen naam');
 
   check('een admin ziet Beheerder samen met zijn profiel',
     /Beheerder &middot; \$\{tekst\(ik\.profiel\)\}/.test(laadFn), true);
+}
+
+
+console.log('\n31. Herinnering om zelf een gsm-nummer in te vullen');
+{
+  const refsFn = haalFunctie('refsRegel');
+  check('gebruikt het gsmOntbreekt-veld van de server',
+    /official\?\.gsmOntbreekt/.test(refsFn), true);
+  check('toont een knop met data-gsm-herinnering',
+    /data-gsm-herinnering/.test(refsFn), true);
+
+  const start = html.indexOf("$('hoofd').addEventListener('click'");
+  const stuk = html.slice(start, start + 300);
+  check('een klik erop opent Mijn voorkeuren',
+    /gsm-herinnering[\s\S]*?openVoorkeuren\(\)/.test(stuk), true);
 }
 
 

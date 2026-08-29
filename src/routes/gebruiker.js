@@ -207,6 +207,10 @@ export async function matches({ url, env, user }) {
           gsm: magNummer ? toonNummer(a.gsm) : null,
           whatsapp: magNummer ? whatsappLink(a.gsm) : null,
           bellen: magNummer ? belLink(a.gsm) : null,
+          // Enkel bij mezelf zinvol: een collega met een leeg nummer zie ik
+          // toch nooit (magNummer is dan al false), dus dit hoeft niet apart
+          // afgeschermd te worden voor de andere kant.
+          gsmOntbreekt: ikZelf && !a.gsm,
         },
       ]);
     }

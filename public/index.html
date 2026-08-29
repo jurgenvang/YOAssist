@@ -106,6 +106,15 @@ button { font: inherit; cursor: pointer; }
 }
 .naammenu button:hover { background: #eef0f3; }
 .naammenu button[hidden] { display: none; }
+/* Beheer bovenaan, persoonlijke dingen eronder — voor een official die het
+   bovenste deel nooit ziet, blijft het menu gewoon zoals het al was. */
+.naammenu-label {
+  font-size: .68rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--grijs); padding: .5rem .7rem .2rem;
+}
+.naammenu-label[hidden] { display: none; }
+.naammenu-scheiding { border-top: 1px solid var(--lijn); margin: .3rem .3rem; }
+.naammenu-scheiding[hidden] { display: none; }
 .balk-info strong { display: block; color: #fff; font-weight: 600; font-size: .85rem; }
 .balk-info .rollen { display: block; font-size: .7rem; letter-spacing: .04em; }
 .balk-info .rollen.beheer { color: var(--amber); font-weight: 600; }
@@ -620,15 +629,27 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
 .wed-refs .ref-plaats { align-self: stretch; }
 .vbl-regel { font-size: .76rem; color: var(--grijs); }
 /* Genummerde plaatsen vullen de breedte zodat naam links en contact rechts
-   uitlijnen over beide regels. */
+   uitlijnen over beide regels — maar 100% van de kaart is op een telefoon de
+   volledige schermbreedte. Een max-breedte houdt de uitlijning (allebei
+   rekken nog tot dezelfde breedte) zonder dat de balk tot de rand loopt. */
 .wed-refs .ref-plaats.gevuld,
-.wed-refs .ref-plaats.leeg { display: flex; width: 100%; align-items: center; gap: .4rem; }
+.wed-refs .ref-plaats.leeg { display: flex; width: 100%; max-width: 20rem;
+                              align-items: center; gap: .4rem; }
 .wed-refs .ref-plaats .wa,
 .wed-refs .ref-plaats .bel { margin-left: auto; }
 .wed-refs .ref-plaats .wa { margin-left: .35rem; }
 .chip.ik { background: var(--inkt); color: #fff; font-weight: 600; }
 .ref-plaats.gevuld.ik { background: var(--groen); }
 .ref-plaats.gevuld.ik .ref-nr { background: rgba(255,255,255,.25); }
+
+/* Duwtje om zelf een gsm-nummer in te vullen — geen fout, geen dringende
+   waarschuwing, dus dezelfde toon als de rest van de balk (op de groene
+   achtergrond van "ik"), enkel onderstreept zodat het als link herkenbaar is. */
+.gsm-ontbreekt {
+  margin-left: auto; background: none; border: 0; padding: 0;
+  color: inherit; font-size: .74rem; text-decoration: underline;
+  text-underline-offset: .15em; cursor: pointer; white-space: nowrap;
+}
 
 /* ---- Gebruikersbeheer --------------------------------------------------- */
 .gebr-rij {
@@ -819,12 +840,14 @@ select {
       <span class="envelop-badge" id="envelop-badge" hidden>0</span>
     </span>
     <div class="naammenu" id="naammenu" role="menu" hidden>
+      <div class="naammenu-label" data-menu-groep="beheer" hidden>Beheer</div>
       <button role="menuitem" data-menu="beheer-dagelijks" hidden>Dagelijks beheer</button>
       <button role="menuitem" data-menu="beheer-config" hidden>Configuratie</button>
       <button role="menuitem" data-menu="clubgeld" hidden>Vergoedingen Club</button>
+      <button role="menuitem" data-menu="alsyo" hidden>Kijken als official</button>
+      <div class="naammenu-scheiding" data-menu-groep="beheer" hidden></div>
       <button role="menuitem" data-menu="vergoeding">Mijn vergoeding</button>
       <button role="menuitem" data-menu="voorkeuren">Mijn voorkeuren</button>
-      <button role="menuitem" data-menu="alsyo" hidden>Kijken als official</button>
       <button role="menuitem" data-menu="berichten">Mijn berichten</button>
       <button role="menuitem" data-menu="rondleiding">Rondleiding</button>
       <button role="menuitem" data-menu="documenten">Documenten</button>
@@ -1191,6 +1214,11 @@ async function laadHoofd() {
     for (const sleutel of ['beheer-dagelijks', 'beheer-config', 'clubgeld', 'alsyo']) {
       document.querySelector(`[data-menu="${sleutel}"]`).hidden = !ik.isAdmin;
     }
+    // Het label "Beheer" en de scheidingslijn horen bij dezelfde groep: zonder
+    // beheertaken erboven heeft een lege koptekst met een streep geen nut.
+    document.querySelectorAll('[data-menu-groep="beheer"]').forEach((el) => {
+      el.hidden = !ik.isAdmin;
+    });
     // De tabbalk is er alleen voor beheerders: een gewone YO heeft één scherm,
     // en zijn vergoeding staat in het naammenu.
     try {
@@ -1391,7 +1419,12 @@ function refsRegel(m) {
            title="${tekst(official.gsm)} — bellen">${BEL_ICOON}</a>` +
         `<a href="${tekst(official.whatsapp)}" target="_blank" rel="noopener noreferrer"
            class="wa" title="${tekst(official.gsm)} — bericht via WhatsApp">${WA_ICOON}</a>`
-      : '';
+      : official?.gsmOntbreekt
+        // Enkel bij mezelf (de server zet dit nooit voor een collega): een
+        // duwtje om het zelf in te vullen, meteen door naar Mijn voorkeuren.
+        ? `<button type="button" class="gsm-ontbreekt" data-gsm-herinnering>
+             nog geen gsm — vul aan</button>`
+        : '';
 
     delen.push(official
       ? `<span class="ref-plaats gevuld ${official.ikZelf ? 'ik' : ''}">
@@ -1465,6 +1498,12 @@ function kaart(m) {
 /* Klik op een keuzeknop. Tweede klik op dezelfde knop wist het antwoord,
    zodat een vergissing terug naar 'nog niet geantwoord' kan. */
 $('hoofd').addEventListener('click', async (e) => {
+  const gsmKnop = e.target.closest('[data-gsm-herinnering]');
+  if (gsmKnop) {
+    openVoorkeuren();
+    return;
+  }
+
   const clubKnop = e.target.closest('.club-knop');
   if (clubKnop) {
     document.querySelectorAll('.club-knop').forEach((k) => (k.disabled = true));
