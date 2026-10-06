@@ -3,7 +3,7 @@
 Upload dit als **projectkennis**. Het bevat wat een volgend gesprek moet weten om
 verder te kunnen zonder alles opnieuw uit te vragen.
 
-Laatst bijgewerkt: v1.11.0
+Laatst bijgewerkt: v1.12.0
 
 ---
 
@@ -84,10 +84,19 @@ facturatie; daardoor kloppen cluboverzicht, Mijn vergoeding en logboek vanzelf
 mee. Enkel bij een open maand, en enkel bij werk van die maand — niet bij een
 correctie.
 
-**Een vrijgave op een voorbije wedstrijd stuurt geen bericht.** Het is een
-administratieve rechtzetting; de official verwittigen over een wedstrijd die al
-gespeeld is, verwart alleen. Het logboek houdt ze wel bij. `geefVrij` geeft
-`voorbij` terug.
+**Een aanduiding of vrijgave op een voorbije wedstrijd stuurt geen bericht.**
+Het is een administratieve rechtzetting; de official verwittigen over een
+wedstrijd die al gespeeld is, verwart alleen. Het logboek houdt ze wel bij.
+`wijsToe` en `geefVrij` geven allebei `voorbij` terug. De botsingscontrole
+blijft wel gelden, ook achteraf.
+
+**Voorbije wedstrijden in het cluboverzicht enkel op vraag** (V35):
+`/api/admin/overzicht?voorbij=1` begint bij de eerste dag van de vorige maand
+(`beginVorigeMaand` in `venster.js`) — ver genoeg om een maand recht te zetten
+vóór ze wordt afgesloten. Elke wedstrijd draagt `voorbij`; een voorbije telt
+nooit mee in `inVenster` of `probleem`, zodat de cijfers bovenaan niet
+verschuiven door de schakelaar. In de frontend een eigen groep *Voorbij*,
+onderaan. Officials zien ze niet: `/api/matches` begint nog altijd bij vandaag.
 
 **Een beheerder kan bevestigen dat er twee scheidsrechters zijn** terwijl het
 systeem van de bond er nog geen toont (`refs_bevestigd`). Die vlag wijst niemand
@@ -255,7 +264,7 @@ LICENSE                      EUPL v1.2
 schema.sql                   de bron van waarheid voor de databank
 schema-console.sql           opgedeeld in blokken voor de D1-console
 schema-alles-in-een.sql      drops plus schema, in één keer uitvoerbaar
-test/                        1473 tests, draaien zonder netwerk
+test/                        1508 tests, draaien zonder netwerk
 ```
 
 ## Val­kuilen die al eens hebben toegeslagen

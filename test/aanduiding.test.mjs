@@ -469,5 +469,49 @@ console.log('\n24. Herinnering om zelf een gsm-nummer in te vullen');
   check('bij een collega altijd false, ook zonder diens nummer', bert.gsmOntbreekt, false);
 }
 
+console.log('\nV35. Voorbije wedstrijden in het cluboverzicht, en achteraf aanduiden');
+{
+  const env = { ...nieuweEnv(), RESEND_API_KEY: 're_test' };
+  env.DB.exec("UPDATE settings SET waarde = 'aanduidingen@club.be' WHERE sleutel = 'mail_afzender'");
+  const dagenGeleden = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+  env.DB.exec(`
+    INSERT INTO matches (guid, seizoen, club_guid, thuis_guid, thuis_naam, uit_naam,
+                         datum, uur, locatie, acc_guid, cat_code, off_namen, off_aantal,
+                         scope, scope_reden, hash) VALUES
+      ('VOORBIJ','2627','${CLUB}','${CLUB}G12  1','G12 A','Gast','${dagenGeleden(3)}','14:00','Noord','ACC1','G12','[]',0,1,'auto','hv1'),
+      ('OUD','2627','${CLUB}','${CLUB}G12  1','G12 A','Gast','${dagenGeleden(100)}','14:00','Noord','ACC1','G12','[]',0,1,'auto','hv2')`);
+
+  const standaard = await vraag(env, '/api/admin/overzicht', { alsWie: 'baas@club.be' });
+  check('standaard geen voorbije wedstrijden',
+    standaard.json.wedstrijden.some((w) => w.voorbij), false);
+
+  const met = await vraag(env, '/api/admin/overzicht?voorbij=1', { alsWie: 'baas@club.be' });
+  const guids = met.json.wedstrijden.map((w) => w.guid);
+  check('met schakelaar: de recente voorbije erbij', guids.includes('VOORBIJ'), true);
+  check('maar niet van maanden geleden', guids.includes('OUD'), false);
+  check('vlag gezet', met.json.wedstrijden.find((w) => w.guid === 'VOORBIJ').voorbij, true);
+  check('komende wedstrijd niet als voorbij', met.json.wedstrijden.find((w) => w.guid === 'U12A').voorbij, false);
+  check('voorbij telt niet mee in het venster', met.json.wedstrijden.find((w) => w.guid === 'VOORBIJ').inVenster, false);
+  check('en is nooit een probleem', met.json.wedstrijden.find((w) => w.guid === 'VOORBIJ').probleem, false);
+  check('tellers ongewijzigd door de schakelaar',
+    [met.json.inVenster, met.json.inScope, met.json.onvolledig, met.json.metProbleem],
+    [standaard.json.inVenster, standaard.json.inScope, standaard.json.onvolledig, standaard.json.metProbleem]);
+  check('metVoorbij teruggegeven', [standaard.json.metVoorbij, met.json.metVoorbij], [false, true]);
+
+  const verzonden = [];
+  globalThis.fetch = async (url, opties) => { verzonden.push(JSON.parse(opties.body)); return { ok: true, json: async () => ({}) }; };
+
+  const achteraf = await wijs(env, 'VOORBIJ', 'yo@club.be');
+  check('achteraf aanduiden lukt', achteraf.status, 200);
+  check('als voorbij herkend', achteraf.json.voorbij, true);
+  check('zonder bericht', verzonden.length, 0);
+  check('wel in het logboek',
+    (await env.DB.prepare("SELECT COUNT(*) AS n FROM logboek WHERE soort = 'toegewezen' AND match_guid = 'VOORBIJ'").first()).n, 1);
+
+  const nu = await wijs(env, 'U12A', 'yo@club.be');
+  check('komende wedstrijd: niet voorbij', nu.json.voorbij, false);
+  check('komende wedstrijd: wel een bericht', verzonden.some((m) => m.to === 'yo@club.be'), true);
+}
+
 console.log(mislukt === 0 ? '\n=== ALLE AANDUIDINGSTESTS GESLAAGD ===' : `\n=== ${mislukt} TESTS GEFAALD ===`);
 process.exit(mislukt ? 1 : 0);

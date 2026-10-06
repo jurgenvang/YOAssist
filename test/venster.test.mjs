@@ -2,7 +2,7 @@
  * Tests voor het weekendvenster. De randgevallen zitten in de dag van de week:
  * een venster mag nooit een zaterdag tonen zonder haar zondag.
  */
-import { weekendVenster, vensterLabel } from '../src/lib/venster.js';
+import { weekendVenster, vensterLabel, beginVorigeMaand } from '../src/lib/venster.js';
 
 let f = 0;
 const check = (n, e, v) => {
@@ -84,6 +84,14 @@ console.log('\n8. Jaargrens');
   check('over de jaargrens', v.weekends,
     [{ zaterdag: '2026-12-26', zondag: '2026-12-27' },
      { zaterdag: '2027-01-02', zondag: '2027-01-03' }]);
+}
+
+console.log('\nV35. Voorbije wedstrijden vanaf de eerste van de vorige maand');
+{
+  check('begin oktober: heel september', beginVorigeMaand(new Date('2026-10-06T10:00:00Z')), '2026-09-01');
+  check('over de jaargrens', beginVorigeMaand(new Date('2026-01-15T10:00:00Z')), '2025-12-01');
+  check('laatste dag van een lange maand', beginVorigeMaand(new Date('2026-03-31T22:00:00Z')), '2026-02-01');
+  check('eerste dag van de maand', beginVorigeMaand(new Date('2026-11-01T00:30:00Z')), '2026-10-01');
 }
 
 console.log(f === 0 ? '\n=== ALLE VENSTERTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);

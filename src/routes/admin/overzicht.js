@@ -1,7 +1,7 @@
 import { json, instelling } from '../../lib/http.js';
 import { seizoenscode, wedstrijdbladUrl } from '../../lib/vbl.js';
 import { aantalNodig } from '../../lib/aanduiding.js';
-import { weekendVenster, vensterLabel } from '../../lib/venster.js';
+import { weekendVenster, vensterLabel, beginVorigeMaand } from '../../lib/venster.js';
 
 /**
  * GET /api/admin/overzicht?dagen=14[&club=BVBL1125]
@@ -17,8 +17,10 @@ import { weekendVenster, vensterLabel } from '../../lib/venster.js';
  * zijn eigen account: hij beheert de aanduidingen, en die kunnen over meerdere
  * clubs lopen.
  *
- * De eigen toewijzingen komen erbij zodra die module bestaat; de structuur
- * hieronder houdt daar al plaats voor vrij.
+ * Met ?voorbij=1 begint de lijst bij de eerste dag van de vorige maand (V35),
+ * om achteraf nog aanduidingen recht te zetten. Die wedstrijden tellen nooit
+ * mee in de cijfers en zijn nooit een 'probleem': er is niets meer aan te
+ * vullen, enkel nog recht te zetten.
  */
 export async function overzicht({ url, env }) {
   // Het venster waarover de tellers gaan: de eerstvolgende volledige weekends.
@@ -33,6 +35,8 @@ export async function overzicht({ url, env }) {
 
   const vandaag = new Date().toISOString().slice(0, 10);
   const tot = new Date(Date.now() + dagen * 86400000).toISOString().slice(0, 10);
+  const metVoorbij = url.searchParams.get('voorbij') === '1';
+  const van = metVoorbij ? beginVorigeMaand(new Date()) : vandaag;
 
   const voorwaarden = [
     'm.seizoen = ?',
@@ -40,7 +44,7 @@ export async function overzicht({ url, env }) {
     'm.datum >= ?',
     'm.datum <= ?',
   ];
-  const params = [seizoen, vandaag, tot];
+  const params = [seizoen, van, tot];
 
   if (clubFilter) {
     voorwaarden.push('m.club_guid = ?');
@@ -67,7 +71,8 @@ export async function overzicht({ url, env }) {
   if (wedstrijden.length === 0) {
     return json({
       dagen,
-      van: vandaag,
+      van,
+      metVoorbij,
       tot,
       venster: { ...venster, label: vensterLabel(venster) },
       wedstrijden: [],
@@ -137,6 +142,7 @@ export async function overzicht({ url, env }) {
   const uitgewerkt = wedstrijden.map((w) => {
     const antwoord = perWedstrijd.get(w.guid) ?? { ja: [], nee: [] };
     const toegewezen = perToewijzing.get(w.guid) ?? [];
+    const voorbij = w.datum < vandaag;
 
     let vblRefs = [];
     try {
@@ -174,8 +180,10 @@ export async function overzicht({ url, env }) {
       scopeUit: w.scope_uit === 1,
       nodig: aantalNodig(w.off_aantal),
       toegewezen: toegewezen,
-      // Valt deze wedstrijd binnen de weekends waarover de tellers gaan?
-      inVenster: w.datum <= venster.tot,
+      voorbij,
+      // Valt deze wedstrijd binnen de weekends waarover de tellers gaan? Een
+      // voorbije wedstrijd nooit, ook al ligt ze vóór het einde van het venster.
+      inVenster: !voorbij && w.datum <= venster.tot,
       // Een beheerder kan bevestigen dat er twee refs zijn terwijl de bond er
       // nog geen toont. Dat verandert niets aan de aanduidingen, maar de
       // wedstrijd is dan wel in orde wat scheidsrechters betreft.
@@ -185,6 +193,7 @@ export async function overzicht({ url, env }) {
       // omdat er nog niet genoeg toegewezen zijn, ofwel omdat er niemand
       // beschikbaar is om uit te kiezen.
       probleem:
+        !voorbij &&
         w.scope === 1 &&
         (toegewezen.length < aantalNodig(w.off_aantal) || antwoord.ja.length === 0),
     };
@@ -197,7 +206,8 @@ export async function overzicht({ url, env }) {
 
   return json({
     dagen,
-    van: vandaag,
+    van,
+    metVoorbij,
     tot,
     venster: { ...venster, label: vensterLabel(venster) },
     aantal: uitgewerkt.length,

@@ -208,6 +208,12 @@ export async function wijsToe({ request, env, user }) {
     nieuw: naam + (forceer && botsingen.length > 0 ? ' (geforceerd)' : ''),
   });
 
+  // Een aanduiding op een wedstrijd die al voorbij is, is een rechtzetting
+  // achteraf (V35). 'Je bent aangeduid voor zaterdag' over een zaterdag die al
+  // voorbij is, verwart alleen; het logboek houdt de wijziging wel bij.
+  const vandaag = new Date().toISOString().slice(0, 10);
+  const voorbij = wedstrijd.datum < vandaag;
+
   // Mail versturen mag de aanduiding zelf niet laten mislukken. Een geweigerde
   // of onbereikbare maildienst is een probleem voor later, niet voor nu.
   const mail = templateAanduiding({
@@ -220,12 +226,15 @@ export async function wijsToe({ request, env, user }) {
     opkomst: opkomstUur(wedstrijd.uur) ?? wedstrijd.uur,
     matchGuid: guid,
   });
-  const verzending = await verwittig(env, email, mail).catch(() => ({ mail: false, push: 0 }));
+  const verzending = voorbij
+    ? { mail: false, push: 0 }
+    : await verwittig(env, email, mail).catch(() => ({ mail: false, push: 0 }));
 
   return json({
     matchGuid: guid,
     email,
     naam,
+    voorbij,
     geforceerd: forceer && botsingen.length > 0,
     botsingen: botsingen.map((b) => b.omschrijving),
     mailVerstuurd: verzending.mail,

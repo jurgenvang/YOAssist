@@ -703,5 +703,85 @@ console.log('\nV36. Vergoedingen tonen de wedstrijden, weghalen enkel waar het m
   check('afgesloten maand: niets weg te halen', afgesloten.includes('data-fact-weg'), false);
 }
 
+console.log('\nV35. Voorbije wedstrijden in het cluboverzicht');
+{
+  const bron = ['tekst', 'ontleedDatum', 'overzichtPad', 'voorbijKnopHtml', 'overzichtKaart']
+    .map(haalFunctie).join('\n');
+  const MAANDEN = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli',
+    'augustus', 'september', 'oktober', 'november', 'december'];
+  const staat = { toonVoorbij: false };
+  const f35 = new Function('staat', 'MAANDEN',
+    `${bron}; return { overzichtPad, voorbijKnopHtml, overzichtKaart };`)(staat, MAANDEN);
+
+  check('standaard zonder voorbije', f35.overzichtPad(), '/api/admin/overzicht');
+  check('uit: knop om te tonen', /Toon voorbije wedstrijden/.test(f35.voorbijKnopHtml({ van: '2026-10-06' })), true);
+
+  staat.toonVoorbij = true;
+  check('aan: met voorbije', f35.overzichtPad(), '/api/admin/overzicht?voorbij=1');
+  const aan = f35.voorbijKnopHtml({ van: '2026-09-01' });
+  check('aan: knop om te verbergen', /Verberg voorbije wedstrijden/.test(aan), true);
+  check('aan: vanaf wanneer', aan.includes('vanaf 1 september'), true);
+  check('aan: zegt dat er geen bericht gaat', /geen bericht/.test(aan), true);
+
+  const kaart = (voorbij) => f35.overzichtKaart({
+    guid: 'X', uur: '14:00', thuis: 'G12 A', uit: 'Gast', catCode: 'G12', catLabel: 'U12',
+    catGroep: 'U10U12', vblRefs: [], vblAantal: 0, vblNamenGewist: false, nodig: 2,
+    toegewezen: [], beschikbaar: [], nietBeschikbaar: [], inScope: true, scopeReden: 'auto',
+    probleem: false, inVenster: !voorbij, voorbij,
+  });
+  check('voorbije kaart gemarkeerd', /class="ov voorbij/.test(kaart(true)), true);
+  check('komende kaart niet', /voorbij/.test(kaart(false).split('>')[0]), false);
+  check('ook achteraf iemand toe te wijzen', kaart(true).includes('data-handmatig'), true);
+}
+
+console.log('\nV35. Voorbije wedstrijden krijgen een eigen groep');
+{
+  const bron = ['tekst', 'ontleedDatum', 'voorbijKnopHtml', 'overzichtKaart', 'toonOverzicht']
+    .map(haalFunctie).join('\n');
+  const MAANDEN = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli',
+    'augustus', 'september', 'oktober', 'november', 'december'];
+  const DAGEN = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
+  const hoofd = { innerHTML: '' };
+  const $ = (id) => (id === 'hoofd' ? hoofd : { onclick: null });
+  const document = { querySelectorAll: () => [] };
+  const staat = { toonVoorbij: true, filter: null, toonAlles: false };
+  const toonOverzicht = new Function('staat', 'MAANDEN', 'DAGEN', '$', 'document',
+    'koppelVouwknoppen', 'zorgVoorZichtbareSectie', 'toonAutoVoorstel', 'wisselVoorbij',
+    `${bron}; return toonOverzicht;`)(staat, MAANDEN, DAGEN, $, document, () => {}, () => {}, () => {}, () => {});
+
+  const w = (guid, datum, extra = {}) => ({
+    guid, datum, uur: '14:00', thuis: guid, uit: 'Gast', catCode: 'G12', catLabel: 'U12',
+    catGroep: 'U10U12', vblRefs: [], vblAantal: 0, vblNamenGewist: false, nodig: 2,
+    toegewezen: [], beschikbaar: [], nietBeschikbaar: [], inScope: true, scopeReden: 'auto',
+    probleem: false, inVenster: true, voorbij: false, ...extra,
+  });
+  toonOverzicht({
+    aantal: 3, inVenster: 1, inScope: 1, onvolledig: 1, zonderBeschikbaren: 1,
+    van: '2026-09-01', venster: { label: '10–11 en 17–18 okt' },
+    wedstrijden: [
+      w('GISTEREN', '2026-10-05', { voorbij: true, inVenster: false }),
+      w('ZATERDAG', '2026-10-10', { probleem: true }),
+      w('LATER', '2026-11-20', { inVenster: false }),
+    ],
+  });
+  const html = hoofd.innerHTML;
+  const groep = (naam) => html.indexOf(`<h2>${naam}</h2>`);
+  check('groep Voorbij bestaat', groep('Voorbij') > -1, true);
+  check('Voorbij staat onder de andere groepen', groep('Voorbij') > groep('Aandacht nodig'), true);
+  check('voorbije wedstrijd in de groep Voorbij', html.indexOf('GISTEREN') > groep('Voorbij'), true);
+  check('niet bij Aandacht nodig',
+    html.slice(groep('Aandacht nodig'), groep('Voorbij')).includes('GISTEREN'), false);
+  check('niet meegeteld bij wat later komt', html.includes('wat later komt (1)'), true);
+
+  staat.toonVoorbij = false;
+  toonOverzicht({
+    aantal: 1, inVenster: 1, inScope: 1, onvolledig: 0, zonderBeschikbaren: 0,
+    van: '2026-10-06', venster: { label: '' },
+    wedstrijden: [w('ZATERDAG', '2026-10-10')],
+  });
+  check('uit: geen groep Voorbij', hoofd.innerHTML.includes('<h2>Voorbij</h2>'), false);
+  check('uit: wel de schakelaar', hoofd.innerHTML.includes('id="voorbij-knop"'), true);
+}
+
 console.log(f === 0 ? '\n=== ALLE FRONTENDTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);
 process.exit(f ? 1 : 0);

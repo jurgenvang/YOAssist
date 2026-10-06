@@ -65,3 +65,16 @@ export function vensterLabel(venster) {
     })
     .join(' en ');
 }
+
+/**
+ * Vanaf wanneer het cluboverzicht voorbije wedstrijden toont: de eerste dag van
+ * de vorige maand (V35).
+ *
+ * Ver genoeg om een maand nog recht te zetten voordat ze wordt afgesloten —
+ * afsluiten kan pas vanaf de eerste van de volgende maand, dus begin oktober
+ * moet september nog volledig te zien zijn. Niet verder: wat daarvoor ligt, is
+ * meestal al afgesloten, en een lijst van een half seizoen leest niemand.
+ */
+export function beginVorigeMaand(nu) {
+  return iso(new Date(Date.UTC(nu.getUTCFullYear(), nu.getUTCMonth() - 1, 1)));
+}

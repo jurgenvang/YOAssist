@@ -1,6 +1,6 @@
 # YOAssist — hoe het werkt
 
-Versie 1.11.0
+Versie 1.12.0
 
 Dit document legt uit wat YOAssist doet, waar het draait en wat er nodig is om
 het draaiende te houden. Bedoeld voor wie de app beheert, en voor wie hem ooit
@@ -89,6 +89,16 @@ Het toont eerst wat het zou doen; pas na bevestiging gebeurt het.
 Een official die is aangeduid, kan zijn beschikbaarheid niet meer wijzigen. Lukt
 het toch niet, dan meldt hij een probleem — dat gaat naar alle beheerders.
 
+**Achteraf rechtzetten.** Onderaan het cluboverzicht staat de knop *Toon
+voorbije wedstrijden*. Dan komen de wedstrijden vanaf de eerste dag van de
+vorige maand erbij, in een aparte groep *Voorbij* onderaan. Daar kan een
+beheerder nog iemand aanduiden of vrijgeven — bijvoorbeeld als iemand anders
+in de plaats floot. De official krijgt daar geen bericht van, want de wedstrijd
+is al gespeeld; het logboek houdt het wel bij. De cijfers bovenaan veranderen
+niet door die knop: ze gaan altijd over wat nog komt. Is de maand al
+afgesloten, dan komt de wijziging als correctie in de volgende maand.
+Officials zien voorbije wedstrijden niet.
+
 ---
 
 ## 5. Wat er automatisch gebeurt
@@ -141,7 +151,8 @@ staat: het knopje *weg* naast de wedstrijd. Dat geeft de aanduiding vrij —
 precies hetzelfde als vrijgeven in het cluboverzicht, met een regel in het
 logboek — en rekent het overzicht opnieuw uit. Omdat de wedstrijd al voorbij
 is, krijgt de official daar geen bericht over. Bij een afgesloten maand kan
-dat niet meer: die ligt vast, en een wijziging daarop komt als correctie in de
+dat niet meer: die ligt vast. Rechtzetten gaat dan via *Toon voorbije
+wedstrijden* in het cluboverzicht (hoofdstuk 4), en komt als correctie in de
 volgende maand.
 
 ---
@@ -379,6 +390,6 @@ Wat er nodig is om verder te kunnen:
 De code staat onder de **EUPL v1.2**: vrij te gebruiken, aan te passen en door te
 geven onder dezelfde voorwaarden. Zie `LICENSE`.
 
-Voor wie eraan verder wil bouwen zijn er 1473 tests die zonder netwerk draaien
+Voor wie eraan verder wil bouwen zijn er 1508 tests die zonder netwerk draaien
 met `cd test && npm test`. Ze zijn er niet voor de vorm: verschillende ervan
 kwamen er nadat iets stil was misgegaan, en houden dat nu tegen.

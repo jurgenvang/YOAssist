@@ -1,6 +1,6 @@
 ---
 name: overview
-description: YOAssist — purpose, stack, release workflow, and current state (v1.11.0) of the YO referee scheduling app
+description: YOAssist — purpose, stack, release workflow, and current state (v1.12.0) of the YO referee scheduling app
 sources: [backfill]
 aliases: [YOAssist, BVBL1125]
 ---
@@ -11,8 +11,8 @@ aliases: [YOAssist, BVBL1125]
 - [stated] The Claude project holds authoritative versions of the four project documents: YOASSIST-BACKLOG.md, YOASSIST-CONTEXT.md, YOASSIST-DOCUMENTATIE.md, and the working agreements in `instructions.md` (called YOASSIST-INSTRUCTIES.md in the Claude project).
 
 ## Current state
-- [stated] Most recent release is v1.11.0 (V36: per-match detail in Vergoedingen club, removing a match from an open month releases the assignment, no notification for releases on past matches; tests now use dates relative to today). Previous release v1.10.9 included: welcome email additions (Google/Apple sign-in note; match coverage explanation), a layout fix splitting combined `wedstrijd` fields into separate `thuis`/`uit` fields on the Regio page, and a catch-up sync of `YOASSIST-CONTEXT.md` and `YOASSIST-DOCUMENTATIE.md` (which had not been updated during v1.10.8).
-- [stated] All four project documents (BACKLOG, CONTEXT, DOCUMENTATIE, instructions) are in sync with v1.11.0, both in the Claude project and in this repo's `.claude/`.
+- [stated] Most recent release is v1.12.0 (V35: admins can show past matches from the first day of the previous month in the cluboverzicht to correct assignments afterwards, without notifying officials). Before that v1.11.0 (V36: per-match detail in Vergoedingen club, removing a match from an open month releases the assignment, no notification for releases on past matches; tests now use dates relative to today). Previous release v1.10.9 included: welcome email additions (Google/Apple sign-in note; match coverage explanation), a layout fix splitting combined `wedstrijd` fields into separate `thuis`/`uit` fields on the Regio page, and a catch-up sync of `YOASSIST-CONTEXT.md` and `YOASSIST-DOCUMENTATIE.md` (which had not been updated during v1.10.8).
+- [stated] All four project documents (BACKLOG, CONTEXT, DOCUMENTATIE, instructions) are in sync with v1.12.0, both in the Claude project and in this repo's `.claude/`.
 
 ## On the horizon
 - [stated] Backlog item V32: real-device testing of push notification tap behavior — whether tapping a notification opens Mijn berichten directly via `notificationclick` in `sw.js`.

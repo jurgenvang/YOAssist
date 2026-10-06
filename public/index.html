@@ -594,6 +594,8 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
 .mini-knop:hover { border-color: var(--inkt); color: var(--inkt); }
 .mini-knop.aan { background: var(--inkt); color: #fff; border-color: var(--inkt); }
 .ov.buiten { opacity: .6; }
+.ov.voorbij { background: var(--papier); box-shadow: none; }
+.groep-kop.voorbij h2 { color: var(--grijs); }
 .voorstel {
   background: var(--kaart); border: 1px solid var(--lijn); border-radius: var(--r);
   padding: .9rem 1rem; margin-bottom: 1rem; box-shadow: var(--schaduw);
@@ -1623,7 +1625,7 @@ async function wisselWeergave(welke) {
 
   $('hoofd').innerHTML = '<div class="leeg"><span class="spinner"></span> Overzicht laden…</div>';
   try {
-    staat.overzicht = await api('/api/admin/overzicht');
+    staat.overzicht = await api(overzichtPad());
     toonOverzicht(staat.overzicht);
   } catch (err) {
     $('hoofd').innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
@@ -1981,10 +1983,45 @@ async function toonAutoVoorstel() {
   }
 }
 
+/**
+ * Voorbije wedstrijden haalt de server enkel op vraag op (V35): standaard
+ * begint het overzicht bij vandaag, zoals altijd.
+ */
+function overzichtPad() {
+  return '/api/admin/overzicht' + (staat.toonVoorbij ? '?voorbij=1' : '');
+}
+
+/** De schakelaar voor voorbije wedstrijden, met vanaf wanneer. */
+function voorbijKnopHtml(o) {
+  const vanaf = ontleedDatum(o.van);
+  return `<button class="knop zacht breed meer-knop" id="voorbij-knop">
+    ${staat.toonVoorbij
+      ? 'Verberg voorbije wedstrijden'
+      : 'Toon voorbije wedstrijden (om achteraf recht te zetten)'}
+  </button>
+  ${staat.toonVoorbij
+    ? `<p class="venster-label">Voorbije wedstrijden vanaf ${vanaf.getUTCDate()} ${
+        MAANDEN[vanaf.getUTCMonth()]}. Wie je nu nog aanduidt of vrijgeeft, krijgt daar geen bericht van.</p>`
+    : ''}`;
+}
+
+async function wisselVoorbij() {
+  staat.toonVoorbij = !staat.toonVoorbij;
+  try {
+    await herlaadOverzicht();
+    if (staat.toonVoorbij) {
+      document.querySelector('[data-vouw="club-voorbij"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  } catch (err) {
+    toast(err.message);
+  }
+}
+
 function toonOverzicht(o) {
   if (o.aantal === 0) {
     $('hoofd').innerHTML =
-      `<div class="leeg">Geen thuiswedstrijden gevonden.</div>`;
+      `<div class="leeg">Geen thuiswedstrijden gevonden.</div>${voorbijKnopHtml(o)}`;
+    $('voorbij-knop').onclick = wisselVoorbij;
     return;
   }
 
@@ -2019,8 +2056,11 @@ function toonOverzicht(o) {
     return true;
   };
 
-  const zichtbaar = o.wedstrijden.filter(past).filter((w) => staat.toonAlles || w.inVenster);
-  const verderop = o.wedstrijden.filter(past).filter((w) => !w.inVenster).length;
+  // Voorbije wedstrijden staan enkel in de lijst als de schakelaar aan staat,
+  // en horen niet bij 'wat later komt'.
+  const zichtbaar = o.wedstrijden.filter(past)
+    .filter((w) => w.voorbij || staat.toonAlles || w.inVenster);
+  const verderop = o.wedstrijden.filter(past).filter((w) => !w.voorbij && !w.inVenster).length;
 
   if (zichtbaar.length === 0) {
     delen.push(`<div class="geen-treffers">Geen wedstrijden die aan dit filter voldoen.</div>`);
@@ -2028,8 +2068,12 @@ function toonOverzicht(o) {
     // Wat aandacht vraagt bovenaan: een beheerder opent dit scherm om te zien
     // waar nog werk ligt, niet om de volledige kalender door te nemen. Daarna
     // U10/U12 en de rest, elk chronologisch met een dagkop.
-    const aandacht = zichtbaar.filter((w) => w.probleem && w.inVenster);
-    const rest = zichtbaar.filter((w) => !(w.probleem && w.inVenster));
+    // Voorbije wedstrijden apart, onderaan: ze vragen geen werk meer, enkel
+    // eventueel een rechtzetting, en mogen de rest niet wegduwen.
+    const voorbij = zichtbaar.filter((w) => w.voorbij);
+    const komend = zichtbaar.filter((w) => !w.voorbij);
+    const aandacht = komend.filter((w) => w.probleem && w.inVenster);
+    const rest = komend.filter((w) => !(w.probleem && w.inVenster));
 
     const groepen = [
       { sleutel: 'aandacht', naam: 'Aandacht nodig', items: aandacht },
@@ -2037,12 +2081,14 @@ function toonOverzicht(o) {
         items: rest.filter((w) => w.catGroep === 'U10U12') },
       { sleutel: 'overige', naam: 'Overige',
         items: rest.filter((w) => w.catGroep !== 'U10U12') },
+      { sleutel: 'voorbij', naam: 'Voorbij', items: voorbij },
     ];
 
     for (const groep of groepen) {
       if (groep.items.length === 0) continue;
       const sleutel = `club-${groep.sleutel}`;
-      delen.push(`<div class="groep-kop ${groep.sleutel === 'aandacht' ? 'aandacht' : ''}" data-vouw="${sleutel}"><h2>${tekst(groep.naam)}</h2>
+      const kopKlasse = ['aandacht', 'voorbij'].includes(groep.sleutel) ? groep.sleutel : '';
+      delen.push(`<div class="groep-kop ${kopKlasse}" data-vouw="${sleutel}"><h2>${tekst(groep.naam)}</h2>
         <span class="aantal">${groep.items.length}</span></div>`);
 
       const binnen = [];
@@ -2067,6 +2113,7 @@ function toonOverzicht(o) {
                         : `Toon ook wat later komt (${verderop})`}
     </button>`);
   }
+  delen.push(voorbijKnopHtml(o));
 
   $('hoofd').innerHTML = delen.join('');
   koppelVouwknoppen();
@@ -2077,6 +2124,7 @@ function toonOverzicht(o) {
 
   const meerKnop = $('meer-knop');
   if (meerKnop) meerKnop.onclick = () => { staat.toonAlles = !staat.toonAlles; toonOverzicht(o); };
+  $('voorbij-knop').onclick = wisselVoorbij;
 
   document.querySelectorAll('[data-filter]').forEach((knop) => {
     knop.onclick = () => {
@@ -2141,6 +2189,7 @@ function overzichtKaart(w) {
 
   const compleet = w.inScope && w.toegewezen.length >= w.nodig;
   const klassen = ['ov'];
+  if (w.voorbij) klassen.push('voorbij');
   if (!w.inScope) klassen.push('buiten');
   else if (w.probleem && w.inVenster) klassen.push('probleem');
   else if (compleet) klassen.push('compleet');
@@ -2260,7 +2309,7 @@ async function kiesOfficial(guid) {
 async function herlaadOverzicht() {
   // Filter en uitklapstand blijven bewaard: na een toewijzing wil je verder
   // werken in dezelfde selectie, niet terug naar het volledige overzicht.
-  staat.overzicht = await api('/api/admin/overzicht');
+  staat.overzicht = await api(overzichtPad());
   toonOverzicht(staat.overzicht);
 }
 

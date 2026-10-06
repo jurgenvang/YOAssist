@@ -3,7 +3,7 @@
 Upload dit als **projectkennis** naast `YOASSIST-CONTEXT.md`. Bijwerken bij elke
 afgewerkte versie.
 
-Stand: **v1.11.0**
+Stand: **v1.12.0**
 
 ---
 
@@ -46,38 +46,11 @@ Stand: **v1.11.0**
 | 1.10.8 | REF-balk op het aanduidingenscherm smaller (max-breedte i.p.v. volledige kaartbreedte), herinnering om het eigen gsm-nummer in te vullen bij een eigen aanduiding, naammenu opgesplitst in Beheer en persoonlijk deel |
 | 1.10.9 | Welkomstmail: "Sign in with Cloudflare" vermeld vóór Google/Apple, uitleg over welke wedstrijden de app dekt (U10/U12, en vanaf U14 zonder VBL-scheidsrechters); Regio-pagina toont thuis- en uitploeg nu als aparte, afbrekende velden i.p.v. één te brede regel |
 | 1.11.0 | V36: Vergoedingen club toont per official de wedstrijden zelf (datum, ploegen, categorie), ook bij een afgesloten maand; in een open maand kan een wedstrijd weggehaald worden (= aanduiding vrijgeven); vrijgave op een voorbije wedstrijd stuurt geen bericht meer. Tests rekenen hun datums voortaan relatief tegenover vandaag |
+| 1.12.0 | V35: cluboverzicht kan voorbije wedstrijden tonen (vanaf de eerste van de vorige maand, eigen groep onderaan, enkel voor beheerders) om achteraf aanduidingen recht te zetten; aanduiden op een voorbije wedstrijd stuurt geen bericht; voorbije wedstrijden tellen nooit mee in de cijfers |
 
 ---
 
 ## Openstaand
-
-### V35 — Voorbije wedstrijden bekijken en aanduidingen nog aanpassen
-**Voorstel klaar, volgende in de rij.** Het cluboverzicht en de lijst van de
-officials beginnen allebei bij vandaag (`m.datum >= vandaag` in
-`src/routes/admin/overzicht.js` en `src/routes/gebruiker.js`). Een wedstrijd
-die voorbij is, verdwijnt dus uit beeld — ook als er achteraf iets recht te
-zetten is: iemand anders floot in de plaats, of een aanduiding werd vergeten
-in te vullen. De backend weigert zo'n wijziging niet (`wijsToe` en `geefVrij`
-kijken niet naar de datum); het is enkel het scherm dat de weg afsnijdt.
-
-Voorgestelde aanpak:
-- **Enkel voor beheerders**, in het cluboverzicht: een schakelaar 'Toon
-  voorbije wedstrijden' die de lijst laat beginnen bij de eerste dag van de
-  vorige maand. Ver genoeg om een maand nog recht te zetten vóór ze wordt
-  afgesloten, niet zo ver dat de lijst onleesbaar wordt. Officials zien
-  voorbije wedstrijden niet; voor hen is er niets meer aan te doen.
-- **Geen bericht bij een wijziging op een voorbije wedstrijd.** Een aanduiding
-  of vrijgave achteraf is een administratieve rechtzetting; een mail 'je bent
-  aangeduid voor zaterdag' over een zaterdag die al voorbij is, verwart alleen.
-  Het logboek houdt de wijziging wel bij. Voor de vrijgave zit dat er sinds
-  v1.11.0 al in (`geefVrij`); voor `wijsToe` nog te doen.
-- **Botsingscontrole blijft**, ook achteraf: twee wedstrijden tegelijk fluiten
-  kon toen even weinig als nu.
-- Ligt de maand al vast, dan komt de wijziging vanzelf als correctie in de
-  volgende afsluiting — dat mechanisme bestaat al.
-
-Nog te bepalen: volstaat 'vanaf de vorige maand', of moet een beheerder een
-willekeurige maand kunnen kiezen?
 
 ### V37 — Detail per wedstrijd ook bij Mijn vergoeding en in de maandmail
 **Nog te beslissen.** Uit V36 overgebleven: Vergoedingen club toont sinds
