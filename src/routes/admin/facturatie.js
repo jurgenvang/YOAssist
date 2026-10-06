@@ -4,6 +4,7 @@ import { log } from '../../lib/logboek.js';
 import { verwittig, verwittigExtern } from '../../lib/verwittigen.js';
 import {
   maandBereik, maandVan, magAfsluiten, bouwRegels, perOfficial, alsBedrag,
+  wedstrijdenPerOfficial,
 } from '../../lib/vergoeding.js';
 
 /**
@@ -74,6 +75,9 @@ async function berekenMaand(env, maand) {
       catCode: r.cat_code,
       catLabel: r.cat_label,
       tariefCent: r.tarief_cent,
+      datum: r.datum,
+      thuisNaam: r.thuis_naam,
+      uitNaam: r.uit_naam,
     });
   }
 
@@ -81,7 +85,7 @@ async function berekenMaand(env, maand) {
   const { results: eerder } = await env.DB.prepare(
     `SELECT v.match_guid, v.user_email, v.maand AS verwerkt_in, v.cat_code,
             v.tarief_cent, v.aantal AS verwerkt_aantal,
-            m.datum, m.status AS wedstrijd_status,
+            m.datum, m.status AS wedstrijd_status, m.thuis_naam, m.uit_naam,
             a.status AS aanduiding_status,
             u.voornaam, u.achternaam,
             c.label AS cat_label
@@ -121,6 +125,9 @@ async function berekenMaand(env, maand) {
       catLabel: r.cat_label,
       tariefCent: r.tarief_cent,
       aantal: verschil,
+      datum: r.datum,
+      thuisNaam: r.thuis_naam,
+      uitNaam: r.uit_naam,
     });
   }
 
@@ -133,7 +140,7 @@ async function berekenMaand(env, maand) {
 
   if (afgeslotenMaanden.size > 0) {
     const { results: nieuw } = await env.DB.prepare(
-      `SELECT a.match_guid, a.user_email, m.datum, m.cat_code,
+      `SELECT a.match_guid, a.user_email, m.datum, m.cat_code, m.thuis_naam, m.uit_naam,
               u.voornaam, u.achternaam, c.label AS cat_label, c.tarief_cent
          FROM assignments a
          JOIN matches m ON m.guid = a.match_guid
@@ -160,18 +167,26 @@ async function berekenMaand(env, maand) {
         catLabel: r.cat_label,
         tariefCent: r.tarief_cent,
         aantal: 1,
+        datum: r.datum,
+        thuisNaam: r.thuis_naam,
+        uitNaam: r.uit_naam,
       });
     }
   }
 
   const regels = bouwRegels(teVergoeden, correcties);
   const officials = perOfficial(regels);
+  const wedstrijden = wedstrijdenPerOfficial([
+    ...teVergoeden.map((w) => ({ ...w, soort: 'wedstrijd', aantal: 1 })),
+    ...correcties.map((c) => ({ ...c, soort: 'correctie' })),
+  ]);
 
   return {
     maand,
     seizoen,
     regels,
     officials,
+    wedstrijden,
     teVergoeden,
     correcties,
     zonderTarief,
@@ -245,6 +260,7 @@ export async function voorbeeld({ url, env }) {
       ...o,
       totaal: alsBedrag(o.totaalCent),
       regels: o.regels.map((r) => ({ ...r, bedrag: alsBedrag(r.bedragCent) })),
+      wedstrijden: berekend.wedstrijden.get(o.email) ?? [],
     })),
     zonderTarief: berekend.zonderTarief,
     verdwenen: berekend.verdwenen,
@@ -424,6 +440,38 @@ export async function staat({ url, env }) {
     .bind(maand)
     .all();
 
+  // Het detail komt uit het spoor van wat er verwerkt is, niet uit de huidige
+  // aanduidingen: die kunnen sinds de afsluiting gewijzigd zijn, en de staat
+  // moet tonen wat er toen is meegeteld.
+  const { results: verwerkt } = await env.DB.prepare(
+    `SELECT v.match_guid, v.user_email, v.cat_code, v.aantal,
+            m.datum, m.thuis_naam, m.uit_naam, c.label AS cat_label
+       FROM vergoeding_verwerkt v
+       LEFT JOIN matches m ON m.guid = v.match_guid
+       LEFT JOIN categorieen c ON c.code = v.cat_code
+      WHERE v.maand = ?`,
+  )
+    .bind(maand)
+    .all();
+
+  const wedstrijden = wedstrijdenPerOfficial(verwerkt.map((v) => {
+    // Werk van de maand zelf valt in die maand; alles daarbuiten is een
+    // correctie op een eerder afgesloten maand.
+    const correctie = Boolean(v.datum) && maandVan(v.datum) !== maand;
+    return {
+      email: v.user_email,
+      matchGuid: v.match_guid,
+      datum: v.datum,
+      thuisNaam: v.thuis_naam,
+      uitNaam: v.uit_naam,
+      catCode: v.cat_code,
+      catLabel: v.cat_label,
+      soort: correctie ? 'correctie' : 'wedstrijd',
+      betreftMaand: correctie ? maandVan(v.datum) : null,
+      aantal: v.aantal,
+    };
+  }));
+
   const officials = perOfficial(
     results.map((r) => ({
       email: r.user_email,
@@ -450,6 +498,7 @@ export async function staat({ url, env }) {
       ...o,
       totaal: alsBedrag(o.totaalCent),
       regels: o.regels.map((r) => ({ ...r, bedrag: alsBedrag(r.bedragCent) })),
+      wedstrijden: wedstrijden.get(o.email) ?? [],
     })),
   });
 }

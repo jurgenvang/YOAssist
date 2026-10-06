@@ -3,7 +3,7 @@
 Upload dit als **projectkennis**. Het bevat wat een volgend gesprek moet weten om
 verder te kunnen zonder alles opnieuw uit te vragen.
 
-Laatst bijgewerkt: v1.10.9
+Laatst bijgewerkt: v1.11.0
 
 ---
 
@@ -72,6 +72,22 @@ en krijgt de sync status `deels`.
 **Facturatie werkt met momentopnames.** Een afgesloten maand ligt vast; wat er
 nadien verandert komt als correctieregel in de volgende maand. Daarvoor bestaat
 `vergoeding_verwerkt`, een spoor van wat er al is uitbetaald.
+
+**Het detail per wedstrijd in de vergoedingen komt uit twee bronnen** (V36).
+Voor een open maand uit de huidige aanduidingen (`berekenMaand`); voor een
+afgesloten maand uit `vergoeding_verwerkt`, nooit uit de huidige aanduidingen —
+die kunnen sindsdien gewijzigd zijn, en de staat moet tonen wat er toen is
+meegeteld. Een rij in `vergoeding_verwerkt` waarvan de wedstrijd buiten de
+maand zelf valt, is een correctie. Weghalen uit het overzicht is gewoon een
+vrijgave (`DELETE /api/admin/aanduiding`), geen aparte uitzondering in de
+facturatie; daardoor kloppen cluboverzicht, Mijn vergoeding en logboek vanzelf
+mee. Enkel bij een open maand, en enkel bij werk van die maand — niet bij een
+correctie.
+
+**Een vrijgave op een voorbije wedstrijd stuurt geen bericht.** Het is een
+administratieve rechtzetting; de official verwittigen over een wedstrijd die al
+gespeeld is, verwart alleen. Het logboek houdt ze wel bij. `geefVrij` geeft
+`voorbij` terug.
 
 **Een beheerder kan bevestigen dat er twee scheidsrechters zijn** terwijl het
 systeem van de bond er nog geen toont (`refs_bevestigd`). Die vlag wijst niemand
@@ -239,7 +255,7 @@ LICENSE                      EUPL v1.2
 schema.sql                   de bron van waarheid voor de databank
 schema-console.sql           opgedeeld in blokken voor de D1-console
 schema-alles-in-een.sql      drops plus schema, in één keer uitvoerbaar
-test/                        1441 tests, draaien zonder netwerk
+test/                        1473 tests, draaien zonder netwerk
 ```
 
 ## Val­kuilen die al eens hebben toegeslagen
@@ -262,6 +278,14 @@ is als Worker aangemaakt; `npx wrangler deploy` is het juiste deploycommando.
 
 **GitHub's uploadknop verliest de mapstructuur.** Navigeer eerst naar de doelmap,
 of gebruik github.dev.
+
+**Een vaste datum in een test is een tijdbom.** Zodra die datum voorbij is,
+valt de testwedstrijd onder code die naar de echte datum van vandaag kijkt
+(namen wissen na de wedstrijd, volgsync die gespeelde wedstrijden overslaat,
+de avondcontrole) en faalt de test zonder dat er iets aan de app veranderde.
+Gebeurde in oktober 2026 met vijf testbestanden tegelijk. Reken datums relatief
+tegenover vandaag, behalve waar een test zelf een tijdstip simuleert en de code
+dat tijdstip ook gebruikt.
 
 **`better-sqlite3` kan niet native gebouwd worden in een Claude-sandbox.**
 `node-gyp` heeft daarvoor de Node-headers van `nodejs.org` nodig; dat domein

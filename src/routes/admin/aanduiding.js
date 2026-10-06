@@ -277,8 +277,15 @@ export async function geefVrij({ url, env, user }) {
     oud: official ? `${official.voornaam} ${official.achternaam}` : email,
   });
 
+  // Een vrijgave op een wedstrijd die al voorbij is, is een administratieve
+  // rechtzetting (bv. vanuit de vergoedingen). 'Je bent vrijgegeven voor
+  // zaterdag' over een zaterdag die al voorbij is, verwart alleen; het logboek
+  // houdt de wijziging wel bij.
+  const vandaag = new Date().toISOString().slice(0, 10);
+  const voorbij = Boolean(wedstrijd?.datum) && wedstrijd.datum < vandaag;
+
   let mailVerstuurd = false;
-  if (wedstrijd && official) {
+  if (wedstrijd && official && !voorbij) {
     const mail = templateVrijgegeven({
       naam: `${official.voornaam} ${official.achternaam}`,
       wedstrijd: `${wedstrijd.thuis_naam} - ${wedstrijd.uit_naam}`,
@@ -290,7 +297,7 @@ export async function geefVrij({ url, env, user }) {
     mailVerstuurd = verzending.mail;
   }
 
-  return json({ matchGuid: guid, email, vrijgegeven: true, mailVerstuurd });
+  return json({ matchGuid: guid, email, vrijgegeven: true, mailVerstuurd, voorbij });
 }
 
 /** GET /api/admin/problemen — openstaande meldingen van officials. */

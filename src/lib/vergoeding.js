@@ -136,6 +136,48 @@ export function perOfficial(regels) {
   return [...officials.values()].sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
 }
 
+/**
+ * De wedstrijden achter de regels, per official.
+ *
+ * Een regel '3 × U12' zegt hoeveel, niet welke. Wie een fout in het bedrag
+ * zoekt, moet de wedstrijden zelf zien — anders begint het zoeken in het
+ * cluboverzicht en het logboek.
+ *
+ * @param {object[]} items  {email, matchGuid, datum, thuisNaam, uitNaam,
+ *   catCode, catLabel, soort, betreftMaand, aantal}
+ * @returns {Map<string, object[]>} per e-mailadres, chronologisch
+ */
+export function wedstrijdenPerOfficial(items) {
+  const per = new Map();
+
+  for (const w of items) {
+    // Zelfde reden als in bouwRegels: een saldo van nul is geen informatie.
+    if (w.aantal === 0) continue;
+    per.set(w.email, [
+      ...(per.get(w.email) ?? []),
+      {
+        matchGuid: w.matchGuid,
+        datum: w.datum ?? null,
+        // Een wedstrijd die intussen uit de databank verdween, heeft geen
+        // namen meer; de GUID is dan het enige houvast.
+        wedstrijd: w.thuisNaam ? `${w.thuisNaam} - ${w.uitNaam ?? ''}`.trim() : w.matchGuid,
+        catCode: w.catCode,
+        catLabel: w.catLabel ?? null,
+        soort: w.soort,
+        betreftMaand: w.betreftMaand ?? null,
+        aantal: w.aantal,
+      },
+    ]);
+  }
+
+  for (const lijst of per.values()) {
+    lijst.sort((a, b) => (a.datum ?? '').localeCompare(b.datum ?? '')
+      || a.wedstrijd.localeCompare(b.wedstrijd, 'nl'));
+  }
+
+  return per;
+}
+
 /** '€ 65,00' uit 6500. */
 export function alsBedrag(cent) {
   const negatief = cent < 0;

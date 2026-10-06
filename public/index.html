@@ -495,6 +495,12 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
 .geld-regel.correctie .wat { color: var(--grijs); font-style: italic; }
 .geld-regel.correctie .bedrag { color: var(--rood); }
 .geld-regel.correctie.plus .bedrag { color: var(--groen); }
+.geld-wedstrijden { margin-top: .5rem; padding-top: .4rem; border-top: 1px dashed var(--lijn); }
+.geld-wedstrijd { display: flex; align-items: center; gap: .5rem; font-size: .8rem;
+                  color: var(--grijs); padding: .15rem 0; }
+.geld-wedstrijd .wanneer { flex: 0 0 3.6rem; font-variant-numeric: tabular-nums; }
+.geld-wedstrijd .wat { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.geld-wedstrijd.correctie .wat { font-style: italic; }
 .geld-totaal { display: flex; margin-top: .5rem; padding-top: .5rem;
                border-top: 2px solid var(--inkt); font-weight: 600; font-size: .9rem; }
 .geld-totaal .bedrag { margin-left: auto; font-variant-numeric: tabular-nums; }
@@ -4420,8 +4426,36 @@ async function laadFacturatie() {
   }
 }
 
+/**
+ * De wedstrijden achter de regels. Een knop om weg te halen enkel waar dat
+ * zin heeft: werk in een maand die nog open staat. Een correctie op een
+ * afgesloten maand haal je niet hier weg, die is al uitbetaald.
+ */
+function factWedstrijdenHtml(lijst, weghalen) {
+  if (!lijst?.length) return '';
+  return `
+    <div class="geld-wedstrijden">
+      ${lijst.map((w) => {
+        const d = w.datum ? ontleedDatum(w.datum) : null;
+        const wanneer = d
+          ? `${DAGEN[d.getUTCDay()]} ${d.getUTCDate()}/${String(d.getUTCMonth() + 1).padStart(2, '0')}`
+          : '';
+        const correctie = w.soort === 'correctie';
+        return `
+          <div class="geld-wedstrijd ${correctie ? 'correctie' : ''}">
+            <span class="wanneer">${tekst(wanneer)}</span>
+            <span class="wat">${tekst(w.wedstrijd)} &middot; ${tekst(w.catLabel || w.catCode)}${
+              correctie ? ` &middot; correctie ${w.aantal > 0 ? '+' : ''}${w.aantal}` : ''}</span>
+            ${weghalen && !correctie
+              ? `<button class="mini" data-fact-weg="${tekst(w.matchGuid)}">weg</button>`
+              : ''}
+          </div>`;
+      }).join('')}
+    </div>`;
+}
+
 /** Regels van één official opmaken, gedeeld door voorbeeld en historiek. */
-function factOfficialHtml(o) {
+function factOfficialHtml(o, { weghalen = false } = {}) {
   const regels = o.regels.map((r) => `
     <div class="geld-regel ${r.soort === 'correctie' ? 'correctie' : ''} ${
       r.soort === 'correctie' && r.aantal > 0 ? 'plus' : ''}">
@@ -4439,6 +4473,7 @@ function factOfficialHtml(o) {
         <span class="bedrag">${tekst(o.totaal)}</span>
       </div>
       ${regels}
+      <div data-fact-official="${tekst(o.email)}">${factWedstrijdenHtml(o.wedstrijden, weghalen)}</div>
     </div>`;
 }
 
@@ -4468,7 +4503,7 @@ async function toonFactVoorbeeld(maand) {
         ${tekst(maandLabel(maand))}: ${r.aantalOfficials} officials, ${tekst(r.totaal)}
         ${r.aantalCorrecties ? ` &middot; ${r.aantalCorrecties} correctie(s)` : ''}
       </div>
-      ${r.officials.map(factOfficialHtml).join('')}
+      ${r.officials.map((o) => factOfficialHtml(o, { weghalen: true })).join('')}
       <div class="veld-rij" style="margin-top:.5rem">
         <button class="knop" id="fact-afsluit" style="flex:1" ${r.kanAfsluiten ? '' : 'disabled'}>
           Afsluiten en versturen
@@ -4477,6 +4512,29 @@ async function toonFactVoorbeeld(maand) {
       </div>`;
 
     $('fact-annuleer').onclick = () => { doel.innerHTML = ''; };
+
+    // Weghalen = de aanduiding vrijgeven. Dan klopt alles meteen mee: het
+    // cluboverzicht, Mijn vergoeding en het logboek, zonder aparte uitzondering
+    // in de facturatie die later iemand moet terugvinden.
+    doel.querySelectorAll('[data-fact-weg]').forEach((knop) => {
+      knop.onclick = async () => {
+        const email = knop.closest('[data-fact-official]').dataset.factOfficial;
+        const o = r.officials.find((x) => x.email === email);
+        const w = o?.wedstrijden.find((x) => x.matchGuid === knop.dataset.factWeg);
+        if (!confirm(`${w?.wedstrijd ?? 'Deze wedstrijd'} weghalen bij ${o?.naam ?? email}?\n\n` +
+                     'De aanduiding wordt vrijgegeven en telt niet meer mee voor de vergoeding.')) return;
+        knop.disabled = true;
+        try {
+          await api(`/api/admin/aanduiding?matchGuid=${encodeURIComponent(knop.dataset.factWeg)}` +
+                    `&email=${encodeURIComponent(email)}`, { method: 'DELETE' });
+          await toonFactVoorbeeld(maand);
+          await laadFacturatie();
+        } catch (err) {
+          knop.disabled = false;
+          toast(err.message);
+        }
+      };
+    });
     $('fact-afsluit').onclick = async () => {
       if (!confirm(`${maandLabel(maand)} afsluiten?\n\nDe bedragen liggen daarna vast en ` +
                    'iedereen krijgt zijn overzicht per mail.')) return;

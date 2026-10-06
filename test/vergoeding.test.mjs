@@ -8,7 +8,9 @@
 import { readFileSync } from 'node:fs';
 import { D1Shim } from './d1-shim.mjs';
 import worker from '../src/index.js';
-import { maandBereik, magAfsluiten, bouwRegels, perOfficial, alsBedrag } from '../src/lib/vergoeding.js';
+import {
+  maandBereik, magAfsluiten, bouwRegels, perOfficial, alsBedrag, wedstrijdenPerOfficial,
+} from '../src/lib/vergoeding.js';
 
 let f = 0;
 const check = (n, e, v) => {
@@ -379,6 +381,89 @@ console.log('\n16. Overzicht van open en afgesloten maanden');
   check('eerste maand afgesloten', r.json.afgesloten.map((a) => a.maand), [M1]);
   check('tweede maand staat open', r.json.open.map((o) => o.maand), [M2]);
   check('en mag afgesloten worden', r.json.open[0].mag, true);
+}
+
+console.log('\n17. Wedstrijden per official groeperen (V36)');
+{
+  const per = wedstrijdenPerOfficial([
+    { email: 'a', matchGuid: 'M2', datum: '2026-03-12', thuisNaam: 'G12 A', uitNaam: 'Gent', catCode: 'G12', soort: 'wedstrijd', aantal: 1 },
+    { email: 'a', matchGuid: 'M1', datum: '2026-03-05', thuisNaam: 'G12 B', uitNaam: 'Aalst', catCode: 'G12', soort: 'wedstrijd', aantal: 1 },
+    { email: 'b', matchGuid: 'M3', datum: '2026-02-20', thuisNaam: 'J16 A', uitNaam: 'Brugge', catCode: 'J16', soort: 'correctie', betreftMaand: '2026-02', aantal: -1 },
+    { email: 'b', matchGuid: 'NUL', datum: '2026-02-21', thuisNaam: 'X', uitNaam: 'Y', catCode: 'J16', soort: 'correctie', aantal: 0 },
+    { email: 'c', matchGuid: 'WEG', datum: null, thuisNaam: null, uitNaam: null, catCode: 'G12', soort: 'wedstrijd', aantal: 1 },
+  ]);
+  check('chronologisch', per.get('a').map((w) => w.matchGuid), ['M1', 'M2']);
+  check('thuis - uit', per.get('a')[0].wedstrijd, 'G12 B - Aalst');
+  check('correctie met teken bewaard', [per.get('b')[0].soort, per.get('b')[0].aantal], ['correctie', -1]);
+  check('saldo nul weggelaten', per.get('b').length, 1);
+  check('verdwenen wedstrijd: GUID als houvast', per.get('c')[0].wedstrijd, 'WEG');
+}
+
+console.log('\n18. Het voorbeeld toont per official de wedstrijden (V36)');
+{
+  const env = nieuweEnv();
+  wedstrijd(env, 'A2', `${M1}-12`, TEAM, 'G12', ['ann@club.be']);
+  wedstrijd(env, 'A1', `${M1}-05`, TEAM, 'G12', ['ann@club.be', 'bert@club.be']);
+
+  const r = await vraag(env, `/api/admin/facturatie/voorbeeld?maand=${M1}`);
+  const ann = r.json.officials.find((o) => o.naam === 'Ann Aerts');
+  check('Ann: beide wedstrijden, op datum', ann.wedstrijden.map((w) => w.matchGuid), ['A1', 'A2']);
+  check('met datum en ploegen', [ann.wedstrijden[0].datum, ann.wedstrijden[0].wedstrijd],
+    [`${M1}-05`, 'G12 A - Gast']);
+  const bert = r.json.officials.find((o) => o.naam === 'Bert Bosmans');
+  check('Bert enkel de zijne', bert.wedstrijden.map((w) => w.matchGuid), ['A1']);
+}
+
+console.log('\n19. Weghalen uit het voorbeeld geeft de aanduiding vrij, zonder bericht (V36)');
+{
+  const env = nieuweEnv();
+  wedstrijd(env, 'A1', `${M1}-05`, TEAM, 'G12', ['ann@club.be']);
+  wedstrijd(env, 'A2', `${M1}-12`, TEAM, 'G12', ['ann@club.be']);
+
+  const verzonden = [];
+  globalThis.fetch = async (url, opties) => { verzonden.push(JSON.parse(opties.body)); return { ok: true, json: async () => ({}) }; };
+
+  const weg = await vraag(env, '/api/admin/aanduiding?matchGuid=A1&email=ann@club.be', { methode: 'DELETE' });
+  check('vrijgegeven', weg.json.vrijgegeven, true);
+  check('als voorbij herkend', weg.json.voorbij, true);
+  check('geen mail over een voorbije wedstrijd', verzonden.length, 0);
+  check('wel in het logboek',
+    (await env.DB.prepare("SELECT COUNT(*) AS n FROM logboek WHERE soort = 'vrijgegeven' AND match_guid = 'A1'").first()).n, 1);
+
+  const r = await vraag(env, `/api/admin/facturatie/voorbeeld?maand=${M1}`);
+  const ann = r.json.officials[0];
+  check('nog één wedstrijd over', ann.wedstrijden.map((w) => w.matchGuid), ['A2']);
+  check('bedrag mee aangepast', ann.totaal, '€ 15,00');
+
+  // Een toekomstige wedstrijd vrijgeven blijft wel een bericht sturen.
+  const morgen = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  wedstrijd(env, 'TOEKOMST', morgen, TEAM, 'G12', ['ann@club.be']);
+  const later = await vraag(env, '/api/admin/aanduiding?matchGuid=TOEKOMST&email=ann@club.be', { methode: 'DELETE' });
+  check('toekomst: niet voorbij', later.json.voorbij, false);
+  check('toekomst: wel een mail', verzonden.some((m) => m.to === 'ann@club.be'), true);
+}
+
+console.log('\n20. Een afgesloten maand toont wat er toen is meegeteld (V36)');
+{
+  const env = nieuweEnv();
+  stilVersturen();
+  wedstrijd(env, 'A1', `${M1}-05`, TEAM, 'G12', ['ann@club.be']);
+  wedstrijd(env, 'A2', `${M1}-12`, TEAM, 'G12', ['ann@club.be']);
+  await vraag(env, '/api/admin/facturatie/afsluiten', { methode: 'POST', body: { maand: M1 } });
+
+  // Na de afsluiting vrijgegeven: de staat van toen verandert niet.
+  env.DB.exec("UPDATE assignments SET status = 'vrijgegeven' WHERE match_guid = 'A1'");
+  const staat1 = await vraag(env, `/api/admin/facturatie/staat?maand=${M1}`);
+  check('nog altijd beide wedstrijden', staat1.json.officials[0].wedstrijden.map((w) => w.matchGuid), ['A1', 'A2']);
+
+  // De volgende maand toont de correctie, met de wedstrijd waarover het gaat.
+  wedstrijd(env, 'B1', `${M2}-03`, TEAM, 'G12', ['ann@club.be']);
+  await vraag(env, '/api/admin/facturatie/afsluiten', { methode: 'POST', body: { maand: M2 } });
+  const staat2 = await vraag(env, `/api/admin/facturatie/staat?maand=${M2}`);
+  const lijst = staat2.json.officials[0].wedstrijden;
+  check('correctie en werk', lijst.map((w) => [w.matchGuid, w.soort, w.aantal]),
+    [['A1', 'correctie', -1], ['B1', 'wedstrijd', 1]]);
+  check('correctie wijst naar de juiste maand', lijst[0].betreftMaand, M1);
 }
 
 console.log(f === 0 ? '\n=== ALLE VERGOEDINGSTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);

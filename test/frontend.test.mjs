@@ -674,5 +674,34 @@ console.log('\n31. Herinnering om zelf een gsm-nummer in te vullen');
 }
 
 
+console.log('\nV36. Vergoedingen tonen de wedstrijden, weghalen enkel waar het mag');
+{
+  const bron = ['tekst', 'ontleedDatum', 'factWedstrijdenHtml', 'factOfficialHtml']
+    .map(haalFunctie).join('\n');
+  const DAGEN = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
+  const { factOfficialHtml } = new Function('DAGEN', `${bron}; return { factOfficialHtml };`)(DAGEN);
+
+  const o = {
+    email: 'ann@club.be', naam: 'Ann Aerts', totaal: '€ 15,00',
+    regels: [{ soort: 'wedstrijd', aantal: 1, catCode: 'G12', catLabel: 'U12', bedrag: '€ 15,00' }],
+    wedstrijden: [
+      { matchGuid: 'A1', datum: '2026-09-12', wedstrijd: 'Bears G12 A - Gent', catCode: 'G12', catLabel: 'U12', soort: 'wedstrijd', aantal: 1 },
+      { matchGuid: 'K1', datum: '2026-08-30', wedstrijd: 'Bears J16 - Aalst', catCode: 'J16', catLabel: 'U16', soort: 'correctie', aantal: -1 },
+    ],
+  };
+
+  const voorbeeld = factOfficialHtml(o, { weghalen: true });
+  check('datum kort en met weekdag', voorbeeld.includes('za 12/09'), true);
+  check('de wedstrijd zelf', voorbeeld.includes('Bears G12 A - Gent'), true);
+  check('weg-knop bij werk van de maand', voorbeeld.includes('data-fact-weg="A1"'), true);
+  check('geen weg-knop bij een correctie', voorbeeld.includes('data-fact-weg="K1"'), false);
+  check('correctie met teken', voorbeeld.includes('correctie -1'), true);
+  check('official terug te vinden voor de knop', voorbeeld.includes('data-fact-official="ann@club.be"'), true);
+
+  const afgesloten = factOfficialHtml(o);
+  check('afgesloten maand: wel detail', afgesloten.includes('Bears G12 A - Gent'), true);
+  check('afgesloten maand: niets weg te halen', afgesloten.includes('data-fact-weg'), false);
+}
+
 console.log(f === 0 ? '\n=== ALLE FRONTENDTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);
 process.exit(f ? 1 : 0);
