@@ -18,6 +18,13 @@ function nieuweDb() {
   return db;
 }
 
+// Datums berekenen in plaats van vastzetten: de synchronisatie slaat gespeelde
+// wedstrijden over, dus een vaste testdatum laat tests falen zodra ze voorbij is.
+const vblDatum = (dagen) => {
+  const d = new Date(Date.now() + dagen * 86400000);
+  return `${String(d.getUTCDate()).padStart(2, '0')}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${d.getUTCFullYear()}`;
+};
+
 function wed(nr, opties = {}) {
   const clubGuid = opties.clubGuid ?? 'BVBL9999';
   return {
@@ -30,7 +37,7 @@ function wed(nr, opties = {}) {
     tTGUID: opties.tTGUID ?? `${clubGuid}J16  1`,
     tTNaam: opties.thuisNaam ?? 'Thuis X',
     tUGUID: 'T2', tUNaam: opties.uitNaam ?? 'Uit X',
-    datumString: opties.datum ?? '20-09-2026', beginTijd: opties.uur ?? '14.00',
+    datumString: opties.datum ?? vblDatum(30), beginTijd: opties.uur ?? '14.00',
     accNaam: 'Zaal X', pouleNaam: 'P',
     gespeeld: 'N', uitslag: '',
   };
@@ -123,7 +130,7 @@ console.log('\n6. Verleden wedstrijden verdwijnen vanzelf');
 {
   const db = nieuweDb();
   db.exec("INSERT INTO volg_clubs (guid, naam, toegevoegd_door) VALUES ('BVBL9999', 'Verre Club', 'baas@club.be')");
-  zetApi({ BVBL9999: [wed(1, { datum: '01-01-2020' }), wed(2, { datum: '20-09-2026' })] });
+  zetApi({ BVBL9999: [wed(1, { datum: '01-01-2020' }), wed(2, { datum: vblDatum(30) })] });
 
   const r = await synchroniseerVolgClubs(db);
   check('enkel de toekomstige wordt opgehaald', r.gevonden, 1);
@@ -300,7 +307,7 @@ console.log('\n15. Meer dan honderd wedstrijden botst niet op de D1-parametergre
   db.exec("INSERT INTO volg_clubs (guid, naam, toegevoegd_door) VALUES ('BVBL9999', 'Verre Club', 'baas@club.be')");
 
   const veel = Array.from({ length: 150 }, (_, i) =>
-    ({ ...wed(i, { datum: '20-09-2026' }), guid: `BVBLVEEL${i}`, wedID: `V${i}` }));
+    ({ ...wed(i, { datum: vblDatum(30) }), guid: `BVBLVEEL${i}`, wedID: `V${i}` }));
   zetApi({ BVBL9999: veel });
 
   const r = await synchroniseerVolgClubs(db);

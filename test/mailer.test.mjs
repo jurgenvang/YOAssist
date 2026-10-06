@@ -249,7 +249,10 @@ console.log('\n9. De woensdagregel stuurt naar YO+, niet naar gewone YO');
 console.log('\n10. De avondcontrole mailt de beheerders');
 {
   const env = nieuweEnv();
-  env.DB.exec(`UPDATE matches SET scope = 1, scope_reden = 'woensdag', off_aantal = 2, datum = '2026-09-12' WHERE guid = 'U12A'`);
+  // De avondcontrole kijkt naar de echte datum van vandaag, niet naar het
+  // gesimuleerde scheduledTime; een vaste testdatum valt er dus ooit buiten.
+  const datum = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+  env.DB.exec(`UPDATE matches SET scope = 1, scope_reden = 'woensdag', off_aantal = 2, datum = '${datum}' WHERE guid = 'U12A'`);
 
   const verzonden = [];
   globalThis.fetch = async (url, opties) => { verzonden.push(JSON.parse(opties.body)); return { ok: true, json: async () => ({}) }; };

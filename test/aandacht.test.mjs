@@ -101,11 +101,14 @@ console.log('\n4. Handmatig synchroniseren via de knop');
 {
   const env = nieuweEnv();
   env.DB.exec("INSERT INTO volg_clubs (guid, naam, toegevoegd_door) VALUES ('BVBL9999', 'Verre Club', 'baas@club.be')");
+  // Berekend, niet vast: de synchronisatie slaat gespeelde wedstrijden over.
+  const d = new Date(Date.now() + 30 * 86400000);
+  const binnenMaand = `${String(d.getUTCDate()).padStart(2, '0')}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${d.getUTCFullYear()}`;
   globalThis.fetch = async (url) => {
     if (String(url).includes('OrgMatchesByGuid')) {
       return { ok: true, status: 200, text: async () => JSON.stringify([{
         guid: 'BVBLW1', wedID: 'W1', tTGUID: 'BVBL9999J16  1', tTNaam: 'Thuis', tUGUID: 'T2', tUNaam: 'Uit',
-        datumString: '20-09-2026', beginTijd: '14.00', wedOff: [], gespeeld: 'N', uitslag: '',
+        datumString: binnenMaand, beginTijd: '14.00', wedOff: [], gespeeld: 'N', uitslag: '',
       }]) };
     }
     return { ok: true, status: 200, text: async () => '{}' };

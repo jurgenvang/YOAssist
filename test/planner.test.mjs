@@ -130,9 +130,12 @@ console.log('\n5. Tweemaal draaien verandert niets');
 console.log('\n6. Avondcontrole');
 {
   const db = nieuweDb();
-  wed(db, 'BIJGEKOMEN', { off: 2, scope: 1, reden: 'woensdag' });
-  wed(db, 'NORMAAL',    { off: 0, scope: 1, reden: 'woensdag' });
-  wed(db, 'AUTO',       { off: 2, scope: 1, reden: 'auto' });
+  // De avondcontrole kijkt naar de echte datum van vandaag, niet naar een
+  // gesimuleerd tijdstip; een vaste testdatum valt er dus ooit buiten.
+  const datum = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+  wed(db, 'BIJGEKOMEN', { datum, off: 2, scope: 1, reden: 'woensdag' });
+  wed(db, 'NORMAAL',    { datum, off: 0, scope: 1, reden: 'woensdag' });
+  wed(db, 'AUTO',       { datum, off: 2, scope: 1, reden: 'auto' });
   db.exec(`INSERT INTO assignments (match_guid, user_email, toegewezen_door)
            VALUES ('BIJGEKOMEN', 'plus@club.be', 'baas@club.be')`);
 

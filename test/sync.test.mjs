@@ -22,6 +22,13 @@ const CLUB = 'BVBL1053';
 const TEAM_A = 'BVBL1053J16  1';
 const TEAM_B = 'BVBL1053HSE  1';
 
+// Datums berekenen in plaats van vastzetten: de sync wist namen van gespeelde
+// wedstrijden, dus een vaste testdatum laat tests falen zodra ze voorbij is.
+const vblDatum = (dagen) => {
+  const d = new Date(Date.now() + dagen * 86400000);
+  return `${String(d.getUTCDate()).padStart(2, '0')}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${d.getUTCFullYear()}`;
+};
+
 function wed(nr, opties = {}) {
   return {
     guid: `BVBL26279170INJ1621F${nr}`,
@@ -32,7 +39,7 @@ function wed(nr, opties = {}) {
     tTNaam: opties.thuisNaam ?? 'BC Alpha U16',
     tUGUID: 'BVBL2000J16  1',
     tUNaam: opties.uit ?? 'BC Gamma U16',
-    datumString: opties.datum ?? '12-09-2026',
+    datumString: opties.datum ?? vblDatum(30),
     beginTijd: opties.uur ?? '20.30',
     accNaam: opties.locatie ?? 'Sporthal Noord',
     pouleNaam: 'IJ16 F',
@@ -317,16 +324,9 @@ console.log('\n14. Wijziging in de aanduiding vervuilt het logboek niet');
 
 console.log('\n15. Namen worden gewist een dag na de wedstrijd');
 {
-  // Datum berekenen in plaats van vastzetten: een testdatum die ooit in het
-  // verleden lag, ligt volgend jaar in de toekomst.
-  const dagenGeleden = (n) => {
-    const d = new Date(Date.now() - n * 86400000);
-    return `${String(d.getUTCDate()).padStart(2, '0')}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${d.getUTCFullYear()}`;
-  };
-
   const db = nieuweDb();
   zetApi([
-    wed('AA', { datum: dagenGeleden(30), wedOff: ['Yves Knubben', 'Jurgen van Geijstelen'] }),
+    wed('AA', { datum: vblDatum(-30), wedOff: ['Yves Knubben', 'Jurgen van Geijstelen'] }),
     wed('AB', { datum: '31-12-2099', wedOff: ['Yves Knubben'] }),
   ]);
   await synchroniseer(db, 'handmatig');
