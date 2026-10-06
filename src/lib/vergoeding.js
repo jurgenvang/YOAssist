@@ -178,6 +178,53 @@ export function wedstrijdenPerOfficial(items) {
   return per;
 }
 
+/**
+ * Rijen uit `vergoeding_verwerkt` (met de wedstrijd erbij) als detailregels.
+ *
+ * Eén plek voor die vertaling, want zowel de verzamelstaat als Mijn vergoeding
+ * gebruiken ze: een afgesloten maand moet op beide plaatsen hetzelfde tonen.
+ * Werk van de maand zelf valt in die maand; een wedstrijd uit een andere maand
+ * is een correctie op een eerder afgesloten maand.
+ *
+ * @param {object[]} rijen  {maand, user_email, match_guid, cat_code, cat_label,
+ *   aantal, datum, thuis_naam, uit_naam}
+ */
+export function verwerktAlsItems(rijen) {
+  return rijen.map((v) => {
+    const correctie = Boolean(v.datum) && maandVan(v.datum) !== v.maand;
+    return {
+      maand: v.maand,
+      email: v.user_email,
+      matchGuid: v.match_guid,
+      datum: v.datum,
+      thuisNaam: v.thuis_naam,
+      uitNaam: v.uit_naam,
+      catCode: v.cat_code,
+      catLabel: v.cat_label,
+      soort: correctie ? 'correctie' : 'wedstrijd',
+      betreftMaand: correctie ? maandVan(v.datum) : null,
+      aantal: v.aantal,
+    };
+  });
+}
+
+/**
+ * Eén wedstrijd als regel in een mail: 'za 12/09  G12 A - Gent (U12)'.
+ * Platte tekst, want de maandmail is platte tekst.
+ */
+export function wedstrijdRegel(w) {
+  const DAGEN = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
+  let wanneer = '';
+  if (w.datum) {
+    const [j, m, d] = w.datum.split('-').map(Number);
+    wanneer = `${DAGEN[new Date(Date.UTC(j, m - 1, d)).getUTCDay()]} ${d}/${String(m).padStart(2, '0')}`;
+  }
+  const correctie = w.soort === 'correctie'
+    ? ` — correctie ${w.aantal > 0 ? '+' : ''}${w.aantal}`
+    : '';
+  return `${wanneer}  ${w.wedstrijd} (${w.catLabel ?? w.catCode})${correctie}`.trim();
+}
+
 /** '€ 65,00' uit 6500. */
 export function alsBedrag(cent) {
   const negatief = cent < 0;

@@ -1,6 +1,6 @@
 # YOAssist — hoe het werkt
 
-Versie 1.12.0
+Versie 1.12.1
 
 Dit document legt uit wat YOAssist doet, waar het draait en wat er nodig is om
 het draaiende te houden. Bedoeld voor wie de app beheert, en voor wie hem ooit
@@ -144,7 +144,8 @@ tarief. Op nul zetten zou stil verkeerd zijn.
 **Welke wedstrijden het zijn.** Bij elke official staan onder het bedrag de
 wedstrijden zelf: datum, ploegen en categorie. Bij het nakijken vóór het
 afsluiten zie je wat er nu zou meetellen; bij een afgesloten maand wat er toen
-is meegeteld, ook als er sindsdien iets veranderde.
+is meegeteld, ook als er sindsdien iets veranderde. Een official ziet dezelfde lijst bij Mijn vergoeding, en krijgt ze ook in de
+mail bij het afsluiten, onder de bedragen.
 
 **Een wedstrijd weghalen** kan bij het nakijken van een maand die nog open
 staat: het knopje *weg* naast de wedstrijd. Dat geeft de aanduiding vrij —
@@ -390,6 +391,6 @@ Wat er nodig is om verder te kunnen:
 De code staat onder de **EUPL v1.2**: vrij te gebruiken, aan te passen en door te
 geven onder dezelfde voorwaarden. Zie `LICENSE`.
 
-Voor wie eraan verder wil bouwen zijn er 1508 tests die zonder netwerk draaien
+Voor wie eraan verder wil bouwen zijn er 1525 tests die zonder netwerk draaien
 met `cd test && npm test`. Ze zijn er niet voor de vorm: verschillende ervan
 kwamen er nadat iets stil was misgegaan, en houden dat nu tegen.

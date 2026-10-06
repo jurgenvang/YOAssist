@@ -3,7 +3,7 @@
 Upload dit als **projectkennis**. Het bevat wat een volgend gesprek moet weten om
 verder te kunnen zonder alles opnieuw uit te vragen.
 
-Laatst bijgewerkt: v1.12.0
+Laatst bijgewerkt: v1.12.1
 
 ---
 
@@ -73,7 +73,11 @@ en krijgt de sync status `deels`.
 nadien verandert komt als correctieregel in de volgende maand. Daarvoor bestaat
 `vergoeding_verwerkt`, een spoor van wat er al is uitbetaald.
 
-**Het detail per wedstrijd in de vergoedingen komt uit twee bronnen** (V36).
+**Het detail per wedstrijd in de vergoedingen komt uit twee bronnen** (V36,
+V37). Dat geldt voor Vergoedingen club, Mijn vergoeding en de maandmail; de
+vertaling van `vergoeding_verwerkt` naar detailregels zit op één plek
+(`verwerktAlsItems` in `vergoeding.js`), zodat de staat van de beheerder en het
+scherm van de official nooit iets anders tonen.
 Voor een open maand uit de huidige aanduidingen (`berekenMaand`); voor een
 afgesloten maand uit `vergoeding_verwerkt`, nooit uit de huidige aanduidingen —
 die kunnen sindsdien gewijzigd zijn, en de staat moet tonen wat er toen is
@@ -264,7 +268,7 @@ LICENSE                      EUPL v1.2
 schema.sql                   de bron van waarheid voor de databank
 schema-console.sql           opgedeeld in blokken voor de D1-console
 schema-alles-in-een.sql      drops plus schema, in één keer uitvoerbaar
-test/                        1508 tests, draaien zonder netwerk
+test/                        1525 tests, draaien zonder netwerk
 ```
 
 ## Val­kuilen die al eens hebben toegeslagen

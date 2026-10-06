@@ -783,5 +783,30 @@ console.log('\nV35. Voorbije wedstrijden krijgen een eigen groep');
   check('uit: wel de schakelaar', hoofd.innerHTML.includes('id="voorbij-knop"'), true);
 }
 
+console.log('\nV37. Mijn vergoeding toont de wedstrijden, zonder iets weg te halen');
+{
+  const bron = ['tekst', 'ontleedDatum', 'maandLabel', 'factWedstrijdenHtml', 'toonVergoeding']
+    .map(haalFunctie).join('\n');
+  const MAANDEN = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli',
+    'augustus', 'september', 'oktober', 'november', 'december'];
+  const DAGEN = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
+  const inhoud = { innerHTML: '' };
+  const toonVergoeding = new Function('MAANDEN', 'DAGEN', '$', `${bron}; return toonVergoeding;`)(
+    MAANDEN, DAGEN, () => inhoud);
+
+  toonVergoeding({
+    seizoenTotaal: '€ 15,00', aantalAfgesloten: 1,
+    maanden: [{
+      maand: '2026-09', afgesloten: true, totaal: '€ 15,00',
+      regels: [{ soort: 'wedstrijd', aantal: 1, catCode: 'G12', catLabel: 'U12', bedrag: '€ 15,00' }],
+      wedstrijden: [{ matchGuid: 'A1', datum: '2026-09-12', wedstrijd: 'Bears G12 A - Gent',
+        catCode: 'G12', catLabel: 'U12', soort: 'wedstrijd', aantal: 1 }],
+    }],
+  });
+  check('de wedstrijd staat erbij', inhoud.innerHTML.includes('Bears G12 A - Gent'), true);
+  check('met datum', inhoud.innerHTML.includes('za 12/09'), true);
+  check('een official kan niets weghalen', inhoud.innerHTML.includes('data-fact-weg'), false);
+}
+
 console.log(f === 0 ? '\n=== ALLE FRONTENDTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);
 process.exit(f ? 1 : 0);

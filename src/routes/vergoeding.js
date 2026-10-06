@@ -1,6 +1,8 @@
 import { json, instelling } from '../lib/http.js';
 import { seizoenscode } from '../lib/vbl.js';
-import { maandBereik, maandVan, perOfficial, alsBedrag } from '../lib/vergoeding.js';
+import {
+  maandBereik, maandVan, perOfficial, alsBedrag, wedstrijdenPerOfficial, verwerktAlsItems,
+} from '../lib/vergoeding.js';
 
 /**
  * GET /api/vergoeding — het eigen overzicht van een official.
@@ -49,6 +51,25 @@ export async function vergoeding({ env, user }) {
     perMaand.set(r.maand, bestaand);
   }
 
+  // De wedstrijden achter de afgesloten maanden (V37): uit het spoor van wat
+  // er toen is meegeteld, net als in de verzamelstaat van de beheerder.
+  const { results: verwerkt } = await env.DB.prepare(
+    `SELECT v.maand, v.match_guid, v.user_email, v.cat_code, v.aantal,
+            m.datum, m.thuis_naam, m.uit_naam, c.label AS cat_label
+       FROM vergoeding_verwerkt v
+       JOIN afgesloten_maanden a ON a.maand = v.maand
+       LEFT JOIN matches m ON m.guid = v.match_guid
+       LEFT JOIN categorieen c ON c.code = v.cat_code
+      WHERE v.user_email = ?`,
+  )
+    .bind(user.email)
+    .all();
+
+  const detailPerMaand = new Map();
+  for (const item of verwerktAlsItems(verwerkt)) {
+    detailPerMaand.set(item.maand, [...(detailPerMaand.get(item.maand) ?? []), item]);
+  }
+
   // ---- De lopende maand, en eerdere die nog niet afgesloten zijn ----------
   const { results: afgesloten } = await env.DB.prepare(
     'SELECT maand FROM afgesloten_maanden',
@@ -58,7 +79,8 @@ export async function vergoeding({ env, user }) {
   const vandaag = new Date().toISOString().slice(0, 10);
 
   const { results: lopend } = await env.DB.prepare(
-    `SELECT m.datum, m.cat_code, c.label AS cat_label, c.tarief_cent
+    `SELECT m.guid, m.datum, m.thuis_naam, m.uit_naam, m.cat_code,
+            c.label AS cat_label, c.tarief_cent
        FROM assignments a
        JOIN matches m ON m.guid = a.match_guid
        LEFT JOIN categorieen c ON c.code = m.cat_code
@@ -99,17 +121,37 @@ export async function vergoeding({ env, user }) {
     bestaand.totaalCent += r.tarief_cent;
     bestaand.aantalWedstrijden += 1;
     nogNiet.set(maand, bestaand);
+
+    detailPerMaand.set(maand, [...(detailPerMaand.get(maand) ?? []), {
+      email: user.email,
+      matchGuid: r.guid,
+      datum: r.datum,
+      thuisNaam: r.thuis_naam,
+      uitNaam: r.uit_naam,
+      catCode: r.cat_code,
+      catLabel: r.cat_label,
+      soort: 'wedstrijd',
+      aantal: 1,
+    }]);
   }
+
+  const detail = (maand) =>
+    wedstrijdenPerOfficial(detailPerMaand.get(maand) ?? []).get(user.email) ?? [];
 
   const lopendeMaanden = [...nogNiet.values()].map((m) => ({
     ...m,
     regels: [...m.regels.values()].map((r) => ({ ...r, bedrag: alsBedrag(r.bedragCent) })),
     totaal: alsBedrag(m.totaalCent),
+    wedstrijden: detail(m.maand),
   }));
 
   const maanden = [
     ...lopendeMaanden,
-    ...[...perMaand.values()].map((m) => ({ ...m, totaal: alsBedrag(m.totaalCent) })),
+    ...[...perMaand.values()].map((m) => ({
+      ...m,
+      totaal: alsBedrag(m.totaalCent),
+      wedstrijden: detail(m.maand),
+    })),
   ].sort((a, b) => b.maand.localeCompare(a.maand));
 
   const seizoenTotaal = [...perMaand.values()].reduce((s, m) => s + m.totaalCent, 0);

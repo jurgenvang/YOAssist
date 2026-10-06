@@ -3,7 +3,7 @@
 Upload dit als **projectkennis** naast `YOASSIST-CONTEXT.md`. Bijwerken bij elke
 afgewerkte versie.
 
-Stand: **v1.12.0**
+Stand: **v1.12.1**
 
 ---
 
@@ -47,18 +47,11 @@ Stand: **v1.12.0**
 | 1.10.9 | Welkomstmail: "Sign in with Cloudflare" vermeld vóór Google/Apple, uitleg over welke wedstrijden de app dekt (U10/U12, en vanaf U14 zonder VBL-scheidsrechters); Regio-pagina toont thuis- en uitploeg nu als aparte, afbrekende velden i.p.v. één te brede regel |
 | 1.11.0 | V36: Vergoedingen club toont per official de wedstrijden zelf (datum, ploegen, categorie), ook bij een afgesloten maand; in een open maand kan een wedstrijd weggehaald worden (= aanduiding vrijgeven); vrijgave op een voorbije wedstrijd stuurt geen bericht meer. Tests rekenen hun datums voortaan relatief tegenover vandaag |
 | 1.12.0 | V35: cluboverzicht kan voorbije wedstrijden tonen (vanaf de eerste van de vorige maand, eigen groep onderaan, enkel voor beheerders) om achteraf aanduidingen recht te zetten; aanduiden op een voorbije wedstrijd stuurt geen bericht; voorbije wedstrijden tellen nooit mee in de cijfers |
+| 1.12.1 | V37: Mijn vergoeding en de maandmail tonen ook de wedstrijden zelf (datum, ploegen, categorie, correcties met teken); een afgesloten maand toont wat er toen meetelde |
 
 ---
 
 ## Openstaand
-
-### V37 — Detail per wedstrijd ook bij Mijn vergoeding en in de maandmail
-**Nog te beslissen.** Uit V36 overgebleven: Vergoedingen club toont sinds
-v1.11.0 de wedstrijden zelf, maar het scherm van de official en de mail bij
-het afsluiten blijven bij '2 × U12 — € 30,00'. Het detail staat al per
-official klaar in `berekenMaand` (`wedstrijden`), dus voor de mail is het
-weinig werk; voor Mijn vergoeding moet het voor afgesloten maanden uit
-`vergoeding_verwerkt` komen, zoals bij de staat.
 
 ### V26 — Overzicht van wie meldingen heeft aanstaan
 **Nog uit te werken.** Een lijst of teller bij Beheer die toont wie er

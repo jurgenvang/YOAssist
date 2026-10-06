@@ -4,7 +4,7 @@ import { log } from '../../lib/logboek.js';
 import { verwittig, verwittigExtern } from '../../lib/verwittigen.js';
 import {
   maandBereik, maandVan, magAfsluiten, bouwRegels, perOfficial, alsBedrag,
-  wedstrijdenPerOfficial,
+  wedstrijdenPerOfficial, verwerktAlsItems, wedstrijdRegel,
 } from '../../lib/vergoeding.js';
 
 /**
@@ -384,12 +384,19 @@ async function verstuurOverzichten(env, maand, berekend) {
       })
       .join('\n');
 
+    // De wedstrijden zelf erbij (V37): wie '2 × U12' leest, wil kunnen nagaan
+    // welke twee dat waren zonder de app te openen.
+    const lijst = (berekend.wedstrijden.get(o.email) ?? [])
+      .map((w) => `  ${wedstrijdRegel(w)}`)
+      .join('\n');
+
     await verwittig(env, o.email, {
       onderwerp: `Je vergoeding voor ${maand}`,
       tekst:
         `Hallo ${o.naam.split(' ')[0]},\n\n` +
         `Overzicht van je vergoeding voor ${maand}:\n\n${regels}\n\n` +
         `Totaal: ${alsBedrag(o.totaalCent)}\n\n` +
+        (lijst ? `Wedstrijden:\n${lijst}\n\n` : '') +
         'Je vindt dit ook terug in YOAssist bij Vergoeding.',
     }).catch(() => ({ mail: false }));
   }
@@ -444,7 +451,7 @@ export async function staat({ url, env }) {
   // aanduidingen: die kunnen sinds de afsluiting gewijzigd zijn, en de staat
   // moet tonen wat er toen is meegeteld.
   const { results: verwerkt } = await env.DB.prepare(
-    `SELECT v.match_guid, v.user_email, v.cat_code, v.aantal,
+    `SELECT v.maand, v.match_guid, v.user_email, v.cat_code, v.aantal,
             m.datum, m.thuis_naam, m.uit_naam, c.label AS cat_label
        FROM vergoeding_verwerkt v
        LEFT JOIN matches m ON m.guid = v.match_guid
@@ -454,23 +461,7 @@ export async function staat({ url, env }) {
     .bind(maand)
     .all();
 
-  const wedstrijden = wedstrijdenPerOfficial(verwerkt.map((v) => {
-    // Werk van de maand zelf valt in die maand; alles daarbuiten is een
-    // correctie op een eerder afgesloten maand.
-    const correctie = Boolean(v.datum) && maandVan(v.datum) !== maand;
-    return {
-      email: v.user_email,
-      matchGuid: v.match_guid,
-      datum: v.datum,
-      thuisNaam: v.thuis_naam,
-      uitNaam: v.uit_naam,
-      catCode: v.cat_code,
-      catLabel: v.cat_label,
-      soort: correctie ? 'correctie' : 'wedstrijd',
-      betreftMaand: correctie ? maandVan(v.datum) : null,
-      aantal: v.aantal,
-    };
-  }));
+  const wedstrijden = wedstrijdenPerOfficial(verwerktAlsItems(verwerkt));
 
   const officials = perOfficial(
     results.map((r) => ({

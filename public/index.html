@@ -1682,6 +1682,7 @@ function toonVergoeding(data) {
           <span class="bedrag">${tekst(m.totaal)}</span>
         </div>
         ${regels}
+        ${factWedstrijdenHtml(m.wedstrijden, false)}
         ${m.afgesloten
           ? ''
           : `<p class="hint" style="margin:.6rem 0 0">Deze maand loopt nog.
