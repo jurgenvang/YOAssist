@@ -1,6 +1,6 @@
 # YOAssist — hoe het werkt
 
-Versie 1.8.0
+Versie 1.10.9
 
 Dit document legt uit wat YOAssist doet, waar het draait en wat er nodig is om
 het draaiende te houden. Bedoeld voor wie de app beheert, en voor wie hem ooit
@@ -248,6 +248,11 @@ Mail blijft daarom het betrouwbare kanaal en staat standaard aan.
 
 Bij je naam staat **Mijn berichten**: wat de app naar jou stuurde, als korte
 samenvatting. Enkel wat effectief aankwam; oudere regels verdwijnen vanzelf.
+Is er iets ongelezen, dan verschijnt er een klein bolletje op de naam-knop —
+daarop tikken gaat rechtstreeks naar Mijn berichten. Die teller houdt zichzelf
+ook bij terwijl je op een ander scherm staat: hij ververst om de paar minuten,
+en meteen als er een pushmelding binnenkomt op een toestel waar je die aan
+hebt staan.
 
 Een beheerder kan **belangrijk nieuws** plaatsen: één mededeling tegelijk,
 bovenaan bij iedereen, met een einddatum. Ze kan met mail en melding meegaan of
@@ -281,6 +286,25 @@ abonnement doorgaans pas na enkele uren tot een dag, nooit onmiddellijk.
 **Namen.** Standaard tonen beide alleen initialen. Volledige namen is een
 instelling die een beheerder aanzet bij Beheer.
 
+## 9d. Regio
+
+Een uitzetbaar tabblad — standaard uit, zoals het logboek — dat wedstrijden
+toont bij clubs die je volgt zonder er zelf iets voor te beheren: waar
+Basketbal Vlaanderen nul of één scheidsrechter heeft toegewezen, komende twee
+weekends, vanaf U14. Bij precies één scheidsrechter staat zijn naam erbij.
+
+Clubs beheer je bij Configuratie: een GUID invullen, de app haalt de naam zelf
+op. Een aparte, lichte synchronisatie ververst dit elke ochtend om 5 uur; een
+knop laat het ook handmatig gebeuren. Diezelfde plek heeft een knop om de
+wedstrijdenlijst leeg te maken zonder de gevolgde clubs te verliezen — handig
+als er ooit iets grondig moet worden opgeruimd.
+
+## 9e. De uitslag
+
+Zodra Basketbal Vlaanderen een uitslag doorgeeft, verschijnt ze naast de
+ploegennamen. Puur ter info; ze telt nergens in mee en wordt automatisch
+opgehaald bij de gewone synchronisatie.
+
 ## 10. Onderhoud
 
 **Bij het begin van een seizoen**: het seizoen ophogen in het beheerpaneel, teams
@@ -289,7 +313,8 @@ onbekende categorie staan bewust uit.
 
 **Elke maand**: de vorige maand afsluiten bij Vergoedingen Club.
 
-**Af en toe**: een backup nemen. Dat is één JSON-bestand met alles erin. Er is
+**Af en toe**: een backup nemen. Dat is één JSON-bestand met alle 21 tabellen
+erin. Er is
 geen knop om hem terug te zetten — dat gebeurt handmatig via de D1-console, met
 het bestand ernaast. In dat bestand staat in welke volgorde de tabellen ingelezen
 moeten worden.
@@ -341,6 +366,6 @@ Wat er nodig is om verder te kunnen:
 De code staat onder de **EUPL v1.2**: vrij te gebruiken, aan te passen en door te
 geven onder dezelfde voorwaarden. Zie `LICENSE`.
 
-Voor wie eraan verder wil bouwen zijn er 1233 tests die zonder netwerk draaien
+Voor wie eraan verder wil bouwen zijn er 1368 tests die zonder netwerk draaien
 met `cd test && npm test`. Ze zijn er niet voor de vorm: verschillende ervan
 kwamen er nadat iets stil was misgegaan, en houden dat nu tegen.

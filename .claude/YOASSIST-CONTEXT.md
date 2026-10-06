@@ -3,9 +3,20 @@
 Upload dit als **projectkennis**. Het bevat wat een volgend gesprek moet weten om
 verder te kunnen zonder alles opnieuw uit te vragen.
 
-Laatst bijgewerkt: v1.8.0
+Laatst bijgewerkt: v1.10.9
 
 ---
+
+## Werkwijze bij een nieuwe versie
+
+Er bestaat een skill, `yoassist-release`, die het volledige releaseproces
+vastlegt: testsuite draaien, versienummer ophogen, schema herbouwen indien
+nodig, de zip en delta-zip samenstellen, en de projectdocumenten
+synchroniseren. Gebruik die bij het afronden van elke wijziging aan
+YOAssist. Ze is als `.skill`-bestand aangemaakt (29 augustus 2026) — staat ze
+niet in dit gesprek beschikbaar, dan is ze mogelijk nog niet toegevoegd aan
+het Claude-project; `YOASSIST-INSTRUCTIES.md` beschrijft dezelfde stappen
+zelfstandig als terugval.
 
 ## Wat het is
 
@@ -31,7 +42,7 @@ volledige frontend is `public/index.html` met inline CSS en JavaScript.
 | Authenticatie | Cloudflare Access, team `divine-leaf-1aba.cloudflareaccess.com` |
 | Mail | Resend, afzenderdomein op `yoassist.org` geregeld |
 | Aanmeldmethodes | Instelbaar (`aanmeld_methodes`); bepaalt enkel wat de welkomstmail vertelt |
-| Broncode | GitHub, automatisch gedeployd bij een push |
+| Broncode | GitHub — `github.com/jurgenvang/YOAssist`, automatisch gedeployd bij een push |
 
 **Secrets bij de Worker:** `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`,
 `RESEND_API_KEY`, `VAPID_PUBLIEK`, `VAPID_PRIVE`, `VAPID_CONTACT`.
@@ -66,6 +77,35 @@ nadien verandert komt als correctieregel in de volgende maand. Daarvoor bestaat
 systeem van de bond er nog geen toont (`refs_bevestigd`). Die vlag wijst niemand
 aan en verandert niets aan hoeveel officials er nodig zijn; ze onderdrukt alleen
 de melding. De sync wist ze zodra de bond zelf twee refs invult.
+
+**De uitslag wordt automatisch opgehaald**, zodra Basketbal Vlaanderen ze
+doorgeeft. Enkel ter info bij de wedstrijd, zit bewust niet in de
+wijzigingshash — een binnenkomende uitslag zet een wedstrijd niet als
+'gewijzigd' in het logboek. Twee VBL-valkuilen: `gespeeld` is `'G'`, niet het
+voor de hand liggende `'J'`; `uitslag` komt met opvulspaties op wisselende
+posities.
+
+**Beheer is gesplitst in twee menu-items**, Dagelijks beheer en Configuratie.
+Onder de motorkap blijft het één paneel met alle secties; elke sectie heeft een
+`data-groep` en enkel de secties van de gekozen groep zijn zichtbaar. Geen
+dubbele bindingscode, geen risico op stille null-fouten.
+
+**Regio (V31)** toont wedstrijden bij externe, gevolgde clubs met nul of één
+VBL-scheidsrechter, komende twee weekends, vanaf U14 (geen U10/U12). Een
+aparte, lichte synchronisatie (`volgsync.js`), los van de hoofdcyclus, op cron
+uur 5. Belangrijke les hierbij: enkel thuiswedstrijden meetellen — bij een
+uitwedstrijd hoort `thuisGuid` bij de tegenstander, wat de categoriefilter
+anders liet doorglippen. En: D1's honderd-parametergrens raakt snel bereikt bij
+een lijst GUID's als filter; de opruiming gebruikt daarom een tijdstempel per
+synchronisatieronde in plaats van een lijst sleutels.
+Bij precies één scheidsrechter toont de pagina ook zijn naam.
+Een knop bij Configuratie maakt de wedstrijdenlijst leeg zonder de gevolgde
+clubs te raken.
+
+**De backup dekt nu alle 21 tabellen.** Was sinds de facturatiemodule (v0.18)
+telkens een paar tabellen achtergebleven wanneer er een nieuwe bijkwam, zonder
+dat er een test op stond. Er is nu een test die het schema zelf naast de
+backup-lijst legt.
 
 **Twee beveiligingsmodellen voor lezen van buitenaf.** De JSON-API gebruikt een
 sleutel in de `Authorization`-header (secret `EXTERN_API_SLEUTEL`); de
@@ -180,6 +220,9 @@ src/lib/csv.js               CSV lezen en schrijven
 src/lib/telefoon.js          nummers normaliseren, wa.me- en tel:-links
 src/lib/namens.js            wie mag handelen namens wie (ouder-kind)
 src/routes/extern.js         externe API + agendafeed, beide alleen-lezen
+src/lib/volgsync.js          aparte synchronisatie voor Regio (V31), vanaf U14
+src/routes/admin/aandacht.js Regio: gevolgde clubs, aandachtslijst, wis-knop
+src/routes/admin/herinnering.js  handmatige herinnering wie nog niet invulde
 src/lib/logboek.js           vorm van een logregel
 src/lib/mailer.js            versturen via Resend, templates, zandbakgrens
 src/lib/push.js              Web Push: VAPID-JWT en aes128gcm met WebCrypto
@@ -196,7 +239,7 @@ LICENSE                      EUPL v1.2
 schema.sql                   de bron van waarheid voor de databank
 schema-console.sql           opgedeeld in blokken voor de D1-console
 schema-alles-in-een.sql      drops plus schema, in één keer uitvoerbaar
-test/                        1289 tests, draaien zonder netwerk
+test/                        1441 tests, draaien zonder netwerk
 ```
 
 ## Val­kuilen die al eens hebben toegeslagen
@@ -219,6 +262,15 @@ is als Worker aangemaakt; `npx wrangler deploy` is het juiste deploycommando.
 
 **GitHub's uploadknop verliest de mapstructuur.** Navigeer eerst naar de doelmap,
 of gebruik github.dev.
+
+**`better-sqlite3` kan niet native gebouwd worden in een Claude-sandbox.**
+`node-gyp` heeft daarvoor de Node-headers van `nodejs.org` nodig; dat domein
+zit niet in de toegelaten lijst. `cd test && npm test` faalt daardoor al bij
+`npm install`, voor er één test draait. `test/frontend.test.mjs` heeft die
+dependency niet (leest enkel `public/index.html` en `public/sw.js`) en kan wél
+altijd rechtstreeks met `node test/frontend.test.mjs` — gebruik die als
+deelverificatie bij een frontend-wijziging, en zeg er expliciet bij dat de
+volle suite nog lokaal moet draaien vóór het naar GitHub gaat.
 
 ## Openstaand buiten de backlog
 
