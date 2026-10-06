@@ -1,7 +1,7 @@
 # YOAssist — projectinstructies
 
 Kort en stabiel: dit zijn werkafspraken, geen documentatie. De feiten over het
-project staan in `context.md`.
+project staan in `YOASSIST-CONTEXT.md`.
 
 ---
 
@@ -32,7 +32,7 @@ Antwoord in het Nederlands.
 
   Vraag daarna of je doorgaat. Bouw niet twee pakketten in één beurt.
 - **Houd de projectdocumenten in sync met het versienummer.** Elke release
-  werkt `src/versie.js`, `YOASSIST-BACKLOG.md`, `context.md` en
+  werkt `src/versie.js`, `YOASSIST-BACKLOG.md`, `YOASSIST-CONTEXT.md` en
   `YOASSIST-DOCUMENTATIE.md` bij, en `instructions.md` als werkafspraken
   veranderen. Een release waarbij dat is overgeslagen (v1.10.8) moest achteraf
   rechtgetrokken worden.

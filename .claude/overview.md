@@ -8,11 +8,11 @@ aliases: [YOAssist, BVBL1125]
 - [stated] The app covers U10/U12 matches (where the federation never assigns referees) and matches from U14 onward where Basketbal Vlaanderen did not assign referees itself.
 - [stated] A second admin, Fluppe Van Meerbeeck, also uses the system.
 - [stated] Jurgen communicates in Dutch throughout and uses precise technical language.
-- [stated] The Claude project holds authoritative versions of the four project documents: YOASSIST-BACKLOG.md, YOASSIST-CONTEXT.md, YOASSIST-DOCUMENTATIE.md, YOASSIST-INSTRUCTIES.md.
+- [stated] The Claude project holds authoritative versions of the four project documents: YOASSIST-BACKLOG.md, YOASSIST-CONTEXT.md, YOASSIST-DOCUMENTATIE.md, and the working agreements in `instructions.md` (called YOASSIST-INSTRUCTIES.md in the Claude project).
 
 ## Current state
 - [stated] Most recent release is v1.10.9, which included: welcome email additions (Google/Apple sign-in note; match coverage explanation), a layout fix splitting combined `wedstrijd` fields into separate `thuis`/`uit` fields on the Regio page, and a catch-up sync of `YOASSIST-CONTEXT.md` and `YOASSIST-DOCUMENTATIE.md` (which had not been updated during v1.10.8).
-- [stated] All four project documents (BACKLOG, CONTEXT, DOCUMENTATIE, INSTRUCTIES) are now in sync with the codebase version.
+- [stated] In the Claude project, all four project documents are in sync with v1.10.9. The copies in this repo's `.claude/` (CONTEXT, BACKLOG, DOCUMENTATIE) still say v1.8.0 and must be replaced with the project versions.
 
 ## On the horizon
 - [stated] Backlog item V32: real-device testing of push notification tap behavior — whether tapping a notification opens Mijn berichten directly via `notificationclick` in `sw.js`.
