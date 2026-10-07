@@ -114,7 +114,24 @@ Technisch:
 - `email()`-handler in de Worker. Excel ophalen via de `.xlsx`-link op
   `mcusercontent.com` en zelf uitlezen (zip + XML, zonder extra dependency),
   met controle op de kolomkoppen.
-- Koppelen op datum, uur en thuisploeg (Code is leeg).
+- **Welke wedstrijden:** enkel eigen thuiswedstrijden vanaf U14 in het
+  komende weekend. De Excel bevat ook rijen waar wij uitploeg zijn (de
+  thuisclub zorgt dan voor refs): negeren. U10/U12 staan er nooit in en zijn
+  al automatisch in de lijst. De Excel dekt jeugd niveau 2–4 (ook meisjes) en
+  de provinciale seniorenreeksen — ontbreken betekent dus echt 'de bond
+  voorziet twee', niet 'valt buiten de lijst'.
+- **Bewijs dat de API achterloopt** (weekend 3–4 oktober 2026): J16 D (U16
+  Niveau 4 O) en J18 D (U18 Niveau 4 J) hadden 0 refs in de API maar stonden
+  niet in de lijst; DSE A (1e Prov. Dames VB) 1 ref in de API, niet in de
+  lijst. De oude woensdagregel had de eerste twee in de lijst gezet.
+- **Koppelen** op datum + uur + thuisploeg (Code is leeg), elk genormaliseerd:
+  datum `3/10/2026` ↔ `03-10-2026` → `2026-10-03`; uur `9:00` ↔ `09.00` →
+  `09:00`; ploegnaam hoofdletterongevoelig, spaties samengevoegd en
+  bijgeknipt (de API schrijft soms `AB Inbev` i.p.v. `AB InBev`). Als
+  controle: kolom Reeks = `pouleNaam` (zelfde vorm, soms met spatie
+  achteraan); klopt die niet, dan een waarschuwing, geen stille koppeling.
+  Een eigen thuisploeg uit de Excel zonder overeenkomende wedstrijd (bv. een
+  verschoven uur) wordt gemeld.
 - Schema: een nieuwe tabel voor ontvangen lijsten met per wedstrijd het aantal
   officials volgens de bond (nieuwe tabel: geen DROP nodig).
 - Vooraf door de beheerder in te stellen: Email Routing op `yoassist.org` en
