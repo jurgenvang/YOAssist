@@ -176,6 +176,133 @@ Nog te bepalen:
 - Telt "maar één scheidsrechter" even zwaar als "geen enkele", of is één toch
   voldoende om geen bericht te sturen?
 
+### V41 — Regio: G08-wedstrijden horen er niet in
+**Bug, klaar om te bouwen.** In Regio staan ook wedstrijden van G08. Daar
+wordt nooit een scheidsrechter of Youth Official voor voorzien, dus ze horen
+er nooit in te staan.
+
+Oorzaak: `volgsync.js` werkt met een uitsluitingslijst (`ZONDER_U10U12` =
+G10, G12, M12) in plaats van met wat er wél in mag. Alles wat daar niet in
+staat glipt door — G08, maar ook ROL, een onbekende code, of een wedstrijd
+waarvan `categorieUitGuid()` null teruggeeft (die wordt nu doorgelaten).
+
+Voorstel (standaardkeuze): omdraaien naar een toelatingslijst — enkel de
+categorieën vanaf U14 uit de categorietabel (G14, M14, J16, M16, J18, M19,
+J21, HSE, DSE); een onbekende of ontbrekende code valt eruit. Zo komt een
+nieuwe jeugdcategorie van de bond er niet ongemerkt bij. Bestaande
+G08-rijen verdwijnen vanzelf bij de volgende volgsync (opruiming op
+tijdstempel). Geen schemawijziging.
+
+Nog te bepalen: niets, tenzij de toelatingslijst uit de databank (tarieven)
+moet komen in plaats van vast in de code. Voorstel: vast in de code — de
+tarieventabel bevat ook U10/U12.
+
+### V42 — Regio bijwerken met de woensdaglijst van de bond
+**Nog uit te werken.** De woensdaglijst (V39) bevat alle wedstrijden van het
+komende weekend in heel Vlaanderen met 0 of 1 official — dus ook die van de
+gevolgde clubs. Daarmee kan Regio hetzelfde rechtzetten als bij de eigen
+wedstrijden: wat níet in de lijst staat, heeft volgens de bond 2 officials,
+ook als de API nog niemand toont.
+
+Wat er al is: `woensdaglijst.js` leest de volledige lijst al in en koppelt op
+datum + uur + thuisploeg (genormaliseerd). `vbl_lijsten` bewaart echter enkel
+de eigen wedstrijden (`eigen`), niet de rest van de lijst.
+
+Voorstel (standaardkeuze): bij het verwerken van de lijst ook koppelen tegen
+`volg_wedstrijden` (zelfde sleutel, `thuis_naam`), en het resultaat in een
+nieuwe kolom `volg_wedstrijden.bond_officials` zetten, naar het voorbeeld van
+`matches.bond_officials`. Regio toont dan het hoogste van API en lijst; een
+wedstrijd die niet in de lijst staat, verdwijnt uit Regio. Schema: één kolom
+erbij, `ALTER TABLE ... ADD COLUMN` volstaat.
+
+Nog te bepalen:
+- De lijst dekt enkel het komende weekend; Regio toont er twee. Het tweede
+  weekend blijft op de API leunen — expliciet zo tonen, of niets doen?
+- Volgorde met de volgsync: die draait om 5 uur en schrijft de rijen
+  opnieuw. Mag die `bond_officials` niet overschrijven (kolom niet aanraken
+  in de upsert), en wanneer vervalt de waarde — na het weekend vanzelf,
+  want dan valt de wedstrijd buiten Regio.
+- Een gevolgde ploeg uit de lijst die niet te koppelen is (verschoven uur):
+  melden aan de beheerders zoals bij de eigen ploegen, of stil laten?
+- Komt er een eigen verversing van Regio direct na het verwerken van de
+  lijst, of volstaat het dat de pagina het bij het volgende openen toont?
+
+### V43 — Eigen aanduidingen bij Basketbal Vlaanderen in het aanduidingenscherm
+**Beslist, eerst uit te zoeken, dan te bouwen.** Officials die ook door de
+bond worden aangeduid, zien die wedstrijden nu niet in YOAssist. Voorbeeld:
+zondag 11/10 om 10u, GSG Aarschot G14C — een aanduiding van Basketbal
+Vlaanderen bij een andere club. Die wedstrijden moeten in het
+aanduidingenscherm komen, met een eigen tag en achtergrondkleur die duidelijk
+maakt dat het een aanduiding van de bond is, geen aanduiding van de club.
+
+**Beslist:**
+- **Zoekgebied: heel Vlaanderen**, niet enkel de eigen en gevolgde clubs.
+- **Telt niet mee voor de vergoeding** — de bond betaalt die zelf.
+- **Agendafeed en herinneringen: aan/uit in Mijn voorkeuren, standaard
+  aan.** Eén schakelaar die beide regelt (agenda én herinneringen dag
+  ervoor / dag zelf); de bestaande schakelaars `herinner_avond` en
+  `herinner_ochtend` blijven daarbovenop gelden.
+- **De zoeknaam staat in Mijn voorkeuren**, zichtbaar en aanpasbaar door de
+  official zelf (en door de beheerder). De naam bij de bond kan licht
+  afwijken van die in YOAssist. Leeg = zoeken op de gewone naam.
+- **Waar een beheerder de zoeknaam aanpast** (voorstel): bij Beheer →
+  Gebruikers, met een knopje **vbl** in de rij, naast *welkom*, *ouder* en
+  *aan/uit* — zelfde patroon als *ouder*. Het toont de huidige zoeknaam
+  (of de gewone naam als die leeg is) en laat ze aanpassen of leegmaken.
+  Wijkt de zoeknaam af van de gewone naam, dan staat ze onder de naam in de
+  rij ('VBL: …'), zoals 'vult in voor …'. Backend: een extra veld `vblNaam`
+  in de bestaande `PATCH /api/admin/users`; leeg = NULL. Een ouder past de
+  zoeknaam van zijn kind aan via Mijn voorkeuren met de keuzelijst 'namens'.
+
+**Eerst uitzoeken.** De API heeft geen endpoint 'alle wedstrijden van een
+scheidsrechter'. Het enige spoor is `wedOff`, een lijst met namen bij elke
+wedstrijd, en die is enkel per club (`OrgMatchesByGuid`) of per ploeg op te
+vragen. Heel Vlaanderen doorzoeken betekent dus: elke club apart ophalen.
+Na te gaan:
+- **Hoe aan de lijst van alle clubs te komen.** Er is geen endpoint 'alle
+  clubs'. Opties: de clubnummers `BVBL0001`–`BVBL9999` één keer aftasten en
+  de bestaande bewaren (per seizoen herhalen), of de clubs afleiden uit de
+  tegenstanders in de wedstrijden (`tTGUID`/`tUGUID`) en zo uitbreiden tot er
+  niets nieuws meer bijkomt.
+- **Hoeveel calls de Worker per run mag doen.** Cloudflare beperkt het
+  aantal subrequests per aanroep (50 op het gratis plan). Met een paar
+  honderd clubs moet de ophaling dus over meerdere uren gespreid worden —
+  bv. een deel van de clubs per uur, in een vaste rotatie, zodat elke club
+  minstens één keer per dag aan bod komt.
+- **Bestaat er toch een endpoint per persoon** (de verkenning en de spec van
+  2015 toonden er geen)?
+- **In welke vorm staat een naam in `wedOff`** ('Voornaam Naam', 'NAAM
+  Voornaam', met of zonder licentienummer)?
+
+**Voorstel voor de bouw:**
+- **Koppelen op naam, losjes maar niet te los**: hoofdletters, accenten,
+  dubbele spaties en de volgorde voornaam/naam niet laten meetellen. Wat
+  daarbuiten afwijkt, lost de official op door zijn zoeknaam aan te passen.
+- **Bewaren** in een nieuwe tabel `vbl_aanduidingen` (wedstrijd-guid, user,
+  datum, uur, ploegen, categorie, zaal, laatst gezien), gevuld door een
+  aparte synchronisatie naar het voorbeeld van `volgsync.js`. Enkel wat bij
+  een eigen gebruiker hoort; de andere namen uit `wedOff` zijn
+  persoonsgegevens en worden niet bewaard. Niet in `matches`: daar zouden ze
+  in woensdagregel, facturatie of eigen herinneringen belanden.
+- **Tonen** tussen de eigen aanduidingen, met label 'VBL' en een eigen
+  achtergrondkleur; alleen-lezen, geen knoppen.
+- **Botsingscontrole**: een clubaanduiding die botst met een VBL-aanduiding
+  van dezelfde persoon, melden bij het aanduiden (zelfde regels: twee uur
+  zelfde zaal, tweeënhalf uur anders).
+
+**Schema:** in `users` twee kolommen erbij — `vbl_naam TEXT` (NULL = de
+gewone naam) en `vbl_aanduidingen INTEGER NOT NULL DEFAULT 1` — met
+`ALTER TABLE ... ADD COLUMN`. Nieuwe tabel `vbl_aanduidingen` (en eventueel
+`vbl_clubs` voor de clublijst en de rotatie) met een gewone `CREATE TABLE`.
+Geen DROP nodig. Beide nieuwe tabellen ook in de backup (`TABELLEN`).
+
+Nog te bepalen:
+- Zien beheerders de VBL-aanduidingen van een official ook (cluboverzicht,
+  bij het aanduiden), of enkel de official zelf? Voorstel: beheerders zien
+  ze bij het aanduiden als reden voor een botsing, niet als aparte lijst.
+- Hoe snel na een aanduiding door de bond moet ze in YOAssist staan? Bepaalt
+  de rotatie (één keer per dag lijkt genoeg).
+
 ### V29 — Evaluatiemodule
 **Nog uit te werken, zeer open.** Een manier om Youth Officials te evalueren
 na een wedstrijd. Nog geheel te bepalen: wie evalueert (een beheerder, een
