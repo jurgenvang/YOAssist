@@ -54,6 +54,45 @@ Stand: **v1.12.2**
 
 ## Openstaand
 
+### V40 — Forfait herkennen en verwerken
+**Uitgeklaard (7 oktober 2026), klaar om te bouwen — vóór V39.** De VBL-API
+toont een forfait in `uitslag`: `" 20-  0  BFOR"` (bezoekers forfait) of
+`"  0- 20  AFOR"` (thuisploeg forfait), met `gespeeld = 'G'`. Vaak **al
+weken op voorhand**: trekt een ploeg zich terug, dan zet de bond al haar
+wedstrijden meteen op forfait (op 7 oktober stonden er al forfaits voor 25/10,
+21/11 en 12/12). Bevestigd met J16 D en J18 D op 3–4 oktober: beide forfait,
+en daarom terecht niet in de woensdaglijst van de bond.
+
+De app ziet dat vandaag niet: `normaliseerUitslag` kan '0  BFOR' niet als getal
+lezen en maakt er stil `null` van. Gevolg: de woensdagregel zet
+forfaitwedstrijden in de lijst, U10/U12 met forfait staan open voor
+aanduidingen, en aanduidingen erop tellen mee voor de vergoeding.
+
+Beslist:
+- **Herkennen** bij de synchronisatie: `AFOR` = thuisploeg forfait, `BFOR` =
+  bezoekers. Bewaren in een nieuwe kolom `matches.forfait` ('thuis' / 'uit' /
+  NULL) — `ALTER TABLE ... ADD COLUMN` volstaat. Een nieuw forfait komt in het
+  logboek (de uitslag zit bewust niet in de wijzigingshash, dus dit moet apart).
+- **De woensdagregel slaat forfaitwedstrijden over** (ook in de V39-variant;
+  een forfait in de lijst van de bond is dan ook geen afwijking).
+- **Officials** zien bij de wedstrijd 'forfait — gaat niet door' en hoeven er
+  geen beschikbaarheid voor op te geven.
+- **Een forfait op een wedstrijd met eigen aanduidingen:** een instelling bij
+  Beheer laat kiezen tussen *automatisch vrijgeven* (standaard) en *enkel de
+  beheerders verwittigen*. Automatisch vrijgeven gebeurt **enkel als het
+  forfait vóór de wedstrijddag bekend is**: dan gaat de wedstrijd zeker niet
+  door en krijgt de official het bericht 'aanduiding vervallen — forfait'.
+  Verschijnt het forfait pas op de dag zelf of achteraf, dan nooit
+  automatisch: de official kan al ter plaatse geweest zijn. De beheerders
+  krijgen in beide gevallen een melding.
+- **Vergoeding:** een forfaitwedstrijd telt mee zoals nu, maar staat in het
+  overzicht vóór het afsluiten gemarkeerd als 'forfait'; de beheerder haalt ze
+  weg met *weg* (V36) als er niet gefloten werd.
+
+Terloops nagekeken: uitgestelde wedstrijden zonder nieuwe datum
+(`gespeeld = 'V'`, `datumString = 'na'`, uur `00.00`) slaat de synchronisatie
+al veilig over.
+
 ### V39 — De woensdaglijst van Basketbal Vlaanderen als bron voor de woensdagregel
 **Uitgeklaard (7 oktober 2026), klaar om te bouwen.** Elke woensdag
 (normaal rond 13:35) stuurt `info@basketbal.vlaanderen` een Mailchimp-
