@@ -53,7 +53,7 @@ export async function overzicht({ url, env }) {
 
   const { results: wedstrijden } = await env.DB.prepare(
     `SELECT m.guid, m.datum, m.uur, m.thuis_naam, m.uit_naam, m.locatie, m.acc_guid,
-            m.poule_naam, m.cat_code, m.off_namen, m.off_aantal, m.off_gewist, m.uitslag,
+            m.poule_naam, m.cat_code, m.off_namen, m.off_aantal, m.off_gewist, m.uitslag, m.forfait,
             m.club_guid, c.naam AS club_naam,
             m.scope, m.scope_reden, m.scope_uit,
             m.refs_bevestigd, m.refs_bevestigd_door,
@@ -143,6 +143,10 @@ export async function overzicht({ url, env }) {
     const antwoord = perWedstrijd.get(w.guid) ?? { ja: [], nee: [] };
     const toegewezen = perToewijzing.get(w.guid) ?? [];
     const voorbij = w.datum < vandaag;
+    // Een forfaitwedstrijd gaat niet door: niemand nodig, en dus ook nooit een
+    // tekort of een 'probleem' in de cijfers (V40).
+    const forfait = w.forfait ?? null;
+    const nodig = forfait ? 0 : aantalNodig(w.off_aantal);
 
     let vblRefs = [];
     try {
@@ -178,7 +182,8 @@ export async function overzicht({ url, env }) {
       inScope: w.scope === 1,
       scopeReden: w.scope_reden,
       scopeUit: w.scope_uit === 1,
-      nodig: aantalNodig(w.off_aantal),
+      nodig,
+      forfait,
       toegewezen: toegewezen,
       voorbij,
       // Valt deze wedstrijd binnen de weekends waarover de tellers gaan? Een
@@ -194,8 +199,9 @@ export async function overzicht({ url, env }) {
       // beschikbaar is om uit te kiezen.
       probleem:
         !voorbij &&
+        !forfait &&
         w.scope === 1 &&
-        (toegewezen.length < aantalNodig(w.off_aantal) || antwoord.ja.length === 0),
+        (toegewezen.length < nodig || antwoord.ja.length === 0),
     };
   });
 
@@ -215,7 +221,7 @@ export async function overzicht({ url, env }) {
     inScope: inVenster.filter((w) => w.inScope).length,
     zonderVblRefs: inVenster.filter((w) => w.vblAantal < 2).length,
     onvolledig: inVenster.filter((w) => w.inScope && w.toegewezen.length < w.nodig).length,
-    zonderBeschikbaren: inVenster.filter((w) => w.inScope && w.beschikbaar.length === 0).length,
+    zonderBeschikbaren: inVenster.filter((w) => w.inScope && !w.forfait && w.beschikbaar.length === 0).length,
     metProbleem: inVenster.filter((w) => w.probleem).length,
     wedstrijden: uitgewerkt,
   });

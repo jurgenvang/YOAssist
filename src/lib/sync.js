@@ -63,6 +63,10 @@ export async function synchroniseer(db, bron) {
     verdwenen: 0,
     offGewijzigd: 0,
     namenGewist: 0,
+    // Wedstrijden die bij deze ronde een forfait kregen (V40). De aanroeper
+    // beslist wat er met eigen aanduidingen gebeurt: daar is verwittigen voor
+    // nodig, en dat hoort niet in de synchronisatie zelf.
+    nieuweForfaits: [],
     fouten: [],
     status: 'ok',
     boodschap: null,
@@ -142,7 +146,7 @@ export async function synchroniseer(db, bron) {
       await db
         .prepare(
           `SELECT guid, wed_id, thuis_guid, thuis_naam, uit_guid, uit_naam, datum, uur,
-                  locatie, acc_guid, poule_naam, cat_code, off_aantal, hash, status
+                  locatie, acc_guid, poule_naam, cat_code, off_aantal, forfait, hash, status
              FROM matches
             WHERE seizoen = ? AND club_guid IN (${placeholders})
               AND bron = 'vbl'`,
@@ -176,16 +180,16 @@ export async function synchroniseer(db, bron) {
             .prepare(
               `INSERT INTO matches (guid, wed_id, seizoen, club_guid, thuis_guid, thuis_naam,
                                     uit_guid, uit_naam, datum, uur, locatie, acc_guid, poule_naam,
-                                    cat_code, off_namen, off_aantal, off_gewist, uitslag,
+                                    cat_code, off_namen, off_aantal, off_gewist, uitslag, forfait,
                                     scope, scope_reden, scope_op, bron, hash,
                                     status, laatst_gezien)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?,
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?,
                        ?, ?, ?, 'vbl', ?, 'actief', datetime('now'))`,
             )
             .bind(
               w.guid, w.wedId, w.seizoen, w.clubGuid, w.thuisGuid, w.thuisNaam,
               w.uitGuid, w.uitNaam, w.datum, w.uur, w.locatie, w.accGuid, w.pouleNaam,
-              w.catCode, JSON.stringify(w.offNamen), w.offAantal, w.uitslag,
+              w.catCode, JSON.stringify(w.offNamen), w.offAantal, w.uitslag, w.forfait,
               w.autoScope ? 1 : 0,
               w.autoScope ? 'auto' : null,
               w.autoScope ? new Date().toISOString() : null,
@@ -197,6 +201,19 @@ export async function synchroniseer(db, bron) {
       }
 
       const heropgedoken = oud.status === 'verdwenen';
+
+      // Een forfait zit, net als de uitslag, niet in de hash. Een nieuw forfait
+      // moet wel opvallen: er kan iemand van ons op staan (V40).
+      if (w.forfait && !oud.forfait) {
+        rapport.nieuweForfaits.push({ guid, datum: w.datum, forfait: w.forfait });
+        // Enkel loggen wat nog moet komen. Bij de eerste synchronisatie na de
+        // invoering krijgen ook alle voorbije forfaits van het seizoen hun vlag;
+        // die als 'openstaande wijziging' tonen zou enkel ruis zijn.
+        if (w.datum >= new Date().toISOString().slice(0, 10)) {
+          wijzigingen.push([guid, 'gewijzigd', 'forfait', '',
+            w.forfait === 'thuis' ? 'thuisploeg' : w.forfait === 'uit' ? 'bezoekers' : 'beide ploegen']);
+        }
+      }
 
       // De scheidsrechteraanduiding zit bewust niet in de hash: die verandert
       // vaak en mag het wijzigingslogboek niet vervuilen. Ze wordt wel altijd
@@ -211,11 +228,11 @@ export async function synchroniseer(db, bron) {
           db
             .prepare(
               `UPDATE matches
-                  SET off_namen = ?, off_aantal = ?, off_gewist = 0, uitslag = ?,
+                  SET off_namen = ?, off_aantal = ?, off_gewist = 0, uitslag = ?, forfait = ?,
                       laatst_gezien = datetime('now')
                 WHERE guid = ?`,
             )
-            .bind(JSON.stringify(w.offNamen), w.offAantal, w.uitslag, guid),
+            .bind(JSON.stringify(w.offNamen), w.offAantal, w.uitslag, w.forfait, guid),
         );
         continue;
       }
@@ -227,13 +244,14 @@ export async function synchroniseer(db, bron) {
             `UPDATE matches
                 SET thuis_naam = ?, uit_guid = ?, uit_naam = ?, datum = ?, uur = ?,
                     locatie = ?, acc_guid = ?, poule_naam = ?, cat_code = ?,
-                    off_namen = ?, off_aantal = ?, off_gewist = 0, uitslag = ?,
+                    off_namen = ?, off_aantal = ?, off_gewist = 0, uitslag = ?, forfait = ?,
                     hash = ?, status = 'actief', laatst_gezien = datetime('now')
               WHERE guid = ?`,
           )
           .bind(
             w.thuisNaam, w.uitGuid, w.uitNaam, w.datum, w.uur, w.locatie, w.accGuid,
-            w.pouleNaam, w.catCode, JSON.stringify(w.offNamen), w.offAantal, w.uitslag, w.hash, guid,
+            w.pouleNaam, w.catCode, JSON.stringify(w.offNamen), w.offAantal, w.uitslag, w.forfait,
+            w.hash, guid,
           ),
       );
 

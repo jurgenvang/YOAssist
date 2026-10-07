@@ -10,6 +10,7 @@ import {
 } from '../../lib/vbl.js';
 import { synchroniseer, zetInstelling } from '../../lib/sync.js';
 import { log } from '../../lib/logboek.js';
+import { verwerkForfaits } from '../../lib/forfait.js';
 
 /** GET /api/admin/config — alles wat het beheerscherm in één keer nodig heeft. */
 export async function config({ env }) {
@@ -436,6 +437,8 @@ export async function teamVlaggen({ request, env }) {
 /** POST /api/admin/sync — nu meteen synchroniseren. */
 export async function syncNu({ env, user }) {
   const rapport = await synchroniseer(env.DB, 'handmatig');
+  // Zelfde afhandeling als bij de automatische synchronisatie (V40).
+  rapport.forfait = await verwerkForfaits(env, rapport.nieuweForfaits);
 
   await log(env.DB, {
     categorie: 'beheer',

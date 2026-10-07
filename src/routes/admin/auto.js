@@ -29,6 +29,7 @@ export async function automatisch({ request, env, user }) {
        FROM matches m
        LEFT JOIN categorieen cat ON cat.code = m.cat_code
       WHERE m.seizoen = ? AND m.status = 'actief' AND m.scope = 1
+        AND m.forfait IS NULL   -- gaat niet door (V40)
         AND m.datum >= ? AND m.datum <= ?
       ORDER BY m.datum, m.uur`,
   )

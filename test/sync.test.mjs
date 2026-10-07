@@ -371,6 +371,44 @@ console.log('\nX. Een handmatige bevestiging verdwijnt zodra de bond zelf refs a
   check('vlag automatisch gewist', rij.refs_bevestigd, 0);
 }
 
+console.log('\nV40. Forfait bij de synchronisatie');
+{
+  const db = nieuweDb();
+  // Nieuw, en meteen al forfait (een ploeg die zich terugtrok).
+  zetApi([wed('AA', { gespeeld: 'G', uitslag: '  0- 20  AFOR' }), wed('AB'), wed('AC', { datum: vblDatum(-20) })]);
+  const r1 = await synchroniseer(db, 'handmatig');
+  const rij = async (g) => db.prepare('SELECT forfait, uitslag FROM matches WHERE guid = ?').bind(g).first();
+  check('nieuw met forfait: bewaard', (await rij('BVBL26279170INJ1621FAA')).forfait, 'thuis');
+  check('en geen uitslag', (await rij('BVBL26279170INJ1621FAA')).uitslag, null);
+  check('een nieuwe wedstrijd is geen nieuw forfait', r1.nieuweForfaits.length, 0);
+
+  // Bestaande wedstrijden krijgen een forfait: één die nog moet komen, één voorbij.
+  const logVoor = await tel(db, "SELECT COUNT(*) AS n FROM logboek WHERE veld = 'forfait'");
+  zetApi([
+    wed('AA', { gespeeld: 'G', uitslag: '  0- 20  AFOR' }),
+    wed('AB', { gespeeld: 'G', uitslag: ' 20-  0  BFOR' }),
+    wed('AC', { datum: vblDatum(-20), gespeeld: 'G', uitslag: ' 20-  0  BFOR' }),
+  ]);
+  const r2 = await synchroniseer(db, 'handmatig');
+  check('twee nieuwe forfaits gemeld', r2.nieuweForfaits.map((x) => x.guid).sort(),
+    ['BVBL26279170INJ1621FAB', 'BVBL26279170INJ1621FAC']);
+  check('met wie forfait gaf', r2.nieuweForfaits.find((x) => x.guid.endsWith('AB')).forfait, 'uit');
+  check('bewaard', (await rij('BVBL26279170INJ1621FAB')).forfait, 'uit');
+  check('enkel het komende in het logboek',
+    (await tel(db, "SELECT COUNT(*) AS n FROM logboek WHERE veld = 'forfait'")) - logVoor, 1);
+  check('als bezoekers',
+    (await db.prepare("SELECT nieuw FROM logboek WHERE veld = 'forfait'").first()).nieuw, 'bezoekers');
+
+  // Een derde ronde: niets nieuws meer.
+  const r3 = await synchroniseer(db, 'handmatig');
+  check('een gekend forfait wordt niet opnieuw gemeld', r3.nieuweForfaits.length, 0);
+
+  // Een forfait dat weer verdwijnt (rechtgezet door de bond).
+  zetApi([wed('AA'), wed('AB', { gespeeld: 'G', uitslag: ' 20-  0  BFOR' }), wed('AC', { datum: vblDatum(-20) })]);
+  await synchroniseer(db, 'handmatig');
+  check('rechtgezet forfait verdwijnt', (await rij('BVBL26279170INJ1621FAA')).forfait, null);
+}
+
 console.log('\n16. De uitslag komt mee bij een nieuwe wedstrijd');
 {
   const db = nieuweDb();

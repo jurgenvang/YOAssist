@@ -187,6 +187,10 @@ main { max-width: 46rem; margin: 0 auto; padding: 1rem 1rem 5rem; }
 .wed-ploegen { font-weight: 600; font-size: .97rem; }
 .wed-ploegen .tegen { color: var(--grijs); font-weight: 400; white-space: nowrap; }
 .wed-ploegen .ploeg { white-space: nowrap; }
+.forfait-label { display: inline-block; font-size: .66rem; font-weight: 700; text-transform: uppercase;
+                 letter-spacing: .06em; color: var(--rood); background: var(--rood-zacht);
+                 border-radius: 4px; padding: .08rem .35rem; margin-left: .35rem; white-space: nowrap; }
+.wed-acties .gaat-niet-door { font-size: .84rem; color: var(--grijs); }
 .wed-ploegen .uitslag {
   margin-left: .5rem; font-weight: 700; font-variant-numeric: tabular-nums;
   color: var(--inkt-zacht);
@@ -1319,7 +1323,7 @@ function toonMatches(data) {
     staat.sectieVast = new Map(
       staat.matches.map((m) => [
         m.guid,
-        m.toegewezen ? 'aangeduid' : m.beschikbaarheid === null ? 'open' : 'beantwoord',
+        sectieVoor(m),
       ]),
     );
   }
@@ -1328,7 +1332,7 @@ function toonMatches(data) {
   // bijvoorbeeld — krijgt alsnog een plaats.
   const sectieVan = (m) =>
     staat.sectieVast.get(m.guid)
-    ?? (m.toegewezen ? 'aangeduid' : m.beschikbaarheid === null ? 'open' : 'beantwoord');
+    ?? sectieVoor(m);
 
   const aangeduid = staat.matches.filter((m) => sectieVan(m) === 'aangeduid');
   const open = staat.matches.filter((m) => sectieVan(m) === 'open');
@@ -1338,7 +1342,7 @@ function toonMatches(data) {
 
   // De teller telt wél meteen mee: die toont voortgang zonder dat er iets
   // beweegt op het scherm.
-  const nogOpen = staat.matches.filter((m) => !m.toegewezen && m.beschikbaarheid === null).length;
+  const nogOpen = staat.matches.filter((m) => sectieVoor(m) === 'open').length;
   const nuAangeduid = staat.matches.filter((m) => m.toegewezen).length;
 
   delen.push(
@@ -1452,6 +1456,24 @@ function refsRegel(m) {
   return `<div class="wed-refs">${delen.join('')}</div>`;
 }
 
+/**
+ * Waar een wedstrijd in de lijst van een official hoort. Een forfait zonder
+ * aanduiding vraagt geen antwoord meer: die gaat naar onderaan, bij wat geen
+ * actie vraagt, en telt niet mee in 'nog te beantwoorden' (V40).
+ */
+function sectieVoor(m) {
+  if (m.toegewezen) return 'aangeduid';
+  if (m.forfait) return 'beantwoord';
+  return m.beschikbaarheid === null ? 'open' : 'beantwoord';
+}
+
+/** 'forfait van de bezoekers', zoals de bond het noteert (V40). */
+function forfaitTekst(f) {
+  if (f === 'thuis') return 'forfait thuisploeg';
+  if (f === 'uit') return 'forfait bezoekers';
+  return 'dubbel forfait';
+}
+
 function kaart(m) {
   const d = ontleedDatum(m.datum);
   const status = m.beschikbaarheid ?? '';
@@ -1465,7 +1487,13 @@ function kaart(m) {
          target="_blank" rel="noopener noreferrer">Wedstrijdblad &#8599;</a>`
     : '';
 
-  const acties = m.toegewezen
+  // Een forfait zonder aanduiding: geen knoppen, er valt niets te kiezen.
+  // Staat er toch een aanduiding op (de beheerder kiest ervoor die te laten
+  // staan), dan blijft de uitweg 'probleem melden' wél bereikbaar.
+  const acties = m.forfait && !m.toegewezen
+    ? `<div class="wed-acties"><span class="gaat-niet-door">Gaat niet door: ${
+        tekst(forfaitTekst(m.forfait))}.</span></div>`
+    : m.toegewezen
     ? `<div class="wed-acties">
          <div class="vergrendeld">
            <div class="vergrendeld-kop">
@@ -1493,7 +1521,8 @@ function kaart(m) {
     </div>
     <div class="wed-ploegen"><span class="ploeg">${tekst(m.thuis)}</span>
       <span class="tegen">&ndash; ${tekst(m.uit)}</span>
-      ${m.uitslag ? `<span class="uitslag">${tekst(m.uitslag)}</span>` : ''}</div>
+      ${m.uitslag ? `<span class="uitslag">${tekst(m.uitslag)}</span>` : ''}${
+      m.forfait ? `<span class="forfait-label">${tekst(forfaitTekst(m.forfait))}</span>` : ''}</div>
     <div class="wed-meta">
       ${m.catLabel ? `<span class="cat">${tekst(m.catCode)}</span>` : ''}
       ${m.locatie
@@ -2164,7 +2193,14 @@ function overzichtKaart(w) {
           title="Vrijgeven">&times;</button></span>`
       : `<span class="ref-plaats leeg"><span class="ref-nr">REF${i + 1}</span>nog te vullen</span>`);
   }
-  const toe = plaatsen.length
+  // Bij een forfait is er niemand nodig. Wie er nog op staat (de instelling
+  // 'enkel melden', of een forfait op de dag zelf), blijft zichtbaar met een
+  // knop om vrij te geven — anders verdwijnt die aanduiding uit beeld (V40).
+  const toe = w.forfait
+    ? (w.toegewezen.map((o) => `<span class="ref-plaats gevuld">${tekst(o.naam)}<button
+          data-vrij="${tekst(o.email)}" title="Vrijgeven">&times;</button></span>`).join('')
+       || '<span class="chip geen">gaat niet door</span>')
+    : plaatsen.length
     ? plaatsen.join('')
     : '<span class="chip geen">Basketbal Vlaanderen voorziet er twee</span>';
 
@@ -2199,6 +2235,7 @@ function overzichtKaart(w) {
   const compleet = w.inScope && w.toegewezen.length >= w.nodig;
   const klassen = ['ov'];
   if (w.voorbij) klassen.push('voorbij');
+  if (w.forfait) klassen.push('buiten');
   if (!w.inScope) klassen.push('buiten');
   else if (w.probleem && w.inVenster) klassen.push('probleem');
   else if (compleet) klassen.push('compleet');
@@ -2207,8 +2244,8 @@ function overzichtKaart(w) {
   const scopeRegels = w.inScope
     ? `<div class="ov-regel"><span class="ov-label">Club</span>${toe}
          <span class="reden">${tekst(w.scopeReden || '')}</span></div>
-       <div class="ov-regel"><span class="ov-label">Beschikbaar</span>${ja}</div>
-       ${nee}`
+       ${w.forfait ? '' : `<div class="ov-regel"><span class="ov-label">Beschikbaar</span>${ja}</div>
+       ${nee}`}`
     : '';
 
   return `
@@ -2217,7 +2254,8 @@ function overzichtKaart(w) {
       <span class="ov-uur">${tekst(w.uur)}</span>
       <span class="cat ${w.catLabel ? '' : 'onbekend'}">${tekst(w.catCode || '??')}</span>
       <span class="ov-ploegen"><span class="ploeg">${tekst(w.thuis)}</span>
-        <span class="tegen">&ndash; ${tekst(w.uit)}</span></span>
+        <span class="tegen">&ndash; ${tekst(w.uit)}</span>${
+        w.forfait ? `<span class="forfait-label">${tekst(forfaitTekst(w.forfait))}</span>` : ''}</span>
     </div>
     <div class="ov-regel">
       <span>${tekst(w.locatie || 'locatie onbekend')}</span>
@@ -2233,7 +2271,7 @@ function overzichtKaart(w) {
         : `<button class="mini-knop ${w.inScope ? 'aan' : ''}" data-scope="${w.inScope ? '0' : '1'}">
              ${w.inScope ? 'In YO-aanduidingen' : 'Toevoegen aan YO-aanduidingen'}
            </button>`}
-      ${w.inScope ? `<button class="mini-knop" data-handmatig="1">Iemand anders toewijzen</button>` : ''}
+      ${w.inScope && !w.forfait ? `<button class="mini-knop" data-handmatig="1">Iemand anders toewijzen</button>` : ''}
     </div>
   </article>`;
 }
@@ -3333,6 +3371,18 @@ function toonPaneel() {
     </section>
 
     <section class="blok" data-groep="configuratie">
+      <h3 data-vouw="beheer-forfait">Forfait</h3>
+      <p class="hint">Wat er gebeurt als een wedstrijd waarop iemand van de club is aangeduid,
+        forfait krijgt. De beheerders krijgen in beide gevallen een melding.</p>
+      <select id="forfait-aanduiding">
+        <option value="vrijgeven">Automatisch vrijgeven, als het forfait vóór de wedstrijddag gekend is</option>
+        <option value="melden">Enkel de beheerders verwittigen</option>
+      </select>
+      <p class="hint" style="margin-bottom:0">Een forfait op de dag zelf of achteraf wordt nooit
+        automatisch vrijgegeven: de official kan al naar de wedstrijd gekomen zijn.</p>
+    </section>
+
+    <section class="blok" data-groep="configuratie">
       <h3 data-vouw="beheer-aandacht">Regio</h3>
       <p class="hint">Clubs waarvan je wil zien welke wedstrijden krap zitten
         (nul of één scheidsrechter), ook al doet YOAssist zelf niets voor die
@@ -3608,6 +3658,18 @@ function bindPaneel() {
     }
   };
 
+  $('forfait-aanduiding').onchange = async () => {
+    try {
+      await api('/api/admin/forfait-aanduiding', {
+        method: 'POST',
+        body: JSON.stringify({ waarde: $('forfait-aanduiding').value }),
+      });
+      toast('Bewaard');
+    } catch (err) {
+      toast(err.message);
+    }
+  };
+
   $('extern-namen').onchange = async () => {
     try {
       await api('/api/admin/extern-namen', {
@@ -3865,6 +3927,7 @@ const BERICHT_NAMEN = {
   herinnering: 'Herinnering',
   probleem: 'Probleem',
   nieuws: 'Bericht van de club',
+  forfait: 'Forfait',
   bericht: 'Bericht',
 };
 
@@ -4438,6 +4501,7 @@ async function laadExternNamen() {
   try {
     const data = await api('/api/admin/mail');
     $('extern-namen').value = data.externNamen ?? 'initialen';
+    $('forfait-aanduiding').value = data.forfaitAanduiding ?? 'vrijgeven';
   } catch { /* dan blijft de standaard staan */ }
 }
 
@@ -4537,7 +4601,8 @@ function factWedstrijdenHtml(lijst, weghalen) {
           <div class="geld-wedstrijd ${correctie ? 'correctie' : ''}">
             <span class="wanneer">${tekst(wanneer)}</span>
             <span class="wat">${tekst(w.wedstrijd)} &middot; ${tekst(w.catLabel || w.catCode)}${
-              correctie ? ` &middot; correctie ${w.aantal > 0 ? '+' : ''}${w.aantal}` : ''}</span>
+              correctie ? ` &middot; correctie ${w.aantal > 0 ? '+' : ''}${w.aantal}` : ''}${
+              w.forfait ? ' <span class="forfait-label">forfait</span>' : ''}</span>
             ${weghalen && !correctie
               ? `<button class="mini" data-fact-weg="${tekst(w.matchGuid)}">weg</button>`
               : ''}

@@ -31,7 +31,7 @@ async function berekenMaand(env, maand) {
   // wedstrijd telt niet automatisch mee, maar wordt apart gemeld.
   const { results: rijen } = await env.DB.prepare(
     `SELECT a.match_guid, a.user_email, m.datum, m.status AS wedstrijd_status,
-            m.thuis_naam, m.uit_naam, m.cat_code,
+            m.thuis_naam, m.uit_naam, m.cat_code, m.forfait,
             u.voornaam, u.achternaam,
             c.label AS cat_label, c.tarief_cent
        FROM assignments a
@@ -78,6 +78,7 @@ async function berekenMaand(env, maand) {
       datum: r.datum,
       thuisNaam: r.thuis_naam,
       uitNaam: r.uit_naam,
+      forfait: r.forfait,
     });
   }
 
@@ -452,7 +453,7 @@ export async function staat({ url, env }) {
   // moet tonen wat er toen is meegeteld.
   const { results: verwerkt } = await env.DB.prepare(
     `SELECT v.maand, v.match_guid, v.user_email, v.cat_code, v.aantal,
-            m.datum, m.thuis_naam, m.uit_naam, c.label AS cat_label
+            m.datum, m.thuis_naam, m.uit_naam, m.forfait, c.label AS cat_label
        FROM vergoeding_verwerkt v
        LEFT JOIN matches m ON m.guid = v.match_guid
        LEFT JOIN categorieen c ON c.code = v.cat_code

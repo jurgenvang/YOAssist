@@ -1,5 +1,6 @@
 import { json, fout, leesJson, instelling } from '../../lib/http.js';
 import { zetInstelling } from '../../lib/sync.js';
+import { log } from '../../lib/logboek.js';
 import { isZandbak, ZANDBAK_AFZENDER } from '../../lib/mailer.js';
 
 /**
@@ -36,6 +37,10 @@ export async function config({ env }) {
     // beperking die wij opleggen om lastig te doen: Resend weigert het, en een
     // rij mislukte verzendingen is erger dan er geen te proberen.
     magNaarAnderen: Boolean(afzender) && !zandbak,
+    forfaitAanduiding: await instelling(env.DB, 'forfait_aanduiding', 'vrijgeven'),
+    // Het scherm leest dit om de keuzelijst juist te zetten; zonder stond die
+    // na elk herladen terug op 'initialen', wat er ook bewaard was.
+    externNamen: await instelling(env.DB, 'extern_namen', 'initialen'),
   });
 }
 
@@ -151,5 +156,25 @@ export async function zetExternNamen({ request, env, user }) {
   const body = await leesJson(request);
   const waarde = body.waarde === 'volledig' ? 'volledig' : 'initialen';
   await zetInstelling(env.DB, 'extern_namen', waarde);
+  return json({ waarde });
+}
+
+/**
+ * POST /api/admin/forfait-aanduiding   { waarde: 'vrijgeven' | 'melden' }
+ *
+ * Wat er gebeurt met een eigen aanduiding als de wedstrijd forfait krijgt (V40).
+ * Alles wat niet exact 'melden' is, wordt 'vrijgeven': de standaard.
+ */
+export async function zetForfaitAanduiding({ request, env, user }) {
+  const body = await leesJson(request);
+  const waarde = body.waarde === 'melden' ? 'melden' : 'vrijgeven';
+  await zetInstelling(env.DB, 'forfait_aanduiding', waarde);
+  await log(env.DB, {
+    categorie: 'beheer',
+    soort: 'instelling',
+    wie: user.email,
+    veld: 'forfait op een aanduiding',
+    nieuw: waarde === 'melden' ? 'enkel beheerders verwittigen' : 'automatisch vrijgeven',
+  });
   return json({ waarde });
 }

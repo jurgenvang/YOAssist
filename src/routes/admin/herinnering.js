@@ -38,6 +38,7 @@ export async function verstuur({ request, env, user }) {
     `SELECT m.guid, m.datum, m.uur, m.thuis_naam, m.uit_naam, m.club_guid
        FROM matches m
       WHERE m.status = 'actief' AND m.scope = 1
+        AND m.forfait IS NULL   -- daar hoeft niemand nog iets voor in te vullen (V40)
         AND m.datum IN (?, ?)
       ORDER BY m.datum, m.uur, m.thuis_naam COLLATE NOCASE`,
   )

@@ -80,7 +80,7 @@ export async function wijsToe({ request, env, user }) {
 
   const wedstrijd = await env.DB.prepare(
     `SELECT m.guid, m.datum, m.uur, m.acc_guid, m.off_aantal, m.scope, m.cat_code, m.club_guid,
-            m.thuis_naam, m.uit_naam, m.locatie,
+            m.thuis_naam, m.uit_naam, m.locatie, m.forfait,
             cat.groep AS cat_groep, cat.auto_scope
        FROM matches m
        LEFT JOIN categorieen cat ON cat.code = m.cat_code
@@ -92,6 +92,10 @@ export async function wijsToe({ request, env, user }) {
   if (!wedstrijd) return fout(404, 'Onbekende wedstrijd', 'Deze wedstrijd bestaat niet of is verdwenen.');
   if (!wedstrijd.scope) {
     return fout(409, 'Niet in de lijst', 'Zet deze wedstrijd eerst in de aanduidingslijst.');
+  }
+  // Een wedstrijd die niet doorgaat, heeft geen officials nodig (V40).
+  if (wedstrijd.forfait) {
+    return fout(409, 'Forfait', 'Deze wedstrijd gaat niet door: er is forfait gegeven.');
   }
 
   const official = await env.DB.prepare(

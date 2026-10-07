@@ -144,7 +144,7 @@ export async function matches({ url, env, user }) {
 
   const { results } = await env.DB.prepare(
     `SELECT m.guid, m.datum, m.uur, m.thuis_naam, m.uit_naam, m.locatie, m.poule_naam,
-            m.cat_code, m.off_aantal, m.off_namen, m.off_gewist, m.scope_reden, m.uitslag,
+            m.cat_code, m.off_aantal, m.off_namen, m.off_gewist, m.scope_reden, m.uitslag, m.forfait,
             cat.label AS cat_label, cat.groep AS cat_groep,
             a.status AS beschikbaarheid,
             eigen.status AS aanduiding
@@ -255,6 +255,8 @@ export async function matches({ url, env, user }) {
         // Puur ter info: enkel gevuld als de wedstrijd gespeeld is en
         // Basketbal Vlaanderen de uitslag doorgeeft.
         uitslag: r.uitslag ?? null,
+        // 'thuis', 'uit', 'beide' of null: de wedstrijd gaat niet door (V40).
+        forfait: r.forfait ?? null,
         // Scheidsrechters van de bond. De namen worden een dag na de wedstrijd
         // gewist; het aantal blijft, vandaar beide velden.
         vblRefs,
@@ -305,7 +307,7 @@ export async function zetBeschikbaarheid({ request, env, user }) {
   const profielFilter = profiel === 'YO+' ? '' : "AND cat.groep = 'U10U12'";
 
   const toegestaan = await env.DB.prepare(
-    `SELECT m.guid
+    `SELECT m.guid, m.forfait
        FROM matches m
        JOIN teams t ON t.guid = m.thuis_guid
        LEFT JOIN categorieen cat ON cat.code = m.cat_code
@@ -318,6 +320,11 @@ export async function zetBeschikbaarheid({ request, env, user }) {
 
   if (!toegestaan) {
     return fout(404, 'Wedstrijd niet gevonden', 'Deze wedstrijd staat niet in jouw lijst.');
+  }
+  // Wissen (status null) mag nog: dat ruimt enkel op. Iets nieuws invullen
+  // heeft geen zin voor een wedstrijd die niet doorgaat (V40).
+  if (toegestaan.forfait && status !== null) {
+    return fout(409, 'Forfait', 'Deze wedstrijd gaat niet door: er is forfait gegeven.');
   }
 
   // Eens aangeduid kan een official zijn beschikbaarheid niet meer wijzigen.

@@ -41,6 +41,7 @@ export async function pasWoensdagregelToe(db, nu = new Date()) {
           AND m.scope = 0
           AND m.scope_uit = 0
           AND m.off_aantal < 2
+          AND m.forfait IS NULL   -- gaat niet door: geen officials nodig (V40)
           AND m.datum BETWEEN ? AND ?
         ORDER BY m.datum, m.uur, m.thuis_naam COLLATE NOCASE`,
     )

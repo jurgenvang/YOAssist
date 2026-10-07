@@ -32,6 +32,7 @@ INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('mail_afzender_naam', '
 INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('facturatie_ontvangers', '');
 INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('aanmeld_methodes', 'pin');
 INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('extern_namen', 'initialen');
+INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('forfait_aanduiding', 'vrijgeven');
 CREATE TABLE IF NOT EXISTS categorieen (
   code        TEXT PRIMARY KEY,
   label       TEXT NOT NULL,
@@ -128,6 +129,7 @@ CREATE TABLE IF NOT EXISTS matches (
   refs_bevestigd_op   TEXT,
   bron          TEXT NOT NULL DEFAULT 'vbl' CHECK (bron IN ('vbl', 'handmatig')),
   uitslag       TEXT,
+  forfait       TEXT CHECK (forfait IN ('thuis', 'uit', 'beide')),
   hash          TEXT NOT NULL,
   status        TEXT NOT NULL DEFAULT 'actief' CHECK (status IN ('actief', 'verdwenen')),
   laatst_gezien TEXT NOT NULL DEFAULT (datetime('now')),

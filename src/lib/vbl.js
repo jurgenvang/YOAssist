@@ -246,7 +246,25 @@ export function normaliseerWedstrijd(rauw) {
     locatie: (rauw.accNaam ?? '').trim() || null,
     pouleNaam: (rauw.pouleNaam ?? '').trim() || null,
     uitslag: normaliseerUitslag(rauw.gespeeld, rauw.uitslag),
+    forfait: normaliseerForfait(rauw.uitslag),
   };
+}
+
+/**
+ * Wie forfait gaf, uit de uitslag: 'thuis', 'uit', 'beide' of null (V40).
+ *
+ * De bond zet een forfait als administratieve score met een code erachter:
+ * ' 20-  0  BFOR' (de bezoekers, B, gaven forfait) of '  0- 20  AFOR' (de
+ * thuisploeg, A). Vaak al weken op voorhand: trekt een ploeg zich terug, dan
+ * staan al haar wedstrijden meteen op forfait. normaliseerUitslag ziet daar
+ * geen geldige score in en geeft null — zonder deze functie zag de app een
+ * forfait dus als een gewone wedstrijd die nog gespeeld moet worden.
+ */
+export function normaliseerForfait(uitslagRuw) {
+  const code = String(uitslagRuw ?? '').toUpperCase().match(/\b(AB|BA|A|B)FOR\b/)?.[1];
+  if (!code) return null;
+  if (code.length === 2) return 'beide';
+  return code === 'A' ? 'thuis' : 'uit';
 }
 
 /**

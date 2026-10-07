@@ -3,7 +3,7 @@
 Upload dit als **projectkennis**. Het bevat wat een volgend gesprek moet weten om
 verder te kunnen zonder alles opnieuw uit te vragen.
 
-Laatst bijgewerkt: v1.12.2
+Laatst bijgewerkt: v1.13.0
 
 ---
 
@@ -136,6 +136,23 @@ telkens een paar tabellen achtergebleven wanneer er een nieuwe bijkwam, zonder
 dat er een test op stond. Er is nu een test die het schema zelf naast de
 backup-lijst legt.
 
+**Forfait is een eigen kolom, geen uitslag** (V40). De bond zet een forfait als
+administratieve score met een code: `' 20-  0  BFOR'` (bezoekers) of
+`'  0- 20  AFOR'` (thuisploeg), vaak al weken op voorhand. `normaliseerForfait`
+leest dat naar `matches.forfait` ('thuis' / 'uit' / 'beide'); `uitslag` blijft
+dan null. Een forfaitwedstrijd heeft geen officials nodig: woensdagregel,
+herinneringen, automatisch aanvullen en 'vul nog in' slaan ze over, aanduiden
+en beschikbaar zetten worden geweigerd, en in het cluboverzicht is `nodig` 0.
+De synchronisatie meldt nieuwe forfaits (`rapport.nieuweForfaits`); wat er met
+eigen aanduidingen gebeurt, zit in `src/lib/forfait.js` en hangt af van
+`forfait_aanduiding`. **Automatisch vrijgeven enkel als het forfait vóór de
+wedstrijddag gekend is** — op de dag zelf of achteraf kan de official al naar
+de wedstrijd gekomen zijn, en dan beslist de beheerder bij de vergoedingen
+(waar een forfait gemarkeerd staat maar gewoon meetelt). Forfaits in een al
+afgesloten maand worden niet meer gemeld; voorbije forfaits komen niet in het
+logboek — anders gaf de eerste synchronisatie na de invoering een vloed aan
+'openstaande wijzigingen'.
+
 **Twee beveiligingsmodellen voor lezen van buitenaf.** De JSON-API gebruikt een
 sleutel in de `Authorization`-header (secret `EXTERN_API_SLEUTEL`); de
 agendafeed een lange sleutel in de URL zelf, want een agenda-app kan geen header
@@ -250,6 +267,7 @@ src/lib/sync.js              synchronisatielogica
 src/lib/aanduiding.js        hoeveel nodig, botsingen, opkomsttijd
 src/lib/autotoewijzing.js    planningsalgoritme, zuivere functie
 src/lib/woensdag.js          woensdagregel en avondcontrole
+src/lib/forfait.js           eigen aanduidingen bij een nieuw forfait (V40)
 src/lib/venster.js           weekendvenster van het cluboverzicht
 src/lib/vergoeding.js        rekenregels facturatie, zuivere functies
 src/lib/csv.js               CSV lezen en schrijven
@@ -275,7 +293,7 @@ LICENSE                      EUPL v1.2
 schema.sql                   de bron van waarheid voor de databank
 schema-console.sql           opgedeeld in blokken voor de D1-console
 schema-alles-in-een.sql      drops plus schema, in één keer uitvoerbaar
-test/                        1546 tests, draaien zonder netwerk
+test/                        1625 tests, draaien zonder netwerk
 ```
 
 ## Val­kuilen die al eens hebben toegeslagen
@@ -285,6 +303,12 @@ en meldt niets. Elke schemawijziging vraagt een expliciete `DROP TABLE`.
 
 **D1 staat honderd gebonden parameters per query toe.** `WHERE guid IN (?, ?, …)`
 breekt zodra de kalender vol staat. De testomgeving dwingt die grens af.
+
+**Een parser die 'geen geldige waarde' geeft, kan informatie verbergen.**
+`normaliseerUitslag` gaf terecht null bij `' 20-  0  BFOR'`, maar daarmee
+verdween het forfait uit de app: een wedstrijd die niet doorging, zag eruit
+als een die nog gespeeld moest worden. Kijk bij een onverwachte vorm wat ze
+betekent, niet enkel of ze past.
 
 **Een tekstvervanging die niets vindt, doet stilzwijgend niets.** Twee bugs
 kwamen zo tot stand: een laadfunctie die nergens werd aangeroepen, en een

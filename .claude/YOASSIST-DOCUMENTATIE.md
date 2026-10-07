@@ -1,6 +1,6 @@
 # YOAssist — hoe het werkt
 
-Versie 1.12.2
+Versie 1.13.0
 
 Dit document legt uit wat YOAssist doet, waar het draait en wat er nodig is om
 het draaiende te houden. Bedoeld voor wie de app beheert, en voor wie hem ooit
@@ -70,6 +70,26 @@ Staat er vanaf U14 geen scheidsrechter bij Basketbal Vlaanderen terwijl de
 beheerder weet dat er wél twee komen, dan kan hij dat aanvinken. Dat wijst
 niemand aan; het onderdrukt alleen de rode melding. Zodra de bond zelf twee refs
 invult, verdwijnt die vlag vanzelf.
+
+**Forfait.** Geeft een ploeg forfait, dan zet Basketbal Vlaanderen dat in de
+uitslag — vaak al weken op voorhand, als een ploeg zich terugtrekt. De app
+herkent dat bij elke synchronisatie. Zo'n wedstrijd gaat niet door: de
+woensdagregel slaat ze over, officials zien 'gaat niet door' en hoeven niets in
+te vullen, en er kan niemand meer op aangeduid worden.
+
+Stond er al iemand van de club op, dan hangt het af van de instelling *Forfait*
+bij Beheer → Configuratie:
+- *Automatisch vrijgeven* (standaard): de aanduiding vervalt en de official
+  krijgt bericht dat de wedstrijd niet doorgaat — maar enkel als het forfait
+  vóór de wedstrijddag bekend is.
+- *Enkel de beheerders verwittigen*: de aanduiding blijft staan, de beheerder
+  beslist.
+
+Een forfait dat pas op de dag zelf of achteraf verschijnt, wordt nooit
+automatisch vrijgegeven: de official kan al naar de wedstrijd gekomen zijn. In
+het overzicht vóór het afsluiten van de vergoedingen staat zo'n wedstrijd
+gemarkeerd als *forfait*; de beheerder haalt ze weg als er niet gefloten werd.
+De beheerders krijgen in elk geval een melding.
 
 ---
 
@@ -395,6 +415,6 @@ Wat er nodig is om verder te kunnen:
 De code staat onder de **EUPL v1.2**: vrij te gebruiken, aan te passen en door te
 geven onder dezelfde voorwaarden. Zie `LICENSE`.
 
-Voor wie eraan verder wil bouwen zijn er 1546 tests die zonder netwerk draaien
+Voor wie eraan verder wil bouwen zijn er 1625 tests die zonder netwerk draaien
 met `cd test && npm test`. Ze zijn er niet voor de vorm: verschillende ervan
 kwamen er nadat iets stil was misgegaan, en houden dat nu tegen.

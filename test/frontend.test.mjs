@@ -832,5 +832,50 @@ console.log('\nV38. Lange berichten zijn open te klappen');
   check('aanklikken klapt open', /volledig\.hidden = !open/.test(teken), true);
 }
 
+console.log('\nV40. Forfait in de schermen');
+{
+  const bron = ['tekst', 'ontleedDatum', 'sectieVoor', 'forfaitTekst', 'kaart', 'overzichtKaart', 'factWedstrijdenHtml']
+    .map(haalFunctie).join('\n');
+  const DAGEN = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
+  const MAANDEN = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli',
+    'augustus', 'september', 'oktober', 'november', 'december'];
+  const fx = new Function('DAGEN', 'MAANDEN', 'staat', 'refsRegel',
+    `${bron}; return { sectieVoor, forfaitTekst, kaart, overzichtKaart, factWedstrijdenHtml };`)(
+    DAGEN, MAANDEN, { ik: { clubNaam: 'Leuven' } }, () => '');
+
+  check('forfait zonder aanduiding: geen actie meer', fx.sectieVoor({ forfait: 'uit', beschikbaarheid: null }), 'beantwoord');
+  check('gewone open wedstrijd blijft open', fx.sectieVoor({ forfait: null, beschikbaarheid: null }), 'open');
+  check('aangeduid wint altijd', fx.sectieVoor({ forfait: 'uit', toegewezen: true }), 'aangeduid');
+  check('teksten', ['thuis', 'uit', 'beide'].map(fx.forfaitTekst),
+    ['forfait thuisploeg', 'forfait bezoekers', 'dubbel forfait']);
+
+  const m = { guid: 'X', datum: '2026-10-10', uur: '09:00', thuis: 'Bears J16 D', uit: 'Vilvoorde',
+    catCode: 'J16', catLabel: 'U16', locatie: 'Wilsele', beschikbaarheid: null, forfait: 'uit' };
+  const k = fx.kaart(m);
+  check('official: label op de kaart', k.includes('forfait bezoekers'), true);
+  check('official: gaat niet door', k.includes('Gaat niet door'), true);
+  check('official: geen keuzeknoppen', k.includes('data-keuze'), false);
+  const kToe = fx.kaart({ ...m, toegewezen: true });
+  check('official aangeduid: probleem melden blijft', kToe.includes('data-probleem'), true);
+  check('gewone kaart: wel keuzeknoppen', fx.kaart({ ...m, forfait: null }).includes('data-keuze'), true);
+
+  const w = { guid: 'X', uur: '09:00', thuis: 'Bears J16 D', uit: 'Vilvoorde', catCode: 'J16', catLabel: 'U16',
+    catGroep: 'U16', vblRefs: [], vblAantal: 0, vblNamenGewist: false, nodig: 0, forfait: 'uit',
+    toegewezen: [{ email: 'bert@club.be', naam: 'Bert Bosmans' }], beschikbaar: [], nietBeschikbaar: [],
+    inScope: true, scopeReden: 'woensdag', probleem: false, inVenster: true, voorbij: false };
+  const ov = fx.overzichtKaart(w);
+  check('overzicht: label', ov.includes('forfait bezoekers'), true);
+  check('overzicht: aangeduide official zichtbaar met vrijgeefknop', ov.includes('data-vrij="bert@club.be"'), true);
+  check('overzicht: niet "voorziet er twee"', ov.includes('voorziet er twee'), false);
+  check('overzicht: niemand meer toe te wijzen', ov.includes('data-handmatig'), false);
+  check('overzicht: zonder aanduiding "gaat niet door"',
+    fx.overzichtKaart({ ...w, toegewezen: [] }).includes('gaat niet door'), true);
+
+  const verg = fx.factWedstrijdenHtml([{ matchGuid: 'X', datum: '2026-09-20', wedstrijd: 'Bears - Vilvoorde',
+    catCode: 'G12', catLabel: 'U12', soort: 'wedstrijd', aantal: 1, forfait: 'uit' }], true);
+  check('vergoeding: forfait gemarkeerd', verg.includes('forfait-label'), true);
+  check('vergoeding: wel weg te halen', verg.includes('data-fact-weg="X"'), true);
+}
+
 console.log(f === 0 ? '\n=== ALLE FRONTENDTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);
 process.exit(f ? 1 : 0);

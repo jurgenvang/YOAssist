@@ -166,6 +166,9 @@ export function wedstrijdenPerOfficial(items) {
         soort: w.soort,
         betreftMaand: w.betreftMaand ?? null,
         aantal: w.aantal,
+        // Een forfait telt mee zoals elke aanduiding, maar wordt getoond: de
+        // beheerder beslist of er gefloten werd (V40).
+        forfait: w.forfait ?? null,
       },
     ]);
   }
@@ -204,6 +207,7 @@ export function verwerktAlsItems(rijen) {
       soort: correctie ? 'correctie' : 'wedstrijd',
       betreftMaand: correctie ? maandVan(v.datum) : null,
       aantal: v.aantal,
+      forfait: v.forfait ?? null,
     };
   });
 }

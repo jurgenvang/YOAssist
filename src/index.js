@@ -21,6 +21,7 @@ import {
   templateWeekoverzicht,
 } from './lib/mailer.js';
 import { verwittig, verwittigAllen, kuisBerichtenOp } from './lib/verwittigen.js';
+import { verwerkForfaits } from './lib/forfait.js';
 import { me, clubs, kiesClub, matches, zetBeschikbaarheid, meldProbleem } from './routes/gebruiker.js';
 import * as voorkeuren from './routes/voorkeuren.js';
 import * as admin from './routes/admin/index.js';
@@ -134,6 +135,7 @@ const ROUTES = [
   { methode: 'DELETE', pad: '/api/admin/users/ouder',  handler: gebruikers.ontkoppelOuder, beheer: true },
   { methode: 'POST',   pad: '/api/admin/aanmeldmethodes', handler: mail.zetAanmeldMethodes, beheer: true },
   { methode: 'POST',   pad: '/api/admin/extern-namen', handler: mail.zetExternNamen, beheer: true },
+  { methode: 'POST',   pad: '/api/admin/forfait-aanduiding', handler: mail.zetForfaitAanduiding, beheer: true },
   { methode: 'POST',   pad: '/api/admin/vul-nog-in', handler: herinneringRoute.verstuur, beheer: true },
 
   { methode: 'GET',    pad: '/api/admin/volg-clubs', handler: aandachtRoute.lijst,       beheer: true },
@@ -364,6 +366,10 @@ async function voerTakenUit(taken, env, tijdstip) {
             `${r.gewijzigd} gewijzigd, ${r.verdwenen} verdwenen` +
             (r.boodschap ? ` — ${r.boodschap}` : ''),
         );
+        const f = await verwerkForfaits(env, r.nieuweForfaits, tijdstip);
+        if (f.vrijgegeven.length || f.teBekijken.length) {
+          console.log(`[YOAssist] forfait: ${f.vrijgegeven.length} vrijgegeven, ${f.teBekijken.length} te bekijken`);
+        }
       }
 
       if (taak === 'woensdagregel') {
@@ -404,7 +410,7 @@ async function voerTakenUit(taken, env, tijdstip) {
              FROM assignments a
              JOIN matches m ON m.guid = a.match_guid
              JOIN users u ON u.email = a.user_email
-            WHERE a.status = 'toegewezen' AND m.status = 'actief'
+            WHERE a.status = 'toegewezen' AND m.status = 'actief' AND m.forfait IS NULL
               AND m.datum = ? AND u.actief = 1
             ORDER BY a.user_email, m.uur`,
         )
@@ -465,7 +471,7 @@ async function voerTakenUit(taken, env, tijdstip) {
                     WHERE a.match_guid = m.guid AND a.status = 'toegewezen') AS bezet
              FROM matches m
              LEFT JOIN categorieen cat ON cat.code = m.cat_code
-            WHERE m.seizoen = ? AND m.status = 'actief' AND m.scope = 1
+            WHERE m.seizoen = ? AND m.status = 'actief' AND m.scope = 1 AND m.forfait IS NULL
               AND m.datum >= ? AND m.datum <= ?`,
         )
           .bind(seizoen, vandaag, overWeek)

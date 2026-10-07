@@ -106,6 +106,48 @@ export function templateVrijgegeven({ naam, wedstrijd, datum, uur, matchGuid }) 
   };
 }
 
+/**
+ * Een aanduiding die vervalt omdat de wedstrijd forfait kreeg (V40). Eigen
+ * tekst, want 'je staat weer als beschikbaar' klopt hier niet: de wedstrijd
+ * gaat gewoon niet door.
+ */
+export function templateForfaitVrijgegeven({ naam, wedstrijd, datum, uur, matchGuid }) {
+  return {
+    soort: 'vrijgave',
+    matchGuid,
+    kort: `${datum} om ${uur} — forfait, gaat niet door`,
+    onderwerp: `Gaat niet door (forfait): ${wedstrijd}`,
+    tekst:
+      `Hallo ${naam},\n\n` +
+      `${wedstrijd} (${datum} om ${uur}) gaat niet door: er is forfait gegeven.\n\n` +
+      'Je aanduiding is daarom vervallen. Je hoeft niets te doen.',
+  };
+}
+
+/**
+ * Overzicht voor de beheerders van forfaits op wedstrijden waar iemand van de
+ * club op stond (V40): wat vrijgegeven is, en wat ze zelf moeten bekijken.
+ */
+export function templateForfaitBeheer({ vrijgegeven = [], teBekijken = [] }) {
+  const regel = (w) => `- ${w.datum} ${w.uur} ${w.wedstrijd}: ${w.officials.join(', ')}`;
+  const delen = [];
+  if (vrijgegeven.length) {
+    delen.push(`Automatisch vrijgegeven (forfait vóór de wedstrijddag):\n${vrijgegeven.map(regel).join('\n')}`);
+  }
+  if (teBekijken.length) {
+    delen.push(`Zelf te bekijken — de aanduiding staat nog:\n${teBekijken.map(regel).join('\n')}\n\n` +
+      'Is het forfait pas op de dag zelf of achteraf gekend, dan kan de official al ter plaatse ' +
+      'geweest zijn. Bekijk dat bij het afsluiten van de vergoedingen.');
+  }
+  const aantal = vrijgegeven.length + teBekijken.length;
+  return {
+    soort: 'forfait',
+    kort: `${aantal} wedstrijd${aantal === 1 ? '' : 'en'} met forfait waar iemand van de club op stond`,
+    onderwerp: `Forfait: ${aantal} wedstrijd${aantal === 1 ? '' : 'en'} met een aanduiding`,
+    tekst: `Hallo,\n\n${delen.join('\n\n')}`,
+  };
+}
+
 export function templateHerinnering({ naam, wedstrijden, wanneer }) {
   const kort = wedstrijden.map((w) => `${w.uur} ${w.wedstrijd}`).join(', ');
   const lijst = wedstrijden

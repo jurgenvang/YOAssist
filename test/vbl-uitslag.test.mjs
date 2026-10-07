@@ -1,7 +1,7 @@
 /**
  * Tests voor de uitslag: parsen uit de VBL-API, en wegschrijven bij sync.
  */
-import { normaliseerUitslag, normaliseerWedstrijd, wedstrijdHash } from '../src/lib/vbl.js';
+import { normaliseerUitslag, normaliseerWedstrijd, normaliseerForfait, wedstrijdHash } from '../src/lib/vbl.js';
 
 let f = 0;
 const check = (n, e, v) => {
@@ -45,6 +45,31 @@ console.log('\n3. De uitslag zit niet in de hash');
   const metUitslag = await wedstrijdHash({ ...basis, uitslag: '63-92' });
   check('hash negeert de uitslag', zonderUitslag, metUitslag);
 }
+
+console.log('\nV40. Forfait uit de uitslag van de bond');
+// Letterlijk zoals de API ze in oktober 2026 gaf.
+check('BFOR: de bezoekers', normaliseerForfait(' 20-  0  BFOR'), 'uit');
+check('AFOR: de thuisploeg', normaliseerForfait('  0- 20  AFOR'), 'thuis');
+check('U10-score met forfait', normaliseerForfait('  1-  1  BFOR'), 'uit');
+check('dubbel forfait', normaliseerForfait('  0-  0  ABFOR'), 'beide');
+check('gewone uitslag: geen forfait', normaliseerForfait(' 51- 74'), null);
+check('leeg', normaliseerForfait(''), null);
+check('ontbrekend', normaliseerForfait(undefined), null);
+check('FOR moet een los woord zijn', normaliseerForfait('FORMULE'), null);
+check('kleine letters ook', normaliseerForfait(' 20- 0 bfor'), 'uit');
+// De administratieve score is geen uitslag: zo bleef het (terecht) null.
+check('forfait geeft geen uitslag', normaliseerUitslag('G', ' 20-  0  BFOR'), null);
+
+const echt = normaliseerWedstrijd({
+  guid: 'BVBL26279170INJ1841JFB', wedID: 'INJ1841JFB04', tTGUID: 'BVBL1125J18  4',
+  tTNaam: 'AB InBev Leuven Bears J18 D', tUGUID: 'BVBL1447J18  2', tUNaam: 'Hageland United J18 B',
+  datumString: '04-10-2026', beginTijd: '13.00', gespeeld: 'G', uitslag: ' 20-  0  BFOR', wedOff: null,
+  accGUID: 'BVBL100669', accNaam: 'Stedelijke Sportzaal Wilsele Centrum', pouleNaam: 'U18 Niveau 4 J',
+});
+check('echte wedstrijd: forfait bezoekers', echt.forfait, 'uit');
+check('echte wedstrijd: geen uitslag', echt.uitslag, null);
+check('gewone wedstrijd: forfait null',
+  normaliseerWedstrijd({ guid: 'X', datumString: '10-10-2026', beginTijd: '14.00', uitslag: ' 63- 92', gespeeld: 'G' }).forfait, null);
 
 console.log(f === 0 ? '\n=== ALLE UITSLAGTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);
 process.exit(f ? 1 : 0);

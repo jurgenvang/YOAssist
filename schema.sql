@@ -37,6 +37,11 @@ INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('aanmeld_methodes', 'pi
 -- namen. Mogelijke waarden: 'initialen', 'volledig'.
 INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('extern_namen', 'initialen');
 
+-- Wat er gebeurt met een eigen aanduiding als de wedstrijd forfait krijgt
+-- (V40). 'vrijgeven': automatisch vrijgeven, maar enkel als het forfait vóór
+-- de wedstrijddag bekend is. 'melden': enkel de beheerders verwittigen.
+INSERT OR IGNORE INTO settings (sleutel, waarde) VALUES ('forfait_aanduiding', 'vrijgeven');
+
 
 -- ---------------------------------------------------------------------------
 -- categorieen: de drieletterige code uit de ploeg-GUID (BVBL1125J16  1 -> J16)
@@ -244,6 +249,10 @@ CREATE TABLE IF NOT EXISTS matches (
   -- gespeeld is en Basketbal Vlaanderen ze doorgeeft. Puur ter info bij de
   -- wedstrijd zelf, telt nergens anders in mee.
   uitslag       TEXT,
+  -- Wie forfait gaf (V40): 'thuis', 'uit' of 'beide'; NULL als er geen forfait
+  -- is. Uit de uitslag van de bond ('… AFOR' / '… BFOR'), vaak al weken op
+  -- voorhand. Een forfaitwedstrijd gaat niet door: geen officials nodig.
+  forfait       TEXT CHECK (forfait IN ('thuis', 'uit', 'beide')),
   hash          TEXT NOT NULL,
   status        TEXT NOT NULL DEFAULT 'actief' CHECK (status IN ('actief', 'verdwenen')),
   laatst_gezien TEXT NOT NULL DEFAULT (datetime('now')),
