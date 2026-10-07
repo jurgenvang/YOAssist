@@ -322,5 +322,51 @@ console.log('\n14. De losse tellerroute');
     { alsWie: 'ann@club.be' })).json.ongelezen, 1);
 }
 
+console.log('\nV38. De volledige tekst wordt bewaard en teruggegeven');
+{
+  const env = nieuweEnv();
+  stil();
+  await vraag(env, '/api/admin/aanduiding',
+    { methode: 'POST', body: { matchGuid: 'M1', email: 'ann@club.be' } });
+
+  const b = (await vraag(env, '/api/berichten', { alsWie: 'ann@club.be' })).json.berichten[0];
+  check('volledige tekst aanwezig', typeof b.volledig, 'string');
+  check('langer dan de samenvatting', b.volledig.length > (b.tekst ?? '').length, true);
+  check('bevat de samenvatting', b.volledig.includes('14:00'), true);
+  check('begint met de aanhef', b.volledig.startsWith('Hallo Ann'), true);
+
+  // Een bericht van vóór V38: geen volledige tekst, en dat blijft zo.
+  env.DB.exec(`INSERT INTO berichten (user_email, soort, titel, tekst, kanalen)
+               VALUES ('ann@club.be', 'herinnering', 'Oud bericht', 'Eén regel', 'mail')`);
+  const oud = (await vraag(env, '/api/berichten', { alsWie: 'ann@club.be' })).json.berichten
+    .find((x) => x.titel === 'Oud bericht');
+  check('oud bericht: volledig is null', oud.volledig, null);
+}
+
+console.log('\nV38. Lang nieuws: samenvatting met …, volledige tekst intact');
+{
+  const env = nieuweEnv();
+  stil();
+  const lang = 'Belangrijk: ' + 'de training van zaterdag gaat niet door wegens werken aan de zaal. '.repeat(5).trim();
+  await vraag(env, '/api/admin/mededeling', {
+    methode: 'POST',
+    body: { tekst: lang, geldigTot: straks(), uitvoeren: true, link: 'https://bears.be/nieuws' },
+  });
+
+  const b = (await vraag(env, '/api/berichten', { alsWie: 'ann@club.be' })).json.berichten[0];
+  check('samenvatting maximaal 160 tekens', b.tekst.length <= 160, true);
+  check('en eindigt op …', b.tekst.endsWith('…'), true);
+  check('volledige tekst onverkort', b.volledig.startsWith(lang), true);
+  check('met de link erbij', b.volledig.includes('https://bears.be/nieuws'), true);
+
+  // Kort nieuws blijft ongewijzigd, zonder …
+  const env2 = nieuweEnv();
+  stil();
+  await vraag(env2, '/api/admin/mededeling',
+    { methode: 'POST', body: { tekst: 'Zaterdag alles afgelast.', geldigTot: straks(), uitvoeren: true } });
+  const kort = (await vraag(env2, '/api/berichten', { alsWie: 'ann@club.be' })).json.berichten[0];
+  check('kort nieuws: samenvatting ongewijzigd', kort.tekst, 'Zaterdag alles afgelast.');
+}
+
 console.log(f === 0 ? '\n=== ALLE BERICHTENTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);
 process.exit(f ? 1 : 0);

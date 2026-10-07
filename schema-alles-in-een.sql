@@ -235,6 +235,7 @@ CREATE TABLE IF NOT EXISTS berichten (
   match_guid  TEXT,
   verstuurd   TEXT NOT NULL DEFAULT (datetime('now')),
   kanalen     TEXT,
+  volledig    TEXT,
   gelezen_op  TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_berichten_user ON berichten (user_email, id DESC);

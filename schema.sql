@@ -462,6 +462,10 @@ CREATE TABLE IF NOT EXISTS berichten (
   match_guid  TEXT,
   verstuurd   TEXT NOT NULL DEFAULT (datetime('now')),
   kanalen     TEXT,                 -- 'mail', 'push' of 'mail,push'
+  -- De volledige tekst zoals verstuurd (V38). `tekst` is één regel, en bij een
+  -- lang bericht (woensdagregel, vergoeding, nieuws) is dat een afgebroken zin
+  -- zonder manier om de rest te lezen. NULL bij berichten van vóór v1.12.2.
+  volledig    TEXT,
   -- Pas gezet bij het individueel aanklikken van een bericht, niet automatisch
   -- bij het openen of sluiten van het paneel — zo kan iemand eerst scannen
   -- zonder dat de stipjes al verdwijnen.

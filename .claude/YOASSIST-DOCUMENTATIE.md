@@ -1,6 +1,6 @@
 # YOAssist — hoe het werkt
 
-Versie 1.12.1
+Versie 1.12.2
 
 Dit document legt uit wat YOAssist doet, waar het draait en wat er nodig is om
 het draaiende te houden. Bedoeld voor wie de app beheert, en voor wie hem ooit
@@ -273,6 +273,10 @@ Mail blijft daarom het betrouwbare kanaal en staat standaard aan.
 
 Bij je naam staat **Mijn berichten**: wat de app naar jou stuurde, als korte
 samenvatting. Enkel wat effectief aankwam; oudere regels verdwijnen vanzelf.
+Staat er onder een bericht *lees meer*, dan tik je het aan om de volledige
+tekst te zien, zoals hij verstuurd werd — met de links erin klikbaar. Dat
+geldt voor berichten vanaf versie 1.12.2; van oudere berichten is enkel de
+samenvatting bewaard.
 Is er iets ongelezen, dan verschijnt er een klein bolletje op de naam-knop —
 daarop tikken gaat rechtstreeks naar Mijn berichten. Die teller houdt zichzelf
 ook bij terwijl je op een ander scherm staat: hij ververst om de paar minuten,
@@ -391,6 +395,6 @@ Wat er nodig is om verder te kunnen:
 De code staat onder de **EUPL v1.2**: vrij te gebruiken, aan te passen en door te
 geven onder dezelfde voorwaarden. Zie `LICENSE`.
 
-Voor wie eraan verder wil bouwen zijn er 1525 tests die zonder netwerk draaien
+Voor wie eraan verder wil bouwen zijn er 1546 tests die zonder netwerk draaien
 met `cd test && npm test`. Ze zijn er niet voor de vorm: verschillende ervan
 kwamen er nadat iets stil was misgegaan, en houden dat nu tegen.

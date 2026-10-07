@@ -401,6 +401,14 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
 .bericht-titel { font-size: .9rem; font-weight: 600; margin-top: .15rem; }
 .bericht-tekst { font-size: .82rem; color: var(--inkt-zacht); margin-top: .15rem; }
 .bericht-wed { font-size: .76rem; color: var(--grijs); margin-top: .2rem; }
+.bericht-meer { background: none; border: 0; padding: 0; margin-top: .3rem; cursor: pointer;
+                font-size: .76rem; color: var(--inkt-zacht); text-decoration: underline; }
+.bericht-volledig { margin-top: .45rem; padding-top: .45rem; border-top: 1px dashed var(--lijn);
+                    font-size: .82rem; color: var(--inkt-zacht); white-space: pre-wrap;
+                    overflow-wrap: anywhere; }
+.bericht-volledig .zoals { display: block; font-size: .66rem; text-transform: uppercase;
+                           letter-spacing: .06em; color: var(--grijs); margin-bottom: .3rem;
+                           white-space: normal; }
 
 /* ---- Documenten --------------------------------------------------------- */
 .doc-link {
@@ -3909,6 +3917,21 @@ const BERICHT_FILTERS = [
   ['nieuws', 'Nieuws'],
 ];
 
+/**
+ * Heeft dit bericht meer dan de ene regel die in de lijst staat? Enkel dan is
+ * er iets om open te klappen (V38). Berichten van vóór v1.12.2 hebben geen
+ * volledige tekst: die blijven zoals ze waren.
+ */
+function berichtIsLang(b) {
+  return Boolean(b.volledig) && b.volledig.trim() !== String(b.tekst ?? '').trim();
+}
+
+/** Platte tekst veilig als HTML, met links klikbaar. */
+function berichtTekstHtml(s) {
+  return tekst(s).replace(/https?:\/\/[^\s<]+[^\s<.,;:!?)]/g,
+    (url) => `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`);
+}
+
 async function openBerichten() {
   $('berichten-overlay').setAttribute('open', '');
   document.body.style.overflow = 'hidden';
@@ -3971,6 +3994,11 @@ function tekenBerichten() {
           <div class="bericht-titel">${tekst(b.titel)}</div>
           ${b.tekst ? `<div class="bericht-tekst">${tekst(b.tekst)}</div>` : ''}
           ${b.wedstrijd ? `<div class="bericht-wed">${tekst(b.wedstrijd)}</div>` : ''}
+          ${berichtIsLang(b)
+            ? `<button class="bericht-meer" data-meer aria-expanded="false">lees meer</button>
+               <div class="bericht-volledig" hidden><span class="zoals">Zoals verstuurd</span>${
+                 berichtTekstHtml(b.volledig)}</div>`
+            : ''}
         </article>`);
     }
 
@@ -4002,6 +4030,20 @@ function tekenBerichten() {
   $('berichten-inhoud').querySelectorAll('[data-bericht]').forEach((el) => {
     el.addEventListener('click', async (e) => {
       if (e.target.closest('[data-weg]')) return;
+      // Een link in de volledige tekst gewoon laten openen, niet dichtklappen.
+      if (e.target.closest('a')) return;
+
+      // Openklappen: het hele bericht is de knop, niet enkel 'lees meer' —
+      // op een telefoon mik je niet op een woordje (V38).
+      const volledig = el.querySelector('.bericht-volledig');
+      const meer = el.querySelector('[data-meer]');
+      if (volledig && meer) {
+        const open = volledig.hidden;
+        volledig.hidden = !open;
+        meer.textContent = open ? 'minder' : 'lees meer';
+        meer.setAttribute('aria-expanded', String(open));
+      }
+
       const id = Number(el.dataset.bericht);
       const bericht = staat.berichten.find((b) => b.id === id);
       if (!bericht || bericht.gelezen) return;

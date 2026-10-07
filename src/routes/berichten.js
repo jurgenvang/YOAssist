@@ -13,7 +13,7 @@ export async function berichten({ url, env, user }) {
   const limiet = Math.min(Math.max(Number(url.searchParams.get('limiet') ?? 100) || 100, 1), 300);
 
   const { results } = await env.DB.prepare(
-    `SELECT b.id, b.soort, b.titel, b.tekst, b.match_guid, b.verstuurd, b.kanalen, b.gelezen_op,
+    `SELECT b.id, b.soort, b.titel, b.tekst, b.volledig, b.match_guid, b.verstuurd, b.kanalen, b.gelezen_op,
             m.datum, m.uur, m.thuis_naam, m.uit_naam
        FROM berichten b
        LEFT JOIN matches m ON m.guid = b.match_guid
@@ -32,6 +32,8 @@ export async function berichten({ url, env, user }) {
       soort: r.soort,
       titel: r.titel,
       tekst: r.tekst,
+      // Zoals verstuurd; null bij berichten van vóór v1.12.2 (V38).
+      volledig: r.volledig ?? null,
       verstuurd: r.verstuurd,
       gelezen: Boolean(r.gelezen_op),
       kanalen: (r.kanalen ?? '').split(',').filter(Boolean),

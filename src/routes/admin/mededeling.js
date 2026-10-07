@@ -96,7 +96,9 @@ export async function zet({ request, env, user }) {
         onderwerp: 'Bericht van de club',
         tekst: tekst + (link ? `\n\n${link}` : ''),
         soort: 'nieuws',
-        kort: tekst.slice(0, 160),
+        // Ingekort met '…', niet midden in een zin afgebroken: de volledige
+        // tekst staat sinds V38 apart bewaard en is in Mijn berichten te openen.
+        kort: tekst.length > 160 ? `${tekst.slice(0, 159).trimEnd()}…` : tekst,
         url: link ?? '/',
       }).catch(() => ({ mail: false, push: 0 }));
 

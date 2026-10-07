@@ -107,8 +107,8 @@ export async function verwittig(env, email, bericht, opties = {}) {
   if (kanalen && bericht.samenvatting !== false) {
     await env.DB
       .prepare(
-        `INSERT INTO berichten (user_email, soort, titel, tekst, match_guid, kanalen)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO berichten (user_email, soort, titel, tekst, match_guid, kanalen, volledig)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
       )
       .bind(
         email,
@@ -118,6 +118,8 @@ export async function verwittig(env, email, bericht, opties = {}) {
         bericht.kort ?? bericht.tekst.split('\n').filter(Boolean)[1] ?? null,
         bericht.matchGuid ?? null,
         kanalen,
+        // En de volledige tekst, zodat een lang bericht te openen is (V38).
+        bericht.tekst ?? null,
       )
       .run()
       .catch(() => {});   // bewaren mag het versturen nooit laten mislukken

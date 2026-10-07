@@ -808,5 +808,29 @@ console.log('\nV37. Mijn vergoeding toont de wedstrijden, zonder iets weg te hal
   check('een official kan niets weghalen', inhoud.innerHTML.includes('data-fact-weg'), false);
 }
 
+console.log('\nV38. Lange berichten zijn open te klappen');
+{
+  const bron = ['tekst', 'berichtIsLang', 'berichtTekstHtml'].map(haalFunctie).join('\n');
+  const { berichtIsLang, berichtTekstHtml } =
+    new Function(`${bron}; return { berichtIsLang, berichtTekstHtml };`)();
+
+  check('lang: meer dan de samenvatting', berichtIsLang({ tekst: 'Regel 2', volledig: 'Hallo\nRegel 2\nRegel 3' }), true);
+  check('oud bericht zonder volledige tekst', berichtIsLang({ tekst: 'Eén regel', volledig: null }), false);
+  check('volledig gelijk aan samenvatting', berichtIsLang({ tekst: 'Kort', volledig: 'Kort\n' }), false);
+
+  const html = berichtTekstHtml('Zie https://bears.be/nieuws.\n<script>x</script>');
+  check('link klikbaar', html.includes('<a href="https://bears.be/nieuws"'), true);
+  check('punt hoort niet bij de link', html.includes('nieuws.</a>'), false);
+  check('html wordt niet uitgevoerd', html.includes('<script>'), false);
+  check('ontsnapt weergegeven', html.includes('&lt;script&gt;'), true);
+  check('geen javascript-link', berichtTekstHtml('javascript:alert(1)').includes('<a'), false);
+
+  // De lijst zelf: de knop en de verborgen tekst staan erbij, enkel bij lange.
+  const teken = haalFunctie('tekenBerichten');
+  check('lees meer in de lijst', teken.includes('data-meer') && teken.includes('bericht-volledig'), true);
+  check('enkel als het bericht lang is', teken.includes('berichtIsLang(b)'), true);
+  check('aanklikken klapt open', /volledig\.hidden = !open/.test(teken), true);
+}
+
 console.log(f === 0 ? '\n=== ALLE FRONTENDTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);
 process.exit(f ? 1 : 0);

@@ -3,7 +3,7 @@
 Upload dit als **projectkennis**. Het bevat wat een volgend gesprek moet weten om
 verder te kunnen zonder alles opnieuw uit te vragen.
 
-Laatst bijgewerkt: v1.12.1
+Laatst bijgewerkt: v1.12.2
 
 ---
 
@@ -149,10 +149,17 @@ toestel werkelijk is ingeschreven. Die twee liepen uiteen, met een schakelaar
 op 'aan' zonder manier om het alsnog in te stellen. De schakelaar toont nu het
 echte abonnement en (de-)abonneert bij het omzetten.
 
-**Berichten worden bewaard als samenvatting, niet als kopie.** `berichten` houdt
-bij wat er naar iemand ging — enkel bij succes; mislukte pogingen horen in het
-logboek. De wedstrijd wordt bij het opvragen opgehaald, niet meebewaard, zodat
-een verplaatste wedstrijd het bericht niet fout maakt.
+**Berichten: een samenvatting voor de lijst, en de volledige tekst om te
+openen.** `berichten` houdt bij wat er naar iemand ging — enkel bij succes;
+mislukte pogingen horen in het logboek. `tekst` is één regel voor de lijst;
+`volledig` (sinds v1.12.2, V38) is de tekst zoals verstuurd. Tot dan werd
+bewust enkel een samenvatting bewaard, maar bij lange berichten (woensdagregel,
+vergoeding, nieuws, welkom) bleef daardoor een afgebroken zin over zonder
+manier om de rest te lezen. De oorspronkelijke reden blijft gedekt: de
+wedstrijd wordt bij het opvragen opgehaald, niet meebewaard, zodat een
+verplaatste wedstrijd de wedstrijdregel niet fout maakt; de volledige tekst
+staat er expliciet als 'zoals verstuurd'. Berichten van vóór v1.12.2 hebben
+`volledig = NULL` en krijgen geen 'lees meer'.
 
 **Eén mededeling tegelijk.** `mededelingen` heeft één actieve rij met een
 `geldig_tot`; wegklikken staat per persoon in `mededeling_gezien`. Verlopen geldt
@@ -268,7 +275,7 @@ LICENSE                      EUPL v1.2
 schema.sql                   de bron van waarheid voor de databank
 schema-console.sql           opgedeeld in blokken voor de D1-console
 schema-alles-in-een.sql      drops plus schema, in één keer uitvoerbaar
-test/                        1525 tests, draaien zonder netwerk
+test/                        1546 tests, draaien zonder netwerk
 ```
 
 ## Val­kuilen die al eens hebben toegeslagen
