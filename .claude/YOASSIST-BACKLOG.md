@@ -54,6 +54,76 @@ Stand: **v1.12.2**
 
 ## Openstaand
 
+### V39 — De woensdaglijst van Basketbal Vlaanderen als bron voor de woensdagregel
+**Uitgeklaard (7 oktober 2026), klaar om te bouwen.** Elke woensdag
+(normaal rond 13:35) stuurt `info@basketbal.vlaanderen` een Mailchimp-
+nieuwsbrief "Wedstrijden zonder officials komend weekend". De wedstrijden staan
+niet in de mail zelf maar in een Excel-bestand achter een link op
+`mcusercontent.com` (bv. `Weekend_3_otkober.xlsx`).
+
+Wat het voorbeeld van 30 september 2026 leerde:
+- Eén tabblad 'Aanduidingen', 191 wedstrijden van heel Vlaanderen. Kolommen:
+  Code, Datum (`d/m/jjjj`), Tijd (`u:mm`), Niveau/Subniveau, Divisie, Reeks,
+  Thuis ploeg, Uit ploeg, Accommodatie, Official 1, Official 2.
+- **Code is overal leeg** — koppelen kan enkel op datum, uur en thuisploeg.
+- **Namen van officials staan er nooit in.** 'Eén official' is enkel te zien
+  aan een grijze vulkleur (`FFCCCCCC`) in de cel Official 1 of 2. Nageteld:
+  50 + 22 grijze cellen = de '72 wedstrijden met 1 official' uit de mail.
+
+**Regel van de gebruiker: de lijst van de bond heeft voorrang op de API.**
+Wat er niet in staat, heeft volgens de bond twee officials, ook als de API er
+nog geen toont (aanduidingen zijn niet altijd meteen zichtbaar). De verwerking
+gebeurt pas als de mail binnen is; is ze er om 14 uur niet, dan een
+waarschuwing dat de lijst nog niet verwerkt werd.
+
+Beslist:
+- **Bron.** Wedstrijden uit de lijst komen in de aanduidingslijst; het aantal
+  nog nodige officials volgt uit de lijst (lege rij = 2, grijze cel = 1), niet
+  uit de API.
+- **Wanneer.** Komt de mail vóór 14 uur binnen, dan wordt ze bewaard en draait
+  de woensdagregel om 14 uur met die lijst. Komt ze tussen 14 en 20 uur, dan
+  draait de regel op het moment dat ze binnenkomt. Is ze er om 14 uur nog
+  niet: waarschuwing aan de beheerders. Is ze er om **20 uur** nog niet:
+  automatische terugval — de woensdagregel draait met de API zoals vroeger, en
+  de beheerders krijgen te horen dat dat gebeurde. Een mail die daarna nog
+  binnenkomt, wordt alsnog verwerkt.
+- **Afwijkingen, in beide richtingen**, apart vermeld: (a) de API toont geen
+  scheidsrechter maar de wedstrijd staat niet in de lijst ('volgens de bond
+  voorzien, nog geen naam zichtbaar'); (b) de wedstrijd staat in de lijst maar
+  de API toont al een of twee scheidsrechters.
+- **Niet meer in de lijst** (stond in de aanduidingslijst, maar de bond
+  voorziet nu twee officials): zonder eigen aanduidingen haalt de app hem uit
+  de lijst; staat er al iemand van de club op, dan blijft hij staan en krijgen
+  de beheerders een melding. Nooit stil iets weghalen waar iemand op staat.
+- **Ontvangst: allebei toegelaten.** Een eigen adres (bv. `vbl@yoassist.org`,
+  Cloudflare Email Routing) dat rechtstreeks op de nieuwsbrief ingeschreven
+  is, én doorgestuurd vanuit een persoonlijke mailbox. Wat het eerst
+  binnenkomt telt; een tweede exemplaar van dezelfde week wordt herkend en
+  genegeerd. Gmail stuurt bij het instellen van doorsturen een
+  bevestigingsmail naar het adres: die moet naar de beheerders doorgaan, anders
+  raakt niemand aan de bevestigingslink. Beide wegen controleren de oorspronkelijke
+  afzender (`info@basketbal.vlaanderen`) en het onderwerp.
+- **Waarschuwingen enkel naar de beheerders** (mail en melding): mail nog niet
+  binnen, terugval op de API, afwijkingen, niet te koppelen eigen
+  thuiswedstrijden, een onverwacht formaat van mail of Excel. De YO+'ers
+  krijgen enkel de gewone mail van de woensdagregel. De 'extra melding in de
+  mail van 14 uur' wordt dus een eigen overzicht voor de beheerders, op het
+  moment dat de lijst verwerkt wordt.
+
+Technisch:
+- `email()`-handler in de Worker. Excel ophalen via de `.xlsx`-link op
+  `mcusercontent.com` en zelf uitlezen (zip + XML, zonder extra dependency),
+  met controle op de kolomkoppen.
+- Koppelen op datum, uur en thuisploeg (Code is leeg).
+- Schema: een nieuwe tabel voor ontvangen lijsten met per wedstrijd het aantal
+  officials volgens de bond (nieuwe tabel: geen DROP nodig).
+- Vooraf door de beheerder in te stellen: Email Routing op `yoassist.org` en
+  de koppeling van het adres aan de Worker; inschrijving op de nieuwsbrief.
+
+Risico: alles hangt aan dingen die de bond zonder waarschuwing kan wijzigen
+(vorm van de nieuwsbrief, bestandsnaam, kolomvolgorde, de betekenis van een
+celkleur). Daarom moet elke onverwachte vorm luid falen.
+
 ### V26 — Overzicht van wie meldingen heeft aanstaan
 **Nog uit te werken.** Een lijst of teller bij Beheer die toont wie er
 push-meldingen op minstens één toestel heeft geactiveerd, zodat je kan
