@@ -36,6 +36,10 @@ import { verwittigAllen } from './verwittigen.js';
 export const AFZENDER = 'info@basketbal.vlaanderen';
 const GMAIL_BEVESTIGING = 'forwarding-noreply@google.com';
 const ONDERWERP = /zonder officials/i;
+// Bevestigingen die een mens moet aanklikken: doorsturen vanuit Gmail, of de
+// inschrijving op de nieuwsbrief bij Mailchimp. Het adres van de app is geen
+// mailbox; zonder doorsturen raakt niemand aan die link.
+const BEVESTIGING = /bevestig|confirm|verif/i;
 const LINK = /https:\/\/mcusercontent\.com\/[^\s"'<>)]+\/files\/[^\s"'<>)]+\.xlsx/i;
 const MAX_BESTAND = 5 * 1024 * 1024;
 
@@ -95,12 +99,13 @@ export function lijstUur(waarde) {
 // ---------------------------------------------------------------------------
 
 /**
- * Wat voor mail is dit? 'lijst' (met de link), 'gmail-bevestiging',
+ * Wat voor mail is dit? 'lijst' (met de link), 'bevestiging',
  * 'andere-nieuwsbrief' of 'onbekend'.
  */
 export function herkenMail(mail) {
   const adres = adresUit(mail.van);
-  if (adres === GMAIL_BEVESTIGING) return { soort: 'gmail-bevestiging' };
+  if (adres === GMAIL_BEVESTIGING) return { soort: 'bevestiging' };
+  if (!ONDERWERP.test(mail.onderwerp) && BEVESTIGING.test(mail.onderwerp)) return { soort: 'bevestiging' };
   if (adres !== AFZENDER) return { soort: 'onbekend', adres };
   if (!ONDERWERP.test(mail.onderwerp)) return { soort: 'andere-nieuwsbrief' };
 
@@ -278,19 +283,21 @@ export async function ontvangMail(env, raw, { naar = '', nu = new Date() } = {})
   }
   const herkend = herkenMail(mail);
 
-  if (herkend.soort === 'gmail-bevestiging') {
-    // Gmail vraagt eerst een bevestiging voor het doorsturen. Zonder deze
-    // stap raakt niemand aan de link: het adres is geen mailbox.
+  if (herkend.soort === 'bevestiging') {
+    // Gmail (doorsturen) of Mailchimp (inschrijving op de nieuwsbrief) vraagt
+    // een bevestiging. Het adres is geen mailbox: zonder deze stap raakt
+    // niemand aan de link.
     const inhoud = mail.tekstdelen.find((d) => d.type === 'text/plain')?.tekst
-      ?? mail.tekstdelen[0]?.tekst ?? '';
+      ?? (mail.tekstdelen[0]?.tekst ?? '').replace(/<[^>]+>/g, ' ');
+    const adres = naar || 'het adres van de app';
     await meldBeheerders(env, {
       soort: 'bericht',
-      onderwerp: `Gmail vraagt een bevestiging om door te sturen naar ${naar || 'het adres van de app'}`,
-      tekst: `Hallo,\n\nGmail vraagt een bevestiging om mails door te sturen naar ` +
-        `${naar || 'het adres van de app'}. Hieronder de mail zoals ze binnenkwam; ` +
-        `klik op de link of vul de code in bij Gmail.\n\n${inhoud.trim()}`,
+      onderwerp: `Bevestiging gevraagd voor ${adres}: ${mail.onderwerp}`,
+      tekst: `Hallo,\n\n${mail.van} vraagt een bevestiging voor ${adres}. Hieronder de ` +
+        `mail zoals ze binnenkwam; klik op de link of vul de code in.\n\n` +
+        `${inhoud.replace(/\n{3,}/g, '\n\n').trim()}`,
     });
-    await logLijst(env, 'Gmail-bevestiging doorgestuurd', mail.onderwerp);
+    await logLijst(env, 'bevestiging doorgestuurd', `${adresUit(mail.van)}: ${mail.onderwerp}`);
     return { soort: herkend.soort };
   }
 

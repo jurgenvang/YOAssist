@@ -435,6 +435,8 @@ Wat er nodig is om verder te kunnen:
   `vbl@yoassist.org`) dat naar de YOAssist-Worker gaat, en dat ingeschreven is
   op de nieuwsbrief van Basketbal Vlaanderen of waar een mailbox naar
   doorstuurt. Zonder valt de woensdagregel elke week om 20 uur terug op de API.
+  Vraagt Gmail of Mailchimp een bevestiging voor dat adres, dan stuurt de app
+  die mail door naar de beheerders: het adres zelf is geen mailbox.
 - Toegang tot het **Resend-account**, of een eigen account met hetzelfde
   geverifieerde domein
 - De secrets bij de Worker: `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`,
@@ -445,6 +447,6 @@ Wat er nodig is om verder te kunnen:
 De code staat onder de **EUPL v1.2**: vrij te gebruiken, aan te passen en door te
 geven onder dezelfde voorwaarden. Zie `LICENSE`.
 
-Voor wie eraan verder wil bouwen zijn er 1750 tests die zonder netwerk draaien
+Voor wie eraan verder wil bouwen zijn er 1754 tests die zonder netwerk draaien
 met `cd test && npm test`. Ze zijn er niet voor de vorm: verschillende ervan
 kwamen er nadat iets stil was misgegaan, en houden dat nu tegen.

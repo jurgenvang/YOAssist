@@ -455,11 +455,23 @@ console.log('\n10. Gmail vraagt een bevestiging om door te sturen');
     'Bevestigingscode: 123456. Klik op https://mail.google.com/mail/vf-abc om te bevestigen.', '',
   ].join('\r\n');
   const r = await ontvangMail(env, raw, { naar: 'vbl@yoassist.org', nu: VOOR_14 });
-  check('herkend', r.soort, 'gmail-bevestiging');
+  check('herkend', r.soort, 'bevestiging');
   const naarBaas = mails.find((m) => m.to === 'baas@club.be');
   check('naar de beheerders, met de code', /123456/.test(naarBaas?.text ?? ''), true);
   check('en de link', /mail\.google\.com\/mail\/vf-abc/.test(naarBaas?.text ?? ''), true);
   check('niet naar anderen', mails.some((m) => m.to !== 'baas@club.be'), false);
+
+  // De inschrijving op de nieuwsbrief: Mailchimp vraagt een bevestiging,
+  // vanuit het adres van de bond zelf. Die mag niet als 'andere nieuwsbrief'
+  // verdwijnen.
+  const mc = await ontvangMail(env, bouwMail({ onderwerp: 'Bevestig je inschrijving', link: 'https://vlaanderen.us3.list-manage.com/subscribe/confirm?u=1' }), { nu: VOOR_14 });
+  check('Mailchimp-bevestiging herkend', mc.soort, 'bevestiging');
+  check('met de link naar de beheerders',
+    mails.some((m) => m.to === 'baas@club.be' && /list-manage\.com\/subscribe\/confirm/.test(m.text)), true);
+  check('een gewone nieuwsbrief blijft genegeerd',
+    (await ontvangMail(env, bouwMail({ onderwerp: 'Nieuws over opleidingen' }), { nu: VOOR_14 })).soort, 'andere-nieuwsbrief');
+  check('de woensdaglijst blijft de woensdaglijst',
+    herkenMail(leesMail(bouwMail({ onderwerp: 'Bevestigd: wedstrijden zonder officials' }))).soort, 'lijst');
 }
 
 console.log('\n11. De Worker-ingang voor mail weigert nooit');

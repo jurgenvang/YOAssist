@@ -322,7 +322,7 @@ LICENSE                      EUPL v1.2
 schema.sql                   de bron van waarheid voor de databank
 schema-console.sql           opgedeeld in blokken voor de D1-console
 schema-alles-in-een.sql      drops plus schema, in één keer uitvoerbaar
-test/                        1750 tests, draaien zonder netwerk
+test/                        1754 tests, draaien zonder netwerk
 ```
 
 ## Val­kuilen die al eens hebben toegeslagen
