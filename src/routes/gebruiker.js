@@ -1,6 +1,6 @@
 import { json, fout, leesJson, instelling } from '../lib/http.js';
 import { seizoenLabel, seizoenscode, wedstrijdbladUrl } from '../lib/vbl.js';
-import { aantalNodig, opkomstUur } from '../lib/aanduiding.js';
+import { aantalNodig, opkomstUur, vblOfficials } from '../lib/aanduiding.js';
 import { templateProbleem } from '../lib/mailer.js';
 import { verwittigAllen } from '../lib/verwittigen.js';
 import { log } from '../lib/logboek.js';
@@ -144,7 +144,7 @@ export async function matches({ url, env, user }) {
 
   const { results } = await env.DB.prepare(
     `SELECT m.guid, m.datum, m.uur, m.thuis_naam, m.uit_naam, m.locatie, m.poule_naam,
-            m.cat_code, m.off_aantal, m.off_namen, m.off_gewist, m.scope_reden, m.uitslag, m.forfait,
+            m.cat_code, m.off_aantal, m.bond_officials, m.off_namen, m.off_gewist, m.scope_reden, m.uitslag, m.forfait,
             cat.label AS cat_label, cat.groep AS cat_groep,
             a.status AS beschikbaarheid,
             eigen.status AS aanduiding
@@ -249,7 +249,7 @@ export async function matches({ url, env, user }) {
         // Toegewezen aan mij: dan is de beschikbaarheid vergrendeld en kan er
         // alleen nog een probleem gemeld worden.
         toegewezen: r.aanduiding === 'toegewezen',
-        nodig: aantalNodig(r.off_aantal),
+        nodig: r.forfait ? 0 : aantalNodig(vblOfficials(r.off_aantal, r.bond_officials)),
         bezet: club.length,
         opkomst: opkomstUur(r.uur),
         // Puur ter info: enkel gevuld als de wedstrijd gespeeld is en

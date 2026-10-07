@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS vbl_lijsten;
 DROP TABLE IF EXISTS volg_wedstrijden;
 DROP TABLE IF EXISTS volg_clubs;
 DROP TABLE IF EXISTS ouder_kind;
@@ -130,6 +131,7 @@ CREATE TABLE IF NOT EXISTS matches (
   bron          TEXT NOT NULL DEFAULT 'vbl' CHECK (bron IN ('vbl', 'handmatig')),
   uitslag       TEXT,
   forfait       TEXT CHECK (forfait IN ('thuis', 'uit', 'beide')),
+  bond_officials INTEGER,
   hash          TEXT NOT NULL,
   status        TEXT NOT NULL DEFAULT 'actief' CHECK (status IN ('actief', 'verdwenen')),
   laatst_gezien TEXT NOT NULL DEFAULT (datetime('now')),
@@ -295,3 +297,18 @@ CREATE TABLE IF NOT EXISTS sync_runs (
   boodschap         TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_sync_recent ON sync_runs (gestart DESC);
+CREATE TABLE IF NOT EXISTS vbl_lijsten (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  ontvangen    TEXT NOT NULL DEFAULT (datetime('now')),
+  onderwerp    TEXT,
+  bestand      TEXT,
+  weekend_van  TEXT,
+  weekend_tot  TEXT,
+  aantal_rijen INTEGER,
+  eigen        TEXT,
+  meldingen    TEXT,
+  status       TEXT NOT NULL CHECK (status IN ('ontvangen', 'verwerkt', 'dubbel', 'fout')),
+  fout         TEXT,
+  verwerkt_op  TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_vbl_lijsten_weekend ON vbl_lijsten (weekend_van, status);

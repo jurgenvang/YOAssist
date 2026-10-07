@@ -24,6 +24,20 @@ export const REFS_PER_WEDSTRIJD = 2;
  * Basketbal Vlaanderen duidt er soms al één aan. Dan volstaat er nog één. Bij
  * U10/U12 duidt de bond er geen aan, dus komt dit vanzelf op twee uit.
  */
+/**
+ * Hoeveel officials de bond voorziet: het hoogste van wat de API toont en wat
+ * de woensdaglijst zegt (V39). De lijst heeft voorrang waar de API achterloopt
+ * — een wedstrijd die er niet in staat, heeft volgens de bond twee officials,
+ * ook als de API nog niemand toont. Toont de API méér dan de lijst, dan is dat
+ * een concrete naam: die telt.
+ *
+ * @param {number} offAantal       uit de API (matches.off_aantal)
+ * @param {number|null} bondOfficials  uit de woensdaglijst (matches.bond_officials)
+ */
+export function vblOfficials(offAantal, bondOfficials) {
+  return Math.max(Number(offAantal) || 0, Number(bondOfficials) || 0);
+}
+
 export function aantalNodig(offAantal) {
   return Math.max(0, REFS_PER_WEDSTRIJD - (Number(offAantal) || 0));
 }

@@ -1,6 +1,6 @@
 import { json, fout, leesJson, instelling } from '../../lib/http.js';
 import { seizoenscode } from '../../lib/vbl.js';
-import { aantalNodig } from '../../lib/aanduiding.js';
+import { aantalNodig, vblOfficials } from '../../lib/aanduiding.js';
 import { plan } from '../../lib/autotoewijzing.js';
 
 /**
@@ -22,7 +22,7 @@ export async function automatisch({ request, env, user }) {
 
   // ---- Wedstrijden die nog aanvulling nodig hebben -------------------------
   const { results: rijen } = await env.DB.prepare(
-    `SELECT m.guid, m.datum, m.uur, m.acc_guid, m.off_aantal, m.club_guid,
+    `SELECT m.guid, m.datum, m.uur, m.acc_guid, m.off_aantal, m.bond_officials, m.club_guid,
             m.thuis_naam, m.uit_naam, cat.groep AS cat_groep,
             (SELECT COUNT(*) FROM assignments a
               WHERE a.match_guid = m.guid AND a.status = 'toegewezen') AS bezet
@@ -45,7 +45,7 @@ export async function automatisch({ request, env, user }) {
       clubGuid: r.club_guid,
       catGroep: r.cat_groep,
       omschrijving: `${r.datum} ${r.uur} ${r.thuis_naam} - ${r.uit_naam}`,
-      nodig: aantalNodig(r.off_aantal),
+      nodig: aantalNodig(vblOfficials(r.off_aantal, r.bond_officials)),
       bezet: r.bezet,
     }))
     .filter((w) => w.nodig > w.bezet);

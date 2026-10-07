@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import { D1Shim } from './d1-shim.mjs';
 import worker from '../src/index.js';
 import { VERSIE } from '../src/versie.js';
+import { TABELLEN } from '../src/routes/admin/backup.js';
 
 let f = 0;
 const check = (n, e, v) => {
@@ -87,10 +88,13 @@ console.log('\n3. Alles zit erin');
   const env = nieuweEnv();
   const bestand = JSON.parse(await (await vraag(env, '/api/admin/backup')).res.text());
 
-  const verwacht = ['settings', 'categorieen', 'clubs', 'users', 'push_abonnementen',
-    'teams', 'matches', 'assignments', 'availability', 'problemen', 'logboek', 'sync_runs'];
-  check('alle tabellen aanwezig', Object.keys(bestand.gegevens).sort(), [...verwacht].sort());
-  check('en in de volgorde voor een herstel', bestand.yoassist.volgorde, verwacht);
+  // De verwachting komt uit het schema zelf, niet uit een lijst hier: zo kan
+  // een nieuwe tabel niet meer stil buiten de backup vallen.
+  const schemaTekst = readFileSync(new URL('../schema.sql', import.meta.url), 'utf8');
+  const uitSchema = [...schemaTekst.matchAll(/CREATE TABLE IF NOT EXISTS (\w+)/g)].map((m) => m[1]);
+  check('elke tabel uit het schema zit in de backup', [...TABELLEN].sort(), [...uitSchema].sort());
+  check('alle tabellen aanwezig in het bestand', Object.keys(bestand.gegevens).sort(), [...uitSchema].sort());
+  check('in de volgorde van het schema: ouders vóór kinderen', bestand.yoassist.volgorde, uitSchema);
 
   check('gebruikers met hun gegevens', bestand.gegevens.users.length, 2);
   check('inclusief voorkeuren',
@@ -125,7 +129,7 @@ console.log('\n5. De backup komt in het logboek');
   const regel = await env.DB.prepare("SELECT * FROM logboek WHERE soort = 'backup'").first();
   check('gelogd', Boolean(regel), true);
   check('met wie het deed', regel.wie, 'baas@club.be');
-  check('en de omvang', /rijen over 12 tabellen/.test(regel.nieuw), true);
+  check('en de omvang', new RegExp(`rijen over ${TABELLEN.length} tabellen`).test(regel.nieuw), true);
 
   const na = await vraag(env, '/api/admin/backup/omvang');
   check('laatste backup wordt nu getoond', Boolean(na.json.laatsteBackup), true);

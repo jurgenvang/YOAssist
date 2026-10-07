@@ -1,6 +1,6 @@
 import { json, instelling } from '../../lib/http.js';
 import { seizoenscode, wedstrijdbladUrl } from '../../lib/vbl.js';
-import { aantalNodig } from '../../lib/aanduiding.js';
+import { aantalNodig, vblOfficials } from '../../lib/aanduiding.js';
 import { weekendVenster, vensterLabel, beginVorigeMaand } from '../../lib/venster.js';
 
 /**
@@ -53,7 +53,7 @@ export async function overzicht({ url, env }) {
 
   const { results: wedstrijden } = await env.DB.prepare(
     `SELECT m.guid, m.datum, m.uur, m.thuis_naam, m.uit_naam, m.locatie, m.acc_guid,
-            m.poule_naam, m.cat_code, m.off_namen, m.off_aantal, m.off_gewist, m.uitslag, m.forfait,
+            m.poule_naam, m.cat_code, m.off_namen, m.off_aantal, m.bond_officials, m.off_gewist, m.uitslag, m.forfait,
             m.club_guid, c.naam AS club_naam,
             m.scope, m.scope_reden, m.scope_uit,
             m.refs_bevestigd, m.refs_bevestigd_door,
@@ -146,7 +146,7 @@ export async function overzicht({ url, env }) {
     // Een forfaitwedstrijd gaat niet door: niemand nodig, en dus ook nooit een
     // tekort of een 'probleem' in de cijfers (V40).
     const forfait = w.forfait ?? null;
-    const nodig = forfait ? 0 : aantalNodig(w.off_aantal);
+    const nodig = forfait ? 0 : aantalNodig(vblOfficials(w.off_aantal, w.bond_officials));
 
     let vblRefs = [];
     try {
@@ -174,6 +174,8 @@ export async function overzicht({ url, env }) {
       // Namen worden gewist een dag na de wedstrijd; het aantal blijft. Daarom
       // altijd het aantal tonen en de namen alleen als ze er nog zijn.
       vblAantal: w.off_aantal,
+      // Wat de woensdaglijst zegt (V39); null zonder lijst voor dat weekend.
+      bondOfficials: w.bond_officials ?? null,
       vblRefs,
       vblNamenGewist: w.off_gewist === 1,
       wedstrijdblad: wedstrijdbladUrl(w.guid),

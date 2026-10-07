@@ -1,6 +1,6 @@
 # YOAssist — hoe het werkt
 
-Versie 1.13.0
+Versie 1.14.0
 
 Dit document legt uit wat YOAssist doet, waar het draait en wat er nodig is om
 het draaiende te houden. Bedoeld voor wie de app beheert, en voor wie hem ooit
@@ -57,10 +57,29 @@ een wedstrijd in de beschikbaarhedenlijst terechtkomt:
 **Automatisch.** U10 en U12 (categorieën G10, G12, M12). Daar duidt de bond
 nooit scheidsrechters aan, dus die zijn altijd voor de club.
 
-**De woensdagregel.** Elke woensdag om 14 uur kijkt de app naar het komende
-weekend. Wedstrijden vanaf U14 waar Basketbal Vlaanderen minder dan twee
-scheidsrechters heeft aangeduid, komen erbij. De YO+'ers krijgen daar bericht
-van.
+**De woensdagregel.** Elke woensdag, normaal rond half twee, stuurt Basketbal
+Vlaanderen een lijst met de wedstrijden van het komende weekend waar de bond
+geen of maar één official kon aanduiden. De app ontvangt die mail zelf (zie
+hoofdstuk 12) en verwerkt ze om 14 uur. Eigen thuiswedstrijden vanaf U14 uit
+die lijst komen erbij; de YO+'ers krijgen daar bericht van.
+
+De lijst heeft voorrang op wat de API van de bond toont. Staat een wedstrijd er
+niet in, dan voorziet de bond twee officials — ook als er nog geen namen
+zichtbaar zijn. Stond zo'n wedstrijd automatisch in de lijst, dan gaat ze
+eruit, tenzij er al iemand van de club op staat: dan blijft ze staan en krijgt
+de beheerder een melding. Wat een beheerder zelf in of uit de lijst zette,
+blijft zoals hij het zette.
+
+De beheerders krijgen bij elke verwerking een overzicht, met de afwijkingen
+tussen de lijst en de API, en eigen ploegen uit de lijst die niet aan een
+wedstrijd te koppelen waren (bijvoorbeeld door een verschoven uur). Bij Beheer
+→ Dagelijks staat onder *Woensdaglijst van de bond* wat er de laatste weken
+binnenkwam.
+
+Is de lijst er om 14 uur niet, dan krijgen de beheerders een waarschuwing.
+Komt ze vóór 20 uur, dan wordt ze meteen verwerkt. Om 20 uur valt de app
+terug op de API, zoals vroeger. Komt de lijst daarna nog, dan zet ze alsnog
+recht.
 
 **Handmatig.** Een beheerder kan een wedstrijd toevoegen of net weglaten. Haalt
 hij er een uit, dan onthoudt de app dat en haalt de woensdagregel ze niet
@@ -128,7 +147,8 @@ Eén taak per uur, die zelf beslist wat er op dat Brusselse uur moet gebeuren.
 | Tijdstip | Wat |
 |---|---|
 | 0, 6, 12, 18 uur | Kalender ophalen bij Basketbal Vlaanderen |
-| Woensdag 14 uur | Woensdagregel: weekendwedstrijden zonder twee refs erbij zetten |
+| Woensdag 14 uur | Woensdagregel volgens de lijst van de bond, of een waarschuwing als die er niet is |
+| Woensdag 20 uur | Nog altijd geen lijst: woensdagregel met de API |
 | 19 uur | Herinnering aan wie morgen fluit |
 | 20 uur | Nakijken of een toegevoegde wedstrijd intussen toch refs kreeg |
 | 7 uur | Herinnering aan wie vandaag fluit |
@@ -362,7 +382,7 @@ onbekende categorie staan bewust uit.
 
 **Elke maand**: de vorige maand afsluiten bij Vergoedingen Club.
 
-**Af en toe**: een backup nemen. Dat is één JSON-bestand met alle 21 tabellen
+**Af en toe**: een backup nemen. Dat is één JSON-bestand met alle 22 tabellen
 erin. Er is
 geen knop om hem terug te zetten — dat gebeurt handmatig via de D1-console, met
 het bestand ernaast. In dat bestand staat in welke volgorde de tabellen ingelezen
@@ -379,6 +399,12 @@ meestal een `ALTER TABLE`, soms een `DROP` gevolgd door een blok uit
 
 **"no such column: …"** — de databank loopt achter op de code. Er is een
 schemawijziging niet uitgevoerd. Kijk in de release-uitleg welke.
+
+**De woensdaglijst komt niet binnen** — kijk bij Beheer → Dagelijks onder
+*Woensdaglijst van de bond*. Staat er niets, dan bereikt de mail de app niet:
+controleer Email Routing in Cloudflare (hoofdstuk 12) en of het adres nog op de
+nieuwsbrief staat. Staat er 'niet verwerkt', dan staat de reden erbij —
+meestal heeft de bond de vorm van de mail of de Excel gewijzigd.
 
 **Een official raakt niet binnen** — zijn adres staat niet in de Access-policy in
 Zero Trust. Zie hoofdstuk 8.
@@ -405,6 +431,10 @@ Wat er nodig is om verder te kunnen:
 
 - Toegang tot het **Cloudflare-account** (Workers, D1, Zero Trust)
 - Toegang tot de **GitHub-repo**: `github.com/jurgenvang/YOAssist`
+- **Email Routing** op het domein in Cloudflare, met een adres (bv.
+  `vbl@yoassist.org`) dat naar de YOAssist-Worker gaat, en dat ingeschreven is
+  op de nieuwsbrief van Basketbal Vlaanderen of waar een mailbox naar
+  doorstuurt. Zonder valt de woensdagregel elke week om 20 uur terug op de API.
 - Toegang tot het **Resend-account**, of een eigen account met hetzelfde
   geverifieerde domein
 - De secrets bij de Worker: `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`,
@@ -415,6 +445,6 @@ Wat er nodig is om verder te kunnen:
 De code staat onder de **EUPL v1.2**: vrij te gebruiken, aan te passen en door te
 geven onder dezelfde voorwaarden. Zie `LICENSE`.
 
-Voor wie eraan verder wil bouwen zijn er 1625 tests die zonder netwerk draaien
+Voor wie eraan verder wil bouwen zijn er 1750 tests die zonder netwerk draaien
 met `cd test && npm test`. Ze zijn er niet voor de vorm: verschillende ervan
 kwamen er nadat iets stil was misgegaan, en houden dat nu tegen.

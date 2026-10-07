@@ -76,7 +76,7 @@ console.log('\n1. Overzicht vooraf');
   const wedstrijden = r.json.niveaus[0];
   check('toont welke tabellen geraakt worden',
     wedstrijden.raakt.map((x) => x.tabel).sort(),
-    ['assignments', 'availability', 'matches', 'problemen']);
+    ['assignments', 'availability', 'matches', 'problemen', 'vbl_lijsten']);
   check('met de huidige aantallen erbij', wedstrijden.totaal, 4);
 }
 

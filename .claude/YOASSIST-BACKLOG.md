@@ -3,7 +3,7 @@
 Upload dit als **projectkennis** naast `YOASSIST-CONTEXT.md`. Bijwerken bij elke
 afgewerkte versie.
 
-Stand: **v1.13.0**
+Stand: **v1.14.0**
 
 ---
 
@@ -50,99 +50,11 @@ Stand: **v1.13.0**
 | 1.12.1 | V37: Mijn vergoeding en de maandmail tonen ook de wedstrijden zelf (datum, ploegen, categorie, correcties met teken); een afgesloten maand toont wat er toen meetelde |
 | 1.12.2 | V38: lange berichten in Mijn berichten zijn open te klappen ('lees meer'), met de volledige tekst zoals verstuurd en klikbare links; samenvatting van lang nieuws eindigt op '…' i.p.v. midden in een zin. Schema: kolom `berichten.volledig` (ALTER) |
 | 1.13.0 | V40: forfait herkennen (`AFOR`/`BFOR` in de uitslag van de bond, vaak al weken op voorhand); woensdagregel, herinneringen, automatisch aanvullen en 'nog te beantwoorden' slaan forfaitwedstrijden over; officials zien 'gaat niet door'; eigen aanduidingen automatisch vrijgegeven als het forfait vóór de wedstrijddag gekend is (instelbaar: of enkel melden); forfait gemarkeerd in de vergoedingen. Ook: keuzelijst 'Extern lezen' toonde na herladen altijd 'initialen'. Schema: kolom `matches.forfait` en instelling `forfait_aanduiding` |
+| 1.14.0 | V39: de woensdaglijst van Basketbal Vlaanderen is de bron van de woensdagregel. De app ontvangt de mail zelf (Cloudflare Email Routing, rechtstreeks of doorgestuurd vanuit Gmail), haalt het Excel-bestand op en leest het uit, koppelt de eigen thuiswedstrijden, en verwerkt om 14 uur; geen lijst om 14 uur = waarschuwing, om 20 uur terugval op de API. Afwijkingen en niet te koppelen ploegen naar de beheerders; status bij Beheer. 'Nog nodig' volgt de lijst. Ook: de backup miste 9 van de 21 tabellen (o.a. de facturatie); nu alle 22, met een test tegen het schema. Schema: kolom `matches.bond_officials`, tabel `vbl_lijsten`. Samen met v1.13.0 uitgerold, met één SQL-script |
 
 ---
 
 ## Openstaand
-
-### V39 — De woensdaglijst van Basketbal Vlaanderen als bron voor de woensdagregel
-**Uitgeklaard (7 oktober 2026), klaar om te bouwen.** Forfaitherkenning
-(V40) zit er sinds v1.13.0 in: een forfait in de lijst van de bond is geen
-afwijking, en de regel slaat forfaitwedstrijden al over. Elke woensdag
-(normaal rond 13:35) stuurt `info@basketbal.vlaanderen` een Mailchimp-
-nieuwsbrief "Wedstrijden zonder officials komend weekend". De wedstrijden staan
-niet in de mail zelf maar in een Excel-bestand achter een link op
-`mcusercontent.com` (bv. `Weekend_3_otkober.xlsx`).
-
-Wat het voorbeeld van 30 september 2026 leerde:
-- Eén tabblad 'Aanduidingen', 191 wedstrijden van heel Vlaanderen. Kolommen:
-  Code, Datum (`d/m/jjjj`), Tijd (`u:mm`), Niveau/Subniveau, Divisie, Reeks,
-  Thuis ploeg, Uit ploeg, Accommodatie, Official 1, Official 2.
-- **Code is overal leeg** — koppelen kan enkel op datum, uur en thuisploeg.
-- **Namen van officials staan er nooit in.** 'Eén official' is enkel te zien
-  aan een grijze vulkleur (`FFCCCCCC`) in de cel Official 1 of 2. Nageteld:
-  50 + 22 grijze cellen = de '72 wedstrijden met 1 official' uit de mail.
-
-**Regel van de gebruiker: de lijst van de bond heeft voorrang op de API.**
-Wat er niet in staat, heeft volgens de bond twee officials, ook als de API er
-nog geen toont (aanduidingen zijn niet altijd meteen zichtbaar). De verwerking
-gebeurt pas als de mail binnen is; is ze er om 14 uur niet, dan een
-waarschuwing dat de lijst nog niet verwerkt werd.
-
-Beslist:
-- **Bron.** Wedstrijden uit de lijst komen in de aanduidingslijst; het aantal
-  nog nodige officials volgt uit de lijst (lege rij = 2, grijze cel = 1), niet
-  uit de API.
-- **Wanneer.** Komt de mail vóór 14 uur binnen, dan wordt ze bewaard en draait
-  de woensdagregel om 14 uur met die lijst. Komt ze tussen 14 en 20 uur, dan
-  draait de regel op het moment dat ze binnenkomt. Is ze er om 14 uur nog
-  niet: waarschuwing aan de beheerders. Is ze er om **20 uur** nog niet:
-  automatische terugval — de woensdagregel draait met de API zoals vroeger, en
-  de beheerders krijgen te horen dat dat gebeurde. Een mail die daarna nog
-  binnenkomt, wordt alsnog verwerkt.
-- **Afwijkingen, in beide richtingen**, apart vermeld: (a) de API toont geen
-  scheidsrechter maar de wedstrijd staat niet in de lijst ('volgens de bond
-  voorzien, nog geen naam zichtbaar'); (b) de wedstrijd staat in de lijst maar
-  de API toont al een of twee scheidsrechters.
-- **Niet meer in de lijst** (stond in de aanduidingslijst, maar de bond
-  voorziet nu twee officials): zonder eigen aanduidingen haalt de app hem uit
-  de lijst; staat er al iemand van de club op, dan blijft hij staan en krijgen
-  de beheerders een melding. Nooit stil iets weghalen waar iemand op staat.
-- **Ontvangst: allebei toegelaten.** Een eigen adres (bv. `vbl@yoassist.org`,
-  Cloudflare Email Routing) dat rechtstreeks op de nieuwsbrief ingeschreven
-  is, én doorgestuurd vanuit een persoonlijke mailbox. Wat het eerst
-  binnenkomt telt; een tweede exemplaar van dezelfde week wordt herkend en
-  genegeerd. Gmail stuurt bij het instellen van doorsturen een
-  bevestigingsmail naar het adres: die moet naar de beheerders doorgaan, anders
-  raakt niemand aan de bevestigingslink. Beide wegen controleren de oorspronkelijke
-  afzender (`info@basketbal.vlaanderen`) en het onderwerp.
-- **Waarschuwingen enkel naar de beheerders** (mail en melding): mail nog niet
-  binnen, terugval op de API, afwijkingen, niet te koppelen eigen
-  thuiswedstrijden, een onverwacht formaat van mail of Excel. De YO+'ers
-  krijgen enkel de gewone mail van de woensdagregel. De 'extra melding in de
-  mail van 14 uur' wordt dus een eigen overzicht voor de beheerders, op het
-  moment dat de lijst verwerkt wordt.
-
-Technisch:
-- `email()`-handler in de Worker. Excel ophalen via de `.xlsx`-link op
-  `mcusercontent.com` en zelf uitlezen (zip + XML, zonder extra dependency),
-  met controle op de kolomkoppen.
-- **Welke wedstrijden:** enkel eigen thuiswedstrijden vanaf U14 in het
-  komende weekend. De Excel bevat ook rijen waar wij uitploeg zijn (de
-  thuisclub zorgt dan voor refs): negeren. U10/U12 staan er nooit in en zijn
-  al automatisch in de lijst. De Excel dekt jeugd niveau 2–4 (ook meisjes) en
-  de provinciale seniorenreeksen — ontbreken betekent dus echt 'de bond
-  voorziet twee', niet 'valt buiten de lijst'.
-- **Bewijs dat de API achterloopt** (weekend 3–4 oktober 2026): J16 D (U16
-  Niveau 4 O) en J18 D (U18 Niveau 4 J) hadden 0 refs in de API maar stonden
-  niet in de lijst; DSE A (1e Prov. Dames VB) 1 ref in de API, niet in de
-  lijst. De oude woensdagregel had de eerste twee in de lijst gezet.
-- **Koppelen** op datum + uur + thuisploeg (Code is leeg), elk genormaliseerd:
-  datum `3/10/2026` ↔ `03-10-2026` → `2026-10-03`; uur `9:00` ↔ `09.00` →
-  `09:00`; ploegnaam hoofdletterongevoelig, spaties samengevoegd en
-  bijgeknipt (de API schrijft soms `AB Inbev` i.p.v. `AB InBev`). Als
-  controle: kolom Reeks = `pouleNaam` (zelfde vorm, soms met spatie
-  achteraan); klopt die niet, dan een waarschuwing, geen stille koppeling.
-  Een eigen thuisploeg uit de Excel zonder overeenkomende wedstrijd (bv. een
-  verschoven uur) wordt gemeld.
-- Schema: een nieuwe tabel voor ontvangen lijsten met per wedstrijd het aantal
-  officials volgens de bond (nieuwe tabel: geen DROP nodig).
-- Vooraf door de beheerder in te stellen: Email Routing op `yoassist.org` en
-  de koppeling van het adres aan de Worker; inschrijving op de nieuwsbrief.
-
-Risico: alles hangt aan dingen die de bond zonder waarschuwing kan wijzigen
-(vorm van de nieuwsbrief, bestandsnaam, kolomvolgorde, de betekenis van een
-celkleur). Daarom moet elke onverwachte vorm luid falen.
 
 ### V26 — Overzicht van wie meldingen heeft aanstaan
 **Nog uit te werken.** Een lijst of teller bij Beheer die toont wie er

@@ -20,7 +20,7 @@ export const NIVEAUS = {
       'Wist alle wedstrijden, beschikbaarheden en aanduidingen. Ploegen, ' +
       'gebruikers en clubs blijven staan. Na een synchronisatie staat de ' +
       'kalender er weer, maar leeg qua antwoorden.',
-    tabellen: ['assignments', 'availability', 'problemen', 'matches'],
+    tabellen: ['assignments', 'availability', 'problemen', 'vbl_lijsten', 'matches'],
     bevestiging: 'knop',
   },
   teams: {
@@ -28,7 +28,7 @@ export const NIVEAUS = {
     uitleg:
       'Zoals hierboven, plus de ploegen en hun vinkjes. Je moet daarna opnieuw ' +
       'teams laden en aanvinken welke je wil volgen.',
-    tabellen: ['assignments', 'availability', 'problemen', 'matches', 'teams'],
+    tabellen: ['assignments', 'availability', 'problemen', 'vbl_lijsten', 'matches', 'teams'],
     bevestiging: 'knop',
   },
   clubgegevens: {
@@ -37,7 +37,7 @@ export const NIVEAUS = {
       'Zoals hierboven, plus de clubs en het logboek. Gebruikers, hun ' +
       'voorkeuren en de instellingen blijven. Categorieën en tarieven blijven ook.',
     tabellen: [
-      'assignments', 'availability', 'problemen', 'matches', 'teams',
+      'assignments', 'availability', 'problemen', 'vbl_lijsten', 'matches', 'teams',
       'logboek', 'sync_runs', 'clubs',
     ],
     bevestiging: 'naam',
@@ -49,7 +49,7 @@ export const NIVEAUS = {
       'account blijft over, zodat je niet buitengesloten raakt. Categorieën en ' +
       'tarieven blijven, want die zijn geen clubgegevens.',
     tabellen: [
-      'assignments', 'availability', 'problemen', 'matches', 'teams',
+      'assignments', 'availability', 'problemen', 'vbl_lijsten', 'matches', 'teams',
       'logboek', 'sync_runs', 'push_abonnementen', 'clubs',
     ],
     bevestiging: 'naam',
@@ -67,7 +67,7 @@ export async function overzichtReset({ env, user }) {
   const tellingen = {};
   const tabellen = [
     'clubs', 'teams', 'matches', 'availability', 'assignments',
-    'problemen', 'logboek', 'sync_runs', 'users', 'push_abonnementen',
+    'problemen', 'logboek', 'sync_runs', 'users', 'push_abonnementen', 'vbl_lijsten',
   ];
 
   for (const tabel of tabellen) {

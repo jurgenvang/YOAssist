@@ -253,6 +253,11 @@ CREATE TABLE IF NOT EXISTS matches (
   -- is. Uit de uitslag van de bond ('… AFOR' / '… BFOR'), vaak al weken op
   -- voorhand. Een forfaitwedstrijd gaat niet door: geen officials nodig.
   forfait       TEXT CHECK (forfait IN ('thuis', 'uit', 'beide')),
+  -- Hoeveel officials de bond voorziet volgens de woensdaglijst (V39): 0 of 1
+  -- als de wedstrijd in de lijst staat, 2 als ze er niet in staat. NULL als er
+  -- (nog) geen lijst over dat weekend is. Heeft voorrang op off_aantal waar de
+  -- API achterloopt; zie vblOfficials() in src/lib/aanduiding.js.
+  bond_officials INTEGER,
   hash          TEXT NOT NULL,
   status        TEXT NOT NULL DEFAULT 'actief' CHECK (status IN ('actief', 'verdwenen')),
   laatst_gezien TEXT NOT NULL DEFAULT (datetime('now')),
@@ -586,3 +591,25 @@ CREATE TABLE IF NOT EXISTS sync_runs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_sync_recent ON sync_runs (gestart DESC);
+
+-- ---------------------------------------------------------------------------
+-- vbl_lijsten: de woensdaglijsten van Basketbal Vlaanderen (V39), zoals ze
+-- binnenkwamen. Ook de dubbele en de mislukte: zo is achteraf na te gaan of
+-- en wanneer de lijst er was, en waarom ze niet verwerkt werd.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS vbl_lijsten (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  ontvangen    TEXT NOT NULL DEFAULT (datetime('now')),
+  onderwerp    TEXT,
+  bestand      TEXT,                    -- de link naar het Excel-bestand
+  weekend_van  TEXT,                    -- eerste en laatste datum in de lijst
+  weekend_tot  TEXT,
+  aantal_rijen INTEGER,                 -- wedstrijden in heel Vlaanderen
+  eigen        TEXT,                    -- JSON: [{guid, officials}] van de eigen thuiswedstrijden
+  meldingen    TEXT,                    -- JSON: niet te koppelen rijen, afwijkende reeksen
+  status       TEXT NOT NULL CHECK (status IN ('ontvangen', 'verwerkt', 'dubbel', 'fout')),
+  fout         TEXT,
+  verwerkt_op  TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_vbl_lijsten_weekend ON vbl_lijsten (weekend_van, status);

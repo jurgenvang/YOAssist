@@ -2228,8 +2228,14 @@ function overzichtKaart(w) {
   const automatisch = w.scopeReden === 'auto';
 
   const toonVbl = w.catGroep !== 'U10U12' || w.vblAantal > 0;
+  // De woensdaglijst van de bond weet soms meer dan de API (V39): dan zeggen
+  // we dat, anders lijkt 'nog niemand' naast een volle plaats tegenstrijdig.
+  const bondMeer = w.bondOfficials !== null && w.bondOfficials !== undefined && w.bondOfficials > w.vblAantal;
+  const bondChip = bondMeer
+    ? `<span class="chip vbl">volgens de lijst van de bond: ${w.bondOfficials === 1 ? 'één' : 'twee'} voorzien</span>`
+    : '';
   const vblRegel = toonVbl
-    ? `<div class="ov-regel"><span class="ov-label">VBL</span>${refs}</div>`
+    ? `<div class="ov-regel"><span class="ov-label">VBL</span>${refs}${bondChip}</div>`
     : '';
 
   const compleet = w.inScope && w.toegewezen.length >= w.nodig;
@@ -3328,6 +3334,14 @@ function toonPaneel() {
     </section>
 
     <section class="blok" data-groep="dagelijks">
+      <h3 data-vouw="beheer-woensdaglijst">Woensdaglijst van de bond</h3>
+      <p class="hint">De lijst van Basketbal Vlaanderen met de wedstrijden zonder officials
+        komt elke woensdag per mail binnen en wordt om 14 uur verwerkt. Is ze er om 14 uur
+        niet, dan krijg je een waarschuwing; om 20 uur valt de app terug op de API.</p>
+      <div id="woensdaglijst"><span class="spinner"></span> Laden…</div>
+    </section>
+
+    <section class="blok" data-groep="dagelijks">
       <h3 data-vouw="beheer-wedstrijden">Eigen wedstrijden</h3>
       <p class="hint">Voor wat niet in de kalender van Basketbal Vlaanderen staat:
         oefenwedstrijden, toernooien. Ze worden bij een synchronisatie met rust gelaten.</p>
@@ -3584,6 +3598,7 @@ function bindPaneel() {
   laadExternNamen();
   laadVolgClubs();
   laadBackup();
+  laadWoensdaglijst();
 
   $('volgclub-toevoegen').onclick = async () => {
     const doel = $('volgclub-melding');
@@ -4495,6 +4510,34 @@ async function laadNieuws() {
       }
     };
   } catch { /* zonder mededeling is er niets te tonen */ }
+}
+
+const LIJST_STATUS = {
+  ontvangen: 'ontvangen, wacht op 14 uur',
+  verwerkt: 'verwerkt',
+  dubbel: 'tweede exemplaar, genegeerd',
+  fout: 'niet verwerkt',
+};
+
+/** De laatst ontvangen woensdaglijsten (V39). */
+async function laadWoensdaglijst() {
+  const doel = $('woensdaglijst');
+  try {
+    const { lijsten } = await api('/api/admin/woensdaglijst');
+    doel.innerHTML = lijsten.length === 0
+      ? '<p class="hint" style="margin:0">Nog geen lijst ontvangen.</p>'
+      : `<ul class="lijst">${lijsten.map((l) => `
+          <li>
+            <span class="naam">${l.van ? `${tekst(l.van)} tot ${tekst(l.tot)}` : tekst(l.onderwerp || 'onbekend')}
+              <span class="regelnr">${tekst(LIJST_STATUS[l.status] ?? l.status)}
+                &middot; ontvangen ${tekst(String(l.ontvangen).slice(0, 16))}${
+                l.status === 'fout' ? ` &middot; ${tekst(l.fout)}` : ''}${
+                l.aantalRijen ? ` &middot; ${l.aantalEigen} eigen van ${l.aantalRijen}` : ''}${
+                l.nietGekoppeld ? ` &middot; ${l.nietGekoppeld} niet te koppelen` : ''}</span></span>
+          </li>`).join('')}</ul>`;
+  } catch (err) {
+    doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+  }
 }
 
 async function laadExternNamen() {

@@ -877,5 +877,35 @@ console.log('\nV40. Forfait in de schermen');
   check('vergoeding: wel weg te halen', verg.includes('data-fact-weg="X"'), true);
 }
 
+console.log('\nV39. De woensdaglijst in de schermen');
+{
+  const bron = ['tekst', 'forfaitTekst', 'overzichtKaart'].map(haalFunctie).join('\n');
+  const { overzichtKaart } = new Function(`${bron}; return { overzichtKaart };`)();
+  const w = { guid: 'X', uur: '15:00', thuis: 'Bears DSE A', uit: 'Zemst', catCode: 'DSE', catLabel: 'SEN',
+    catGroep: 'SEN', vblRefs: ['Félix Van Laethem'], vblAantal: 1, vblNamenGewist: false, nodig: 0,
+    bondOfficials: 2, toegewezen: [], beschikbaar: [], nietBeschikbaar: [], inScope: false,
+    scopeReden: null, probleem: false, inVenster: true, voorbij: false, forfait: null };
+  check('bond voorziet meer: gezegd', overzichtKaart(w).includes('volgens de lijst van de bond: twee voorzien'), true);
+  check('zonder lijst: niets', overzichtKaart({ ...w, bondOfficials: null }).includes('lijst van de bond'), false);
+  check('bond niet meer dan API: niets', overzichtKaart({ ...w, bondOfficials: 1 }).includes('lijst van de bond'), false);
+
+  const laad = haalFunctie('laadWoensdaglijst');
+  const doel = { innerHTML: '' };
+  const api = async () => ({ lijsten: [
+    { id: 2, ontvangen: '2026-10-07 11:35:00', van: '2026-10-10', tot: '2026-10-11', status: 'verwerkt',
+      aantalRijen: 191, aantalEigen: 3, nietGekoppeld: 1 },
+    { id: 1, ontvangen: '2026-09-30 11:35:00', onderwerp: 'Wedstrijden zonder officials', status: 'fout',
+      fout: 'Kolom ontbreekt' },
+  ] });
+  const LIJST_STATUS = { ontvangen: 'ontvangen, wacht op 14 uur', verwerkt: 'verwerkt', dubbel: 'tweede exemplaar, genegeerd', fout: 'niet verwerkt' };
+  // haalFunctie knipt vanaf 'function': het 'async' ervoor moet er weer bij.
+  await new Function('$', 'api', 'tekst', 'LIJST_STATUS', `async ${laad}; return laadWoensdaglijst();`)(
+    () => doel, api, new Function(`${haalFunctie('tekst')}; return tekst;`)(), LIJST_STATUS);
+  check('status bij Beheer: weekend en status', doel.innerHTML.includes('2026-10-10 tot 2026-10-11') && doel.innerHTML.includes('verwerkt'), true);
+  check('aantallen', doel.innerHTML.includes('3 eigen van 191'), true);
+  check('niet te koppelen', doel.innerHTML.includes('1 niet te koppelen'), true);
+  check('fout met reden', doel.innerHTML.includes('Kolom ontbreekt'), true);
+}
+
 console.log(f === 0 ? '\n=== ALLE FRONTENDTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);
 process.exit(f ? 1 : 0);

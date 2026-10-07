@@ -21,8 +21,13 @@ import { VERSIE } from '../../versie.js';
 /**
  * Alle tabellen, in de volgorde waarin ze bij een herstel ingelezen zouden
  * moeten worden: ouders vóór kinderen.
+ *
+ * Elke tabel uit schema.sql hoort hier. Een test legt beide naast elkaar:
+ * deze lijst liep al eens achter (facturatie, berichten, ouder-kind en de
+ * Regio-tabellen ontbraken), zonder dat iemand het merkte tot er een backup
+ * nodig was.
  */
-const TABELLEN = [
+export const TABELLEN = [
   'settings',
   'categorieen',
   'clubs',
@@ -31,10 +36,20 @@ const TABELLEN = [
   'teams',
   'matches',
   'assignments',
-  'availability',
   'problemen',
+  'afgesloten_maanden',
+  'vergoeding_regels',
+  'vergoeding_verwerkt',
+  'ouder_kind',
+  'volg_clubs',
+  'volg_wedstrijden',
+  'berichten',
+  'mededelingen',
+  'mededeling_gezien',
   'logboek',
+  'availability',
   'sync_runs',
+  'vbl_lijsten',
 ];
 
 /** GET /api/admin/backup — het volledige bestand. */

@@ -1,5 +1,5 @@
 import { json, fout, leesJson } from '../../lib/http.js';
-import { aantalNodig, conflicten, opkomstUur } from '../../lib/aanduiding.js';
+import { aantalNodig, conflicten, opkomstUur, vblOfficials } from '../../lib/aanduiding.js';
 import { templateAanduiding, templateVrijgegeven } from '../../lib/mailer.js';
 import { verwittig } from '../../lib/verwittigen.js';
 import { log, wedstrijdOmschrijving } from '../../lib/logboek.js';
@@ -79,7 +79,7 @@ export async function wijsToe({ request, env, user }) {
   if (!guid || !email) return fout(400, 'Ongeldige aanvraag', 'matchGuid en email zijn nodig.');
 
   const wedstrijd = await env.DB.prepare(
-    `SELECT m.guid, m.datum, m.uur, m.acc_guid, m.off_aantal, m.scope, m.cat_code, m.club_guid,
+    `SELECT m.guid, m.datum, m.uur, m.acc_guid, m.off_aantal, m.bond_officials, m.scope, m.cat_code, m.club_guid,
             m.thuis_naam, m.uit_naam, m.locatie, m.forfait,
             cat.groep AS cat_groep, cat.auto_scope
        FROM matches m
@@ -133,7 +133,7 @@ export async function wijsToe({ request, env, user }) {
   )
     .bind(guid)
     .first();
-  const nodig = aantalNodig(wedstrijd.off_aantal);
+  const nodig = aantalNodig(vblOfficials(wedstrijd.off_aantal, wedstrijd.bond_officials));
   if ((bezet?.n ?? 0) >= nodig) {
     return fout(
       409,

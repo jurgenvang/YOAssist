@@ -10,18 +10,18 @@
 import { identify, AuthError } from './lib/access.js';
 import { json, fout } from './lib/http.js';
 import { synchroniseer } from './lib/sync.js';
-import { pasWoensdagregelToe, zoekOverbodigeScope } from './lib/woensdag.js';
+import { zoekOverbodigeScope } from './lib/woensdag.js';
 import { instelling } from './lib/http.js';
 import { seizoenscode } from './lib/vbl.js';
-import { aantalNodig, opkomstUur } from './lib/aanduiding.js';
+import { aantalNodig, opkomstUur, vblOfficials } from './lib/aanduiding.js';
 import {
   templateHerinnering,
-  templateWoensdagregel,
   templateAvondcontrole,
   templateWeekoverzicht,
 } from './lib/mailer.js';
 import { verwittig, verwittigAllen, kuisBerichtenOp } from './lib/verwittigen.js';
 import { verwerkForfaits } from './lib/forfait.js';
+import { ontvangMail, woensdagOm14, woensdagTerugval } from './lib/woensdaglijst.js';
 import { me, clubs, kiesClub, matches, zetBeschikbaarheid, meldProbleem } from './routes/gebruiker.js';
 import * as voorkeuren from './routes/voorkeuren.js';
 import * as admin from './routes/admin/index.js';
@@ -30,6 +30,7 @@ import * as gebruikers from './routes/admin/gebruikers.js';
 import { overzicht } from './routes/admin/overzicht.js';
 import * as aanduiding from './routes/admin/aanduiding.js';
 import * as mail from './routes/admin/mail.js';
+import * as woensdaglijst from './routes/admin/woensdaglijst.js';
 import { automatisch } from './routes/admin/auto.js';
 import * as wedstrijden from './routes/admin/wedstrijden.js';
 import * as vrijgeven from './routes/admin/vrijgeven.js';
@@ -136,6 +137,7 @@ const ROUTES = [
   { methode: 'POST',   pad: '/api/admin/aanmeldmethodes', handler: mail.zetAanmeldMethodes, beheer: true },
   { methode: 'POST',   pad: '/api/admin/extern-namen', handler: mail.zetExternNamen, beheer: true },
   { methode: 'POST',   pad: '/api/admin/forfait-aanduiding', handler: mail.zetForfaitAanduiding, beheer: true },
+  { methode: 'GET',    pad: '/api/admin/woensdaglijst', handler: woensdaglijst.overzicht, beheer: true },
   { methode: 'POST',   pad: '/api/admin/vul-nog-in', handler: herinneringRoute.verstuur, beheer: true },
 
   { methode: 'GET',    pad: '/api/admin/volg-clubs', handler: aandachtRoute.lijst,       beheer: true },
@@ -312,8 +314,13 @@ export function takenVoor({ uur, weekdag }) {
   if ([0, 6, 12, 18].includes(uur)) taken.push('sync');
 
   // Woensdag om 14 uur: wedstrijden van het komende weekend zonder twee
-  // scheidsrechters van de bond in de lijst zetten.
+  // scheidsrechters van de bond in de lijst zetten — volgens de woensdaglijst
+  // van de bond als die binnen is (V39), anders een waarschuwing.
   if (weekdag === 3 && uur === 14) taken.push('woensdagregel');
+
+  // Woensdag om 20 uur: is de lijst er nog altijd niet, dan de woensdagregel
+  // met de API, zoals vroeger (V39).
+  if (weekdag === 3 && uur === 20) taken.push('woensdag-terugval');
 
   // Elke avond om 20 uur nakijken of er intussen iets veranderd is.
   if (uur === 20) taken.push('avondcontrole');
@@ -373,18 +380,15 @@ async function voerTakenUit(taken, env, tijdstip) {
       }
 
       if (taak === 'woensdagregel') {
-        const r = await pasWoensdagregelToe(env.DB, tijdstip);
-        console.log(
-          `[YOAssist] woensdagregel: ${r.gescoopt} wedstrijden ` +
-            `in de lijst gezet voor ${r.van} tot ${r.tot}`,
-        );
+        const r = await woensdagOm14(env, tijdstip);
+        console.log(`[YOAssist] woensdagregel: ${r.soort}` +
+          (r.resultaat ? `, ${r.resultaat.toegevoegd.length} in de lijst gezet` : ''));
+      }
 
-        if (r.gescoopt > 0) {
-          const { results: yoPlus } = await env.DB
-            .prepare("SELECT email FROM users WHERE profiel = 'YO+' AND actief = 1")
-            .all();
-          await verwittigAllen(env, yoPlus.map((u) => u.email), templateWoensdagregel(r));
-        }
+      if (taak === 'woensdag-terugval') {
+        const r = await woensdagTerugval(env, tijdstip);
+        console.log(`[YOAssist] woensdag 20 uur: ${r.soort}` +
+          (r.resultaat ? `, ${r.resultaat.gescoopt} in de lijst gezet met de API` : ''));
       }
 
       if (taak === 'avondcontrole') {
@@ -465,7 +469,7 @@ async function voerTakenUit(taken, env, tijdstip) {
         const overWeek = new Date(tijdstip.getTime() + 7 * 86400000).toISOString().slice(0, 10);
 
         const { results: rijen } = await env.DB.prepare(
-          `SELECT m.guid, m.datum, m.uur, m.thuis_naam, m.uit_naam, m.off_aantal,
+          `SELECT m.guid, m.datum, m.uur, m.thuis_naam, m.uit_naam, m.off_aantal, m.bond_officials,
                   cat.groep AS cat_groep,
                   (SELECT COUNT(*) FROM assignments a
                     WHERE a.match_guid = m.guid AND a.status = 'toegewezen') AS bezet
@@ -484,7 +488,7 @@ async function voerTakenUit(taken, env, tijdstip) {
             thuis: r.thuis_naam,
             uit: r.uit_naam,
             catGroep: r.cat_groep,
-            nogNodig: aantalNodig(r.off_aantal) - r.bezet,
+            nogNodig: aantalNodig(vblOfficials(r.off_aantal, r.bond_officials)) - r.bezet,
           }))
           .filter((r) => r.nogNodig > 0)
           .sort((a, b) => (a.datum + a.uur).localeCompare(b.datum + b.uur));
@@ -525,5 +529,20 @@ export default {
     if (taken.length === 0) return;
 
     ctx.waitUntil(voerTakenUit(taken, env, new Date(event.scheduledTime)));
+  },
+
+  /**
+   * Binnenkomende mail via Cloudflare Email Routing (V39). Enkel de
+   * woensdaglijst van de bond doet iets; al de rest wordt gelogd en genegeerd.
+   * Nooit weigeren: een geweigerde mail kaatst terug naar de bond of naar Gmail.
+   */
+  async email(message, env, ctx) {
+    try {
+      const raw = await new Response(message.raw).text();
+      const r = await ontvangMail(env, raw, { naar: message.to });
+      console.log(`[YOAssist] mail van ${message.from}: ${r.soort}`);
+    } catch (err) {
+      console.log(`[YOAssist] mail van ${message.from} niet verwerkt: ${err.message}`);
+    }
   },
 };

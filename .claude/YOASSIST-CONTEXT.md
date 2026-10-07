@@ -3,7 +3,7 @@
 Upload dit als **projectkennis**. Het bevat wat een volgend gesprek moet weten om
 verder te kunnen zonder alles opnieuw uit te vragen.
 
-Laatst bijgewerkt: v1.13.0
+Laatst bijgewerkt: v1.14.0
 
 ---
 
@@ -131,10 +131,35 @@ Bij precies één scheidsrechter toont de pagina ook zijn naam.
 Een knop bij Configuratie maakt de wedstrijdenlijst leeg zonder de gevolgde
 clubs te raken.
 
-**De backup dekt nu alle 21 tabellen.** Was sinds de facturatiemodule (v0.18)
-telkens een paar tabellen achtergebleven wanneer er een nieuwe bijkwam, zonder
-dat er een test op stond. Er is nu een test die het schema zelf naast de
-backup-lijst legt.
+**De backup dekt alle tabellen, en een test bewaakt dat.** Deze zin stond hier
+al sinds v1.10, maar de code volgde niet: tot v1.14.0 zaten er maar 12 van de
+21 tabellen in de backup — facturatie, berichten, ouder-kind en de
+Regio-tabellen ontbraken — en de beloofde test bestond niet. Nu staan alle 22
+tabellen in `TABELLEN` (`src/routes/admin/backup.js`), in de volgorde van
+`schema.sql`, en `backup.test.mjs` leest de tabellen uit het schema en legt ze
+ernaast.
+
+**De woensdaglijst van de bond is de bron van de woensdagregel** (V39). Elke
+woensdag rond 13:35 stuurt `info@basketbal.vlaanderen` een Mailchimp-
+nieuwsbrief met een link naar een Excel (`mcusercontent.com/…/files/….xlsx`).
+De Worker ontvangt mail via een `email()`-handler (Cloudflare Email Routing):
+`src/lib/mime.js` leest de mail, `src/lib/xlsx.js` de Excel (zip + XML, zelf
+geschreven, geen dependency), `src/lib/woensdaglijst.js` doet de rest.
+Kernregels: (1) wat in de lijst staat, heeft 0 of 1 official — een cel die
+anders gekleurd is dan de datumcel in dezelfde rij betekent 'aangeduid';
+(2) wat er niet in staat, heeft er volgens de bond 2, ook als de API niemand
+toont — dat gaat in `matches.bond_officials`, en `vblOfficials()` neemt het
+hoogste van API en lijst; (3) koppelen op datum + uur + thuisploeg
+(genormaliseerd), 'eigen' = de thuisploeg komt voor in onze wedstrijden;
+(4) verwerken pas vanaf woensdag 14 uur Brussel; geen lijst om 14 uur =
+waarschuwing, om 20 uur terugval op de API; een latere lijst zet alsnog recht;
+(5) enkel wat automatisch in de lijst kwam (`scope_reden = 'woensdag'`) gaat er
+weer uit, en nooit als er al iemand op staat. De lijst gebruikt dezelfde
+`scope_reden` als de API-woensdagregel: een nieuwe waarde zou de CHECK
+wijzigen, en dat vraagt een DROP van `matches`. Elke onverwachte vorm (afzender,
+onderwerp, link, kolommen, datums) faalt luid naar de beheerders en wordt in
+`vbl_lijsten` bewaard. De mailhandler gooit nooit: een geweigerde mail kaatst
+terug naar de bond.
 
 **Forfait is een eigen kolom, geen uitslag** (V40). De bond zet een forfait als
 administratieve score met een code: `' 20-  0  BFOR'` (bezoekers) of
@@ -268,6 +293,10 @@ src/lib/aanduiding.js        hoeveel nodig, botsingen, opkomsttijd
 src/lib/autotoewijzing.js    planningsalgoritme, zuivere functie
 src/lib/woensdag.js          woensdagregel en avondcontrole
 src/lib/forfait.js           eigen aanduidingen bij een nieuw forfait (V40)
+src/lib/woensdaglijst.js     de woensdaglijst van de bond ontvangen en verwerken (V39)
+src/lib/mime.js              een mail uitlezen, zonder bibliotheek
+src/lib/xlsx.js              een Excel uitlezen (zip + XML, met celkleuren)
+src/routes/admin/woensdaglijst.js  status van de ontvangen lijsten
 src/lib/venster.js           weekendvenster van het cluboverzicht
 src/lib/vergoeding.js        rekenregels facturatie, zuivere functies
 src/lib/csv.js               CSV lezen en schrijven
@@ -293,7 +322,7 @@ LICENSE                      EUPL v1.2
 schema.sql                   de bron van waarheid voor de databank
 schema-console.sql           opgedeeld in blokken voor de D1-console
 schema-alles-in-een.sql      drops plus schema, in één keer uitvoerbaar
-test/                        1625 tests, draaien zonder netwerk
+test/                        1750 tests, draaien zonder netwerk
 ```
 
 ## Val­kuilen die al eens hebben toegeslagen
@@ -303,6 +332,11 @@ en meldt niets. Elke schemawijziging vraagt een expliciete `DROP TABLE`.
 
 **D1 staat honderd gebonden parameters per query toe.** `WHERE guid IN (?, ?, …)`
 breekt zodra de kalender vol staat. De testomgeving dwingt die grens af.
+
+**Een nieuwe waarde in een kolom met CHECK is een DROP.** `scope_reden` laat
+enkel 'auto', 'admin' en 'woensdag' toe; een vierde waarde kan niet met ALTER
+en zou `matches` (met aanduidingen en beschikbaarheden) laten droppen. Kijk
+eerst of een bestaande waarde de lading dekt.
 
 **Een parser die 'geen geldige waarde' geeft, kan informatie verbergen.**
 `normaliseerUitslag` gaf terecht null bij `' 20-  0  BFOR'`, maar daarmee

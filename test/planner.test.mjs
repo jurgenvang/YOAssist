@@ -39,6 +39,8 @@ console.log('\n2. Welke taken op welk moment');
   check('woensdag 14:00 de regel', takenVoor({ uur: 14, weekdag: woensdag }), ['woensdagregel']);
   check('zaterdag 14:00 niets', takenVoor({ uur: 14, weekdag: zaterdag }), []);
   check('20:00 avondcontrole', takenVoor({ uur: 20, weekdag: 1 }), ['avondcontrole']);
+  check('woensdag 20:00 ook de terugval (V39)', takenVoor({ uur: 20, weekdag: woensdag }),
+    ['woensdag-terugval', 'avondcontrole']);
   check('19:00 herinnering voor morgen', takenVoor({ uur: 19, weekdag: 1 }), ['herinnering-avond']);
   check('07:00 herinnering voor vandaag', takenVoor({ uur: 7, weekdag: 1 }), ['herinnering-ochtend']);
   check('maandag 08:00 weekoverzicht', takenVoor({ uur: 8, weekdag: 1 }), ['weekoverzicht']);
@@ -155,11 +157,19 @@ console.log('\n7. De planner voert de juiste taken uit');
   const wachten = [];
   const ctx = { waitUntil: (p) => { wachten.push(p); return p; } };
 
-  // Woensdag 14:00 Brussel = 12:00 UTC in de zomer
+  // Woensdag 14:00 Brussel = 12:00 UTC in de zomer. Zonder woensdaglijst van
+  // de bond gebeurt er dan niets, behalve een waarschuwing (V39).
   await worker.scheduled({ scheduledTime: Date.parse('2026-09-09T12:00:00Z') }, { DB: db }, ctx);
   await Promise.allSettled(wachten);
+  check('om 14 uur zonder lijst: nog niets in de lijst',
+    (await db.prepare("SELECT scope FROM matches WHERE guid = 'GEEN'").first()).scope, 0);
+  check('maar wel gelogd dat de lijst er niet is',
+    (await db.prepare("SELECT COUNT(*) AS n FROM logboek WHERE veld = 'lijst nog niet binnen'").first()).n, 1);
 
-  check('woensdagregel is uitgevoerd',
+  // Woensdag 20:00 Brussel = 18:00 UTC: terugval op de API, zoals vroeger.
+  await worker.scheduled({ scheduledTime: Date.parse('2026-09-09T18:00:00Z') }, { DB: db }, ctx);
+  await Promise.allSettled(wachten);
+  check('om 20 uur: woensdagregel met de API uitgevoerd',
     (await db.prepare("SELECT scope FROM matches WHERE guid = 'GEEN'").first()).scope, 1);
 
   // Dinsdag 09:00 Brussel = 07:00 UTC: geen enkele taak.
