@@ -326,5 +326,63 @@ console.log('\n15. Meer dan honderd wedstrijden botst niet op de D1-parametergre
   check('de overige 120 zijn opgeruimd, ook bij een grote lijst', aantalNa, 30);
 }
 
+console.log('\n16. V41: G08, ROL en onbekende categorieën komen er niet in');
+{
+  // Gemeld: G08-wedstrijden stonden in Regio. De filter was een
+  // uitsluitingslijst van U10/U12, dus alles wat daar niet op stond glipte
+  // door. Nu enkel wat vanaf U14 is.
+  const db = nieuweDb();
+  db.exec("INSERT INTO volg_clubs (guid, naam, toegevoegd_door) VALUES ('BVBL9999', 'Verre Club', 'baas@club.be')");
+
+  const metCategorie = (nr, catCode) => ({ ...wed(nr), tTGUID: `BVBL9999${catCode}  1` });
+  zetApi({
+    BVBL9999: [
+      metCategorie(1, 'G08'),   // nooit een scheidsrechter
+      metCategorie(2, 'ROL'),   // rolstoelbasket, niet in de categorietabel
+      metCategorie(3, 'X99'),   // onbekende code van de bond
+      { ...wed(4), tTGUID: 'BVBL9999' },   // geen categorie te halen uit het GUID
+      metCategorie(5, 'G14'),
+      metCategorie(6, 'M14'),
+      metCategorie(7, 'M19'),
+      metCategorie(8, 'DSE'),
+    ],
+  });
+
+  const r = await synchroniseerVolgClubs(db);
+  check('enkel de vier vanaf U14', r.gevonden, 4);
+  const guids = (await db.prepare('SELECT guid FROM volg_wedstrijden').all()).results.map((r) => r.guid);
+  check('G14, M14, M19 en DSE', guids.sort(), ['BVBLX5', 'BVBLX6', 'BVBLX7', 'BVBLX8']);
+}
+
+console.log('\n17. Een bestaande G08-rij verdwijnt bij de volgende sync');
+{
+  const db = nieuweDb();
+  db.exec("INSERT INTO volg_clubs (guid, naam, toegevoegd_door) VALUES ('BVBL9999', 'Verre Club', 'baas@club.be')");
+  db.exec(`
+    INSERT INTO volg_wedstrijden (guid, club_guid, club_naam, thuis_naam, uit_naam, datum, uur, cat_code, vbl_aantal)
+    VALUES ('BVBLX1', 'BVBL9999', 'Verre Club', 'A', 'B', '2099-01-01', '10:00', 'G08', 0);
+  `);
+  zetApi({ BVBL9999: [{ ...wed(1), tTGUID: 'BVBL9999G08  1' }] });
+
+  await synchroniseerVolgClubs(db);
+  check('opgeruimd', (await db.prepare('SELECT COUNT(*) AS n FROM volg_wedstrijden').first()).n, 0);
+}
+
+console.log('\n18. V42: de synchronisatie laat de woensdaglijst staan, tenzij de wedstrijd verschoof');
+{
+  const db = nieuweDb();
+  db.exec("INSERT INTO volg_clubs (guid, naam, toegevoegd_door) VALUES ('BVBL9999', 'Verre Club', 'baas@club.be')");
+  zetApi({ BVBL9999: [wed(1, { uur: '14.00' }), wed(2, { uur: '16.00' })] });
+  await synchroniseerVolgClubs(db);
+  db.exec("UPDATE volg_wedstrijden SET bond_officials = 2");
+
+  // Wedstrijd 1 blijft staan, wedstrijd 2 verschuift een uur.
+  zetApi({ BVBL9999: [wed(1, { uur: '14.00', wedOff: ['Iemand'] }), wed(2, { uur: '17.00' })] });
+  await synchroniseerVolgClubs(db);
+  const b = async (guid) => (await db.prepare('SELECT bond_officials AS b, vbl_aantal AS v FROM volg_wedstrijden WHERE guid = ?').bind(guid).first());
+  check('ongewijzigd moment: lijst blijft, API bijgewerkt', [(await b('BVBLX1')).b, (await b('BVBLX1')).v], [2, 1]);
+  check('verschoven: terug naar enkel de API', (await b('BVBLX2')).b, null);
+}
+
 console.log(f === 0 ? '\n=== ALLE VOLGSYNCTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);
 process.exit(f ? 1 : 0);

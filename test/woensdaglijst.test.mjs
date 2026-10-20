@@ -512,5 +512,84 @@ console.log('\n13. vblOfficials: het hoogste van API en lijst');
   check('API zegt meer: een concrete naam telt', vblOfficials(2, 0), 2);
 }
 
+console.log('\n14. V42: Regio volgt de woensdaglijst');
+{
+  const env = nieuweEnv();
+  const B = 'AB InBev Leuven Bears';
+  const MAANDAG = isoDag(WOENSDAG, 5);   // buiten het weekend van de lijst
+  env.DB.exec(`
+    INSERT INTO volg_clubs (guid, naam, toegevoegd_door) VALUES ('BVBL9999', 'Andere Club', 'baas@club.be');
+    INSERT INTO volg_wedstrijden (guid, club_guid, club_naam, thuis_naam, uit_naam, datum, uur, cat_code, vbl_aantal) VALUES
+      ('V_LEEG',  'BVBL9999', 'Andere Club', 'Andere Club U16 A', 'Gast', '${ZO}', '10:00', 'J16', 0),
+      ('V_GRIJS', 'BVBL9999', 'Andere Club', 'Andere Club U18 A', 'Gast', '${ZA}', '12:00', 'J18', 0),
+      ('V_NIET',  'BVBL9999', 'Andere Club', 'Andere Club U16 B', 'Gast', '${ZA}', '16:00', 'J16', 0),
+      ('V_API1',  'BVBL9999', 'Andere Club', 'Andere Club HSE A', 'Gast', '${ZO}', '18:00', 'HSE', 1),
+      ('V_LATER', 'BVBL9999', 'Andere Club', 'Andere Club U16 A', 'Gast', '${MAANDAG}', '20:00', 'J16', 0);
+  `);
+  wed(env, 'IN_LEEG', ZA, '09:00', `${B} J16 A`);
+  const mails = zetFetch(bouwXlsx([
+    { datum: alsLijst(ZA), tijd: '9:00', thuis: `${B} J16 A` },
+    { datum: alsLijst(ZO), tijd: '10:00', thuis: 'Andere Club U16 A' },              // V_LEEG: 0
+    { datum: alsLijst(ZA), tijd: '12:00', thuis: 'Andere Club U18 A', o1: 'grijs' }, // V_GRIJS: 1
+    { datum: alsLijst(ZO), tijd: '18:00', thuis: 'Andere Club HSE A' },              // V_API1: lijst 0, API 1
+    { datum: alsLijst(ZO), tijd: '14:00', thuis: 'Andere Club U16 B' },              // gevolgde ploeg, ander uur
+    { datum: alsLijst(ZO), tijd: '15:00', thuis: 'Niet Gevolgd U16 A' },             // geen gevolgde club
+  ]));
+
+  await ontvangMail(env, bouwMail(), { nu: VOOR_14 });
+  // Een club die pas na ontvangst gevolgd wordt, is niet tegen de lijst gelegd.
+  env.DB.exec(`INSERT INTO volg_wedstrijden (guid, club_guid, club_naam, thuis_naam, uit_naam, datum, uur, cat_code, vbl_aantal)
+               VALUES ('V_NIEUW', 'BVBL9999', 'Andere Club', 'Andere Club U21 A', 'Gast', '${ZA}', '19:00', 'J21', 0)`);
+  const bondVan = async (guid) => (await env.DB.prepare('SELECT bond_officials AS b FROM volg_wedstrijden WHERE guid = ?').bind(guid).first()).b;
+  check('vóór 14 uur: Regio nog ongemoeid', await bondVan('V_LEEG'), null);
+
+  const om14 = await woensdagOm14(env, new Date(`${isoDag(WOENSDAG)}T12:00:00Z`));
+  check('verwerkt', om14.soort, 'verwerkt');
+  check('in de lijst zonder official: 0', await bondVan('V_LEEG'), 0);
+  check('in de lijst, grijze cel: 1', await bondVan('V_GRIJS'), 1);
+  check('niet in de lijst: de bond voorziet 2', await bondVan('V_NIET'), 2);
+  check('buiten het weekend van de lijst: ongemoeid', await bondVan('V_LATER'), null);
+  check('later gevolgd: ongemoeid, geen 2', await bondVan('V_NIEUW'), null);
+  check('eigen wedstrijden werken nog', (await rij(env, 'IN_LEEG')).scope, 1);
+
+  const a = await (await worker.fetch(new Request('http://localhost/api/admin/aandacht'),
+    { ...env, DEV_EMAIL: 'baas@club.be' }, {})).json();
+  const per = Object.fromEntries(a.wedstrijden.map((w) => [w.guid, w]));
+  check('Regio: de bond voorziet 2, dus weg', 'V_NIET' in per, false);
+  check('Regio: wat in de lijst staat, blijft', ['V_LEEG', 'V_GRIJS', 'V_API1'].every((g) => g in per), true);
+  check('Regio: aantal = hoogste van API en lijst',
+    [per.V_LEEG.aantalRefs, per.V_GRIJS.aantalRefs, per.V_API1.aantalRefs], [0, 1, 1]);
+  check('Regio: bron lijst na verwerking', [per.V_LEEG.bron, per.V_GRIJS.bron], ['lijst', 'lijst']);
+  check('Regio: bron api zonder lijst', [per.V_LATER.bron, per.V_NIEUW.bron], ['api', 'api']);
+
+  check('resultaat: in de lijst geteld', om14.resultaat.regioInLijst, 3);
+  check('resultaat: gevolgde ploeg niet te koppelen',
+    om14.resultaat.regioNietGekoppeld.map((x) => [x.thuis, x.uur]), [['Andere Club U16 B', '14:00']]);
+  const naarBaas = mails.filter((m) => m.to === 'baas@club.be').map((m) => m.text).join('\n');
+  check('mail: Regio niet gekoppeld vermeld', /Regio: ploeg van een gevolgde club.*\n.*Andere Club U16 B/.test(naarBaas), true);
+  check('mail: niet-gevolgde club niet vermeld', /Niet Gevolgd/.test(naarBaas), false);
+  const naarPlus = mails.filter((m) => m.to === 'plus@club.be').map((m) => m.text).join('\n');
+  check('YO+ krijgt niets over Regio', /Regio|Andere Club/.test(naarPlus), false);
+}
+
+console.log('\n15. V42: een lijst van vóór Regio-koppeling laat Regio ongemoeid');
+{
+  // Lijsten die vóór deze versie binnenkwamen, hebben geen kolom volg. Die
+  // mogen Regio niet op '2' zetten.
+  const env = nieuweEnv();
+  env.DB.exec(`
+    INSERT INTO volg_clubs (guid, naam, toegevoegd_door) VALUES ('BVBL9999', 'Andere Club', 'baas@club.be');
+    INSERT INTO volg_wedstrijden (guid, club_guid, club_naam, thuis_naam, uit_naam, datum, uur, cat_code, vbl_aantal)
+      VALUES ('V_OUD', 'BVBL9999', 'Andere Club', 'Andere Club U16 A', 'Gast', '${ZA}', '10:00', 'J16', 0);
+    INSERT INTO vbl_lijsten (weekend_van, weekend_tot, aantal_rijen, eigen, meldingen, status)
+      VALUES ('${ZA}', '${ZO}', 0, '[]', '{}', 'ontvangen');
+  `);
+  zetFetch(Buffer.alloc(0));
+  const om14 = await woensdagOm14(env, new Date(`${isoDag(WOENSDAG)}T12:00:00Z`));
+  check('verwerkt', om14.soort, 'verwerkt');
+  check('Regio ongemoeid',
+    (await env.DB.prepare("SELECT bond_officials AS b FROM volg_wedstrijden WHERE guid = 'V_OUD'").first()).b, null);
+}
+
 console.log(f === 0 ? '\n=== ALLE WOENSDAGLIJSTTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);
 process.exit(f ? 1 : 0);

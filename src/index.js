@@ -20,6 +20,7 @@ import {
   templateWeekoverzicht,
 } from './lib/mailer.js';
 import { verwittig, verwittigAllen, kuisBerichtenOp } from './lib/verwittigen.js';
+import { kuisLogboekOp, kuisSyncRunsOp } from './lib/opkuis.js';
 import { verwerkForfaits } from './lib/forfait.js';
 import { ontvangMail, woensdagOm14, woensdagTerugval } from './lib/woensdaglijst.js';
 import { me, clubs, kiesClub, matches, zetBeschikbaarheid, meldProbleem } from './routes/gebruiker.js';
@@ -44,6 +45,8 @@ import * as mededelingRoute from './routes/admin/mededeling.js';
 import * as kalenderRoute from './routes/extern.js';
 import * as herinneringRoute from './routes/admin/herinnering.js';
 import * as aandachtRoute from './routes/admin/aandacht.js';
+import * as ploegcontactenRoute from './routes/admin/ploegcontacten.js';
+import { verwittigPloegen } from './lib/ploegcontacten.js';
 import { synchroniseerVolgClubs } from './lib/volgsync.js';
 
 // ---------------------------------------------------------------------------
@@ -146,6 +149,10 @@ const ROUTES = [
   { methode: 'GET',    pad: '/api/admin/aandacht',      handler: aandachtRoute.aandacht, beheer: true },
   { methode: 'POST',   pad: '/api/admin/aandacht/sync', handler: aandachtRoute.syncNu,   beheer: true },
   { methode: 'DELETE', pad: '/api/admin/aandacht/wedstrijden', handler: aandachtRoute.wisWedstrijden, beheer: true },
+
+  { methode: 'GET',    pad: '/api/admin/ploegcontacten',          handler: ploegcontactenRoute.lijst,     beheer: true },
+  { methode: 'GET',    pad: '/api/admin/ploegcontacten/sjabloon', handler: ploegcontactenRoute.sjabloon,  beheer: true },
+  { methode: 'POST',   pad: '/api/admin/ploegcontacten/import',   handler: ploegcontactenRoute.importeer, beheer: true },
 
   { methode: 'GET',    pad: '/api/admin/mededeling',   handler: mededelingRoute.huidige, beheer: true },
   { methode: 'POST',   pad: '/api/admin/mededeling',   handler: mededelingRoute.zet,     beheer: true },
@@ -322,13 +329,20 @@ export function takenVoor({ uur, weekdag }) {
   // met de API, zoals vroeger (V39).
   if (weekdag === 3 && uur === 20) taken.push('woensdag-terugval');
 
+  // Woensdag en donderdag om 20 uur: PV's en coaches van ploegen met te weinig
+  // scheidsrechters verwittigen (V34). Na de terugval, zodat die wedstrijden
+  // dan al in de lijst staan; en de YO+'ers hadden zes uur om te reageren.
+  if (weekdag === 3 && uur === 20) taken.push('ploegen-woensdag');
+  if (weekdag === 4 && uur === 20) taken.push('ploegen-donderdag');
+
   // Elke avond om 20 uur nakijken of er intussen iets veranderd is.
   if (uur === 20) taken.push('avondcontrole');
 
   // Maandagochtend om 8 uur: het overzicht van het komende weekend.
   if (weekdag === 1 && uur === 8) taken.push('weekoverzicht');
 
-  // Eén keer per dag oude berichten opkuisen, op een rustig uur.
+  // Eén keer per dag oude berichten, logregels en syncrondes opkuisen, op een
+  // rustig uur.
   if (uur === 4) taken.push('opkuis');
 
   // Aparte, lichte synchronisatie voor de aandachtspagina — los van de
@@ -389,6 +403,11 @@ async function voerTakenUit(taken, env, tijdstip) {
         const r = await woensdagTerugval(env, tijdstip);
         console.log(`[YOAssist] woensdag 20 uur: ${r.soort}` +
           (r.resultaat ? `, ${r.resultaat.gescoopt} in de lijst gezet met de API` : ''));
+      }
+
+      if (taak === 'ploegen-woensdag' || taak === 'ploegen-donderdag') {
+        const r = await verwittigPloegen(env, tijdstip, taak === 'ploegen-woensdag' ? 'woensdag' : 'donderdag');
+        console.log(`[YOAssist] ${taak}: ${r.wedstrijden} wedstrijd(en) te kort, ${r.mails} mail(s)`);
       }
 
       if (taak === 'avondcontrole') {
@@ -453,6 +472,11 @@ async function voerTakenUit(taken, env, tijdstip) {
       if (taak === 'opkuis') {
         const weg = await kuisBerichtenOp(env.DB);
         if (weg > 0) console.log(`[YOAssist] ${weg} oude bericht(en) opgekuist`);
+        const logWeg = await kuisLogboekOp(env.DB);
+        const syncWeg = await kuisSyncRunsOp(env.DB);
+        if (logWeg + syncWeg > 0) {
+          console.log(`[YOAssist] opgekuist: ${logWeg} logregel(s), ${syncWeg} syncronde(s)`);
+        }
       }
 
       if (taak === 'volg-sync') {

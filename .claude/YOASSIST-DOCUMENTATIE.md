@@ -1,6 +1,6 @@
 # YOAssist — hoe het werkt
 
-Versie 1.14.0
+Versie 1.17.0
 
 Dit document legt uit wat YOAssist doet, waar het draait en wat er nodig is om
 het draaiende te houden. Bedoeld voor wie de app beheert, en voor wie hem ooit
@@ -72,7 +72,8 @@ blijft zoals hij het zette.
 
 De beheerders krijgen bij elke verwerking een overzicht, met de afwijkingen
 tussen de lijst en de API, en eigen ploegen uit de lijst die niet aan een
-wedstrijd te koppelen waren (bijvoorbeeld door een verschoven uur). Bij Beheer
+wedstrijd te koppelen waren (bijvoorbeeld door een verschoven uur) — ook van
+de clubs die je volgt in Regio (hoofdstuk 9e). Bij Beheer
 → Dagelijks staat onder *Woensdaglijst van de bond* wat er de laatste weken
 binnenkwam.
 
@@ -152,7 +153,9 @@ Eén taak per uur, die zelf beslist wat er op dat Brusselse uur moet gebeuren.
 | 19 uur | Herinnering aan wie morgen fluit |
 | 20 uur | Nakijken of een toegevoegde wedstrijd intussen toch refs kreeg |
 | 7 uur | Herinnering aan wie vandaag fluit |
+| 4 uur | Opruimen: berichten ouder dan 120 dagen, afgehandelde logregels ouder dan een jaar, syncrondes ouder dan 60 dagen |
 | Maandag 8 uur | Overzicht naar beheerders van wat nog niet is aangeduid |
+| Woensdag en donderdag 20 uur | Ploegverantwoordelijken en coaches verwittigen bij te weinig scheidsrechters (hoofdstuk 9b) |
 
 Herinneringen gaan alleen naar wie ze wil; dat staat per persoon in Mijn
 voorkeuren.
@@ -307,9 +310,52 @@ nog geen meldingen hebben, krijgen die uitleg onderaan elke mail.
 
 Mail blijft daarom het betrouwbare kanaal en staat standaard aan.
 
+**Wie krijgt meldingen?** Bij Beheer → Gebruikers staat onder elke naam of
+die persoon meldingen krijgt, en op welke toestellen — met de dag waarop er
+het laatst een aankwam. Een toestel waar de laatste melding niet aankwam,
+staat er in het rood bij als *werkt niet meer*: die persoon krijgt in de
+praktijk enkel mail, en is het waard om even aan te spreken. Onder de lijst
+staat hoeveel actieve gebruikers meldingen krijgen.
+
 ---
 
-## 9b. Berichten en nieuws
+## 9b. Ploegverantwoordelijken en coaches
+
+Zijn er voor een thuiswedstrijd van het komende weekend te weinig
+scheidsrechters, dan krijgen de ploegverantwoordelijken (PV's) en coaches van
+die ploeg bericht:
+
+- **Woensdag 20 uur**: er zijn nog niet genoeg scheidsrechters, de club zoekt
+  een oplossing. Ze hoeven niets te doen.
+- **Donderdag 20 uur**, enkel als het dan nog niet gelukt is: de vraag of
+  iemand van de ploeg kan inspringen — een ouder, of een speler met een
+  scheidsrechterscursus — en bij wie ze zich melden.
+
+Wie woensdag een bericht kreeg en donderdag niet meer, weet zo dat het
+geregeld is.
+
+'Te weinig' betekent: de scheidsrechters van de bond en de officials die de
+club aanduidde, samen minder dan twee — precies wat *nog nodig* in het
+cluboverzicht toont. Een forfait, een categorie waar nooit iemand voor komt
+(G08), en een wedstrijd waarvan een beheerder bevestigde dat er twee
+scheidsrechters zijn, slaan over.
+
+PV's en coaches zijn geen gebruikers van YOAssist: ze loggen niet in en
+krijgen enkel deze mails. Wie PV is van de ene ploeg en coach van een andere,
+krijgt één mail met beide wedstrijden.
+
+**Bijhouden** gebeurt bij Beheer → Configuratie, met twee aparte lijsten.
+*Lijst downloaden* geeft een bestand met elke gevolgde ploeg en wie er al op
+staat; een ploeg zonder iemand staat er met een lege regel in. Vul het aan in
+Excel en lees het in met *Bestand inlezen*. Voor elke ploeg in het bestand
+geldt het bestand: wie er niet meer bij staat, gaat eruit. Een ploeg die niet
+in het bestand staat, blijft zoals ze is — je kan dus ook enkel de regels
+inlezen van de ploegen die veranderen. Je ziet altijd eerst wat er zou
+veranderen. Heeft een ploeg een fout in een regel (een ongeldig adres
+bijvoorbeeld), dan blijft die hele ploeg ongemoeid: anders zou een tikfout
+iemand stilzwijgend van de lijst halen.
+
+## 9c. Berichten en nieuws
 
 Bij je naam staat **Mijn berichten**: wat de app naar jou stuurde, als korte
 samenvatting. Enkel wat effectief aankwam; oudere regels verdwijnen vanzelf.
@@ -328,7 +374,7 @@ bovenaan bij iedereen, met een einddatum. Ze kan met mail en melding meegaan of
 enkel in de app blijven staan. Iedereen kan ze zelf wegklikken; na de einddatum
 verdwijnt ze sowieso.
 
-## 9c. Van buitenaf lezen
+## 9d. Van buitenaf lezen
 
 Twee manieren om aan de gegevens te komen zonder in de app te zitten. Allebei
 alleen lezen; er is geen enkel pad waarlangs iets van buitenaf gewijzigd kan
@@ -355,12 +401,21 @@ abonnement doorgaans pas na enkele uren tot een dag, nooit onmiddellijk.
 **Namen.** Standaard tonen beide alleen initialen. Volledige namen is een
 instelling die een beheerder aanzet bij Beheer.
 
-## 9d. Regio
+## 9e. Regio
 
 Een uitzetbaar tabblad — standaard uit, zoals het logboek — dat wedstrijden
 toont bij clubs die je volgt zonder er zelf iets voor te beheren: waar
 Basketbal Vlaanderen nul of één scheidsrechter heeft toegewezen, komende twee
-weekends, vanaf U14. Bij precies één scheidsrechter staat zijn naam erbij.
+weekends, vanaf U14 — U10, U12 en G08 nooit, want daar duidt de bond
+nooit iemand aan. Bij precies één scheidsrechter staat zijn naam erbij.
+
+Ook hier heeft de woensdaglijst van de bond (hoofdstuk 3) voorrang: staat een
+wedstrijd van een gevolgde club er niet in, dan voorziet de bond twee
+officials en verdwijnt ze uit Regio, ook als er nog geen namen zichtbaar
+zijn. Omdat die lijst maar over het komende weekend gaat, staat bij elke dag
+waar de cijfers vandaan komen: *volgens de lijst van de bond*, of *volgens de
+API — de lijst van de bond volgt woensdag*. Wat bij die tweede staat, kan
+woensdag nog verdwijnen.
 
 Clubs beheer je bij Configuratie: een GUID invullen, de app haalt de naam zelf
 op. Een aparte, lichte synchronisatie ververst dit elke ochtend om 5 uur; een
@@ -368,7 +423,7 @@ knop laat het ook handmatig gebeuren. Diezelfde plek heeft een knop om de
 wedstrijdenlijst leeg te maken zonder de gevolgde clubs te verliezen — handig
 als er ooit iets grondig moet worden opgeruimd.
 
-## 9e. De uitslag
+## 9f. De uitslag
 
 Zodra Basketbal Vlaanderen een uitslag doorgeeft, verschijnt ze naast de
 ploegennamen. Puur ter info; ze telt nergens in mee en wordt automatisch
@@ -421,7 +476,9 @@ scherm Synchronisatie tonen wat de laatste run deed.
 
 **Het logboek** is de eerste plek om te kijken bij een vraag als "waarom staat
 deze wedstrijd er zo bij". Elke wijziging, aanduiding en beheeractie staat er,
-met wie het deed.
+met wie het deed. Afgehandelde regels blijven een jaar staan; een wijziging die
+nog niemand bekeek, blijft tot ze afgehandeld is. Wie verder terug wil, kijkt
+in een backup.
 
 ---
 
@@ -447,6 +504,6 @@ Wat er nodig is om verder te kunnen:
 De code staat onder de **EUPL v1.2**: vrij te gebruiken, aan te passen en door te
 geven onder dezelfde voorwaarden. Zie `LICENSE`.
 
-Voor wie eraan verder wil bouwen zijn er 1754 tests die zonder netwerk draaien
+Voor wie eraan verder wil bouwen zijn er 1870 tests die zonder netwerk draaien
 met `cd test && npm test`. Ze zijn er niet voor de vorm: verschillende ervan
 kwamen er nadat iets stil was misgegaan, en houden dat nu tegen.

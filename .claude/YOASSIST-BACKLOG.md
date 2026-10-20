@@ -3,7 +3,7 @@
 Upload dit als **projectkennis** naast `YOASSIST-CONTEXT.md`. Bijwerken bij elke
 afgewerkte versie.
 
-Stand: **v1.14.0**
+Stand: **v1.17.0**
 
 ---
 
@@ -51,22 +51,15 @@ Stand: **v1.14.0**
 | 1.12.2 | V38: lange berichten in Mijn berichten zijn open te klappen ('lees meer'), met de volledige tekst zoals verstuurd en klikbare links; samenvatting van lang nieuws eindigt op '…' i.p.v. midden in een zin. Schema: kolom `berichten.volledig` (ALTER) |
 | 1.13.0 | V40: forfait herkennen (`AFOR`/`BFOR` in de uitslag van de bond, vaak al weken op voorhand); woensdagregel, herinneringen, automatisch aanvullen en 'nog te beantwoorden' slaan forfaitwedstrijden over; officials zien 'gaat niet door'; eigen aanduidingen automatisch vrijgegeven als het forfait vóór de wedstrijddag gekend is (instelbaar: of enkel melden); forfait gemarkeerd in de vergoedingen. Ook: keuzelijst 'Extern lezen' toonde na herladen altijd 'initialen'. Schema: kolom `matches.forfait` en instelling `forfait_aanduiding` |
 | 1.14.0 | V39: de woensdaglijst van Basketbal Vlaanderen is de bron van de woensdagregel. De app ontvangt de mail zelf (Cloudflare Email Routing, rechtstreeks of doorgestuurd vanuit Gmail), haalt het Excel-bestand op en leest het uit, koppelt de eigen thuiswedstrijden, en verwerkt om 14 uur; geen lijst om 14 uur = waarschuwing, om 20 uur terugval op de API. Afwijkingen en niet te koppelen ploegen naar de beheerders; status bij Beheer. 'Nog nodig' volgt de lijst. Ook: de backup miste 9 van de 21 tabellen (o.a. de facturatie); nu alle 22, met een test tegen het schema. Schema: kolom `matches.bond_officials`, tabel `vbl_lijsten`. Samen met v1.13.0 uitgerold, met één SQL-script |
+| 1.14.1 | V41: Regio toonde ook G08-wedstrijden, waar nooit een scheidsrechter voor komt. De filter is nu een toelatingslijst vanaf U14 (G14 t.e.m. HSE/DSE) in plaats van een uitsluitingslijst van U10/U12; G08, ROL en onbekende categorieën vallen eruit, bestaande rijen verdwijnen bij de volgende Regio-synchronisatie. Geen schemawijziging |
+| 1.14.2 | V33: dagelijkse opruiming om 4 uur, naast die van de berichten: afgehandelde logregels ouder dan een jaar en syncrondes ouder dan 60 dagen. Wat in het logboek nog openstaat, blijft altijd; de laatste backup-regel en de laatste syncronde ook, zodat het beheerscherm na een lange stilte niet 'nooit' toont. Geen schemawijziging |
+| 1.15.0 | V26: bij Beheer → Gebruikers staat per persoon of die pushmeldingen krijgt, op welke toestellen en wanneer er het laatst een aankwam; een toestel waar de laatste melding mislukte staat apart als 'werkt niet meer'. Onderaan een teller over de actieve gebruikers. Gemeten op de toestellen, niet op de voorkeur. Enkel voor beheerders. Geen schemawijziging |
+| 1.16.0 | V42: Regio volgt de woensdaglijst van de bond. Wat er niet in staat, heeft volgens de bond twee officials en verdwijnt uit Regio, ook als de API nog niemand toont; het aantal is het hoogste van API en lijst. Per dag staat erbij of de cijfers uit de lijst komen of nog uit de API (meestal het tweede weekend). Ploegen van gevolgde clubs die in de lijst staan maar niet te koppelen zijn, komen mee in de mail naar de beheerders. Schema: kolommen `volg_wedstrijden.bond_officials` en `vbl_lijsten.volg` (ALTER) |
+| 1.17.0 | V34: ploegverantwoordelijken en coaches krijgen woensdag 20 uur een mail als er voor hun thuiswedstrijd van het weekend te weinig scheidsrechters zijn (bond + club < 2), en donderdag 20 uur opnieuw als het dan nog niet gelukt is, met de vraag om mee te zoeken. Twee aparte lijsten bij Configuratie, bijgehouden met een sjabloon dat al ingevuld is met elke gevolgde ploeg; inlezen vervangt per ploeg in het bestand, altijd eerst een droogloop. Schema: tabellen `ploeg_pv` en `ploeg_coaches` (CREATE) |
 
 ---
 
 ## Openstaand
-
-### V26 — Overzicht van wie meldingen heeft aanstaan
-**Nog uit te werken.** Een lijst of teller bij Beheer die toont wie er
-push-meldingen op minstens één toestel heeft geactiveerd, zodat je kan
-inschatten hoeveel officials via mail alléén bereikt worden versus mail en
-meldingen samen.
-
-Nog te bepalen: enkel een teller ('14 van de 22 hebben meldingen aan'), of een
-volledige lijst per persoon met welke toestellen? Dat laatste raakt privacy
-lichtjes — het toont iets over het gedrag van een official (heeft hij de moeite
-gedaan om het in te stellen), dus vermoedelijk enkel zichtbaar voor beheerders,
-niet voor andere officials.
 
 ### V32 — Pushmelding tikken op smartphone: uitzoeken of het echt naar Mijn berichten gaat
 **Nog uit te zoeken, geen bug bevestigd.** Ontstaan uit een vraag of tikken op
@@ -95,137 +88,6 @@ Nog te bepalen bij het testen:
 
 Hangt samen met het bredere punt onderaan CONTEXT.md: de app is nog nooit met
 echte officials op echte toestellen getest.
-
-### V33 — Dagelijkse opruiming van de databank (logboek, sync_runs)
-**Nog uit te werken.** `berichten` heeft al een opruiming: `kuisBerichtenOp()`
-wist rijen ouder dan 120 dagen, aangeroepen vanuit de bestaande `opkuis`-taak
-in de uur-cron (`src/index.js`). Die functie zegt in haar eigen commentaar
-letterlijk "Dezelfde aanpak als het logboek" — maar voor `logboek` en
-`sync_runs` bestaat die opruiming niet. Beide groeien ongelimiteerd:
-`logboek` krijgt een rij bij elke synchronisatie, wijziging, aanduiding en
-beheeractie; `sync_runs` een rij per synchronisatieronde (vier keer per dag
-via de cron, plus elke handmatige run erbovenop).
-
-Voorstel om op verder te bouwen: dezelfde `opkuis`-taak uitbreiden met een
-`kuisLogboekOp()` en `kuisSyncRunsOp()`, naar het voorbeeld van
-`kuisBerichtenOp()`.
-
-Nog te bepalen:
-- **Bewaartermijn per tabel**, en die hoeft niet gelijk te zijn. `logboek` is
-  volgens DOCUMENTATIE.md "de eerste plek om te kijken bij een vraag als
-  'waarom staat deze wedstrijd er zo bij'" — te snel wissen ondermijnt dat
-  doel. `sync_runs` is puur operationeel/diagnostisch en kan waarschijnlijk
-  met een kortere termijn.
-- **Nooit iets wissen dat nog opvolging vraagt.** `logboek.afgehandeld = 0`
-  markeert wedstrijdwijzigingen die nog bekeken moeten worden; die horen
-  nooit automatisch te verdwijnen, hoe oud ook, tot een beheerder ze afhandelt.
-  Enkel `afgehandeld = 1`-rijen (en sowieso alle `beheer`-rijen, die staan al
-  meteen op 1) zouden na de bewaartermijn mogen verdwijnen.
-- Of dit gewoon een `DELETE ... WHERE vastgesteld < datetime('now', ?)` wordt
-  zoals bij `berichten`, of dat er eerst nog samengevat/gearchiveerd moet
-  worden vóór het wissen.
-
-### V34 — Ploegverantwoordelijken en coaches informeren bij te weinig scheidsrechters
-**Nog uit te werken.** Drie onderdelen, uit de vraag zelf:
-
-**1) Beheer: aparte lijst van PV en aparte lijst van coaches** — twee eigen
-lijsten, niet één gecombineerde lijst met een type-veld. Elk geladen via een
-sjabloon met kolommen Voornaam, Naam, e-mail, team. Belangrijk verschil met de
-bestaande CSV-import van gebruikers: dit zijn geen YOAssist-gebruikers. PV's
-en coaches loggen niet in, zitten niet achter Cloudflare Access, en hebben
-geen rol (YO/YO+/Beheerder). Dit wordt dus vermoedelijk twee nieuwe tabellen —
-geen uitbreiding van `users` — met enkel contactgegevens gekoppeld aan een
-team (`team`-veld, te koppelen aan de bestaande teams-tabel/GUID's uit de
-VBL-sync). **Meer dan één PV en meer dan één coach per team kan**; bij een
-tekort aan scheidsrechters krijgen ze dan allemaal een mail.
-
-**2) Bericht op woensdagavond, opnieuw op donderdag.** Als er voor hun
-wedstrijd geen of maar één scheidsrechter is, krijgen alle PV's en coaches van
-dat team
-een mail dat er een oplossing wordt gezocht. Is dat op donderdag nog niet
-gelukt, volgt een tweede bericht. Dit sluit aan bij de bestaande woensdagregel
-(woensdag 14u, weekendwedstrijden met minder dan twee VBL-refs) maar is er niet
-hetzelfde als: die regel voegt wedstrijden toe aan de lijst en verwittigt de
-eigen YO+'ers; dit nieuwe stuk verwittigt externe contacten op een later
-moment (avond) over hetzelfde soort wedstrijden, en opnieuw op donderdag als
-het probleem blijft bestaan.
-
-**3) De sjabloonexport moet alle ploegen bevatten die beheerd/geladen worden**
-(dus elk gevolgd team uit de teams-tabel), met de reeds ingevulde PV's en
-coaches erbij — niet enkel de teams waar al iemand voor is ingevuld, en niet
-enkel een lege lay-out. Zo ziet een beheerder in één overzicht welke teams nog
-geen PV of coach hebben. Dat wijkt af van hoe het sjabloon voor gebruikers nu
-werkt (`GET /api/admin/users/template`): dat is vandaag een leeg sjabloon met
-één voorbeeldregel, bedoeld om de vorm te tonen — niet om ingelezen te worden
-en niet gevuld met bestaande data. Voor PV/coaches moet het sjabloon dus een
-andere aanpak krijgen (of enkel voor deze twee sjablonen, of een algemene
-wijziging aan hoe sjablonen werken — te bepalen).
-
-Nog te bepalen:
-- Exacte tijdstippen op woensdagavond en donderdag (de bestaande cron draait
-  per uur; dit wordt vermoedelijk twee nieuwe taken daarin, naar het patroon
-  van de woensdagregel en de wekelijkse herinneringen).
-- Gaat dit via `verwittigen.js`, zoals de vaste regel in INSTRUCTIES.md
-  voorschrijft ("berichten altijd via verwittigen.js")? Dat kanaal is nu
-  gebouwd rond geregistreerde `users` met een eigen voorkeur (mail/push); een
-  PV/coach heeft geen account en dus geen voorkeur — dit vraagt vermoedelijk
-  een uitbreiding van `verwittigen.js` voor mail-only externe ontvangers, in
-  plaats van rechtstreeks naar `mailer.js` te gaan.
-- Toon van het tweede bericht (donderdag): een herhaalde herinnering, of een
-  erkenning dat het (nog) niet gelukt is?
-- Telt "maar één scheidsrechter" even zwaar als "geen enkele", of is één toch
-  voldoende om geen bericht te sturen?
-
-### V41 — Regio: G08-wedstrijden horen er niet in
-**Bug, klaar om te bouwen.** In Regio staan ook wedstrijden van G08. Daar
-wordt nooit een scheidsrechter of Youth Official voor voorzien, dus ze horen
-er nooit in te staan.
-
-Oorzaak: `volgsync.js` werkt met een uitsluitingslijst (`ZONDER_U10U12` =
-G10, G12, M12) in plaats van met wat er wél in mag. Alles wat daar niet in
-staat glipt door — G08, maar ook ROL, een onbekende code, of een wedstrijd
-waarvan `categorieUitGuid()` null teruggeeft (die wordt nu doorgelaten).
-
-Voorstel (standaardkeuze): omdraaien naar een toelatingslijst — enkel de
-categorieën vanaf U14 uit de categorietabel (G14, M14, J16, M16, J18, M19,
-J21, HSE, DSE); een onbekende of ontbrekende code valt eruit. Zo komt een
-nieuwe jeugdcategorie van de bond er niet ongemerkt bij. Bestaande
-G08-rijen verdwijnen vanzelf bij de volgende volgsync (opruiming op
-tijdstempel). Geen schemawijziging.
-
-Nog te bepalen: niets, tenzij de toelatingslijst uit de databank (tarieven)
-moet komen in plaats van vast in de code. Voorstel: vast in de code — de
-tarieventabel bevat ook U10/U12.
-
-### V42 — Regio bijwerken met de woensdaglijst van de bond
-**Nog uit te werken.** De woensdaglijst (V39) bevat alle wedstrijden van het
-komende weekend in heel Vlaanderen met 0 of 1 official — dus ook die van de
-gevolgde clubs. Daarmee kan Regio hetzelfde rechtzetten als bij de eigen
-wedstrijden: wat níet in de lijst staat, heeft volgens de bond 2 officials,
-ook als de API nog niemand toont.
-
-Wat er al is: `woensdaglijst.js` leest de volledige lijst al in en koppelt op
-datum + uur + thuisploeg (genormaliseerd). `vbl_lijsten` bewaart echter enkel
-de eigen wedstrijden (`eigen`), niet de rest van de lijst.
-
-Voorstel (standaardkeuze): bij het verwerken van de lijst ook koppelen tegen
-`volg_wedstrijden` (zelfde sleutel, `thuis_naam`), en het resultaat in een
-nieuwe kolom `volg_wedstrijden.bond_officials` zetten, naar het voorbeeld van
-`matches.bond_officials`. Regio toont dan het hoogste van API en lijst; een
-wedstrijd die niet in de lijst staat, verdwijnt uit Regio. Schema: één kolom
-erbij, `ALTER TABLE ... ADD COLUMN` volstaat.
-
-Nog te bepalen:
-- De lijst dekt enkel het komende weekend; Regio toont er twee. Het tweede
-  weekend blijft op de API leunen — expliciet zo tonen, of niets doen?
-- Volgorde met de volgsync: die draait om 5 uur en schrijft de rijen
-  opnieuw. Mag die `bond_officials` niet overschrijven (kolom niet aanraken
-  in de upsert), en wanneer vervalt de waarde — na het weekend vanzelf,
-  want dan valt de wedstrijd buiten Regio.
-- Een gevolgde ploeg uit de lijst die niet te koppelen is (verschoven uur):
-  melden aan de beheerders zoals bij de eigen ploegen, of stil laten?
-- Komt er een eigen verversing van Regio direct na het verwerken van de
-  lijst, of volstaat het dat de pagina het bij het volgende openen toont?
 
 ### V43 — Eigen aanduidingen bij Basketbal Vlaanderen in het aanduidingenscherm
 **Beslist, eerst uit te zoeken, dan te bouwen.** Officials die ook door de

@@ -29,6 +29,30 @@ function geldigEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
 }
 
+/**
+ * Bereikt een pushmelding deze persoon? (V26)
+ *
+ * Gemeten op de toestellen, niet enkel op `kanaal_push`: die vlag zegt wat
+ * iemand ooit wilde, niet of er een toestel is dat de melding ontvangt. Een
+ * toestel waarvan de laatste poging mislukte (`mislukt` > 0), telt niet als
+ * 'aan' — dan krijgt die persoon in de praktijk enkel mail, en is het de
+ * moeite om hem aan te spreken. Een verlopen abonnement staat er niet meer:
+ * dat wist `verwittigen.js` al bij de eerste poging.
+ *
+ * @returns {{status: 'aan'|'werkt-niet'|'uit', toestellen: object[]}}
+ */
+export function meldingenStatus(kanaalPush, toestellen) {
+  // Push uitgezet: dan gaat er niets naar die toestellen, ook al staan ze er.
+  if (kanaalPush !== 1 || toestellen.length === 0) return { status: 'uit', toestellen: [] };
+
+  const lijst = toestellen.map((t) => ({
+    toestel: t.toestel,
+    laatstOk: t.laatst_ok,
+    werkt: t.mislukt === 0,
+  }));
+  return { status: lijst.some((t) => t.werkt) ? 'aan' : 'werkt-niet', toestellen: lijst };
+}
+
 /** GET /api/admin/users */
 export async function lijst({ env }) {
   const { results: koppelingen } = await env.DB
@@ -43,9 +67,20 @@ export async function lijst({ env }) {
     oudersPer.set(k.kind_email, [...(oudersPer.get(k.kind_email) ?? []), k.ouder_email]);
   }
 
+  // Alle toestellen in één keer: een lijst adressen als filter zou bij een
+  // grote club tegen D1's grens van honderd parameters lopen.
+  const { results: abonnementen } = await env.DB
+    .prepare('SELECT user_email, toestel, laatst_ok, mislukt FROM push_abonnementen ORDER BY id')
+    .all()
+    .catch(() => ({ results: [] }));
+  const toestellenPer = new Map();
+  for (const a of abonnementen) {
+    toestellenPer.set(a.user_email, [...(toestellenPer.get(a.user_email) ?? []), a]);
+  }
+
   const { results } = await env.DB.prepare(
     `SELECT u.email, u.voornaam, u.achternaam, u.is_admin, u.profiel, u.club_guid,
-            u.gsm, u.actief, c.naam AS club_naam,
+            u.gsm, u.actief, u.kanaal_push, c.naam AS club_naam,
             (SELECT COUNT(*) FROM availability a WHERE a.user_email = u.email) AS aantal_antwoorden
        FROM users u
        LEFT JOIN clubs c ON c.guid = u.club_guid
@@ -69,6 +104,7 @@ export async function lijst({ env }) {
     bellen: belLink(r.gsm),
     actief: r.actief === 1,
     aantalAntwoorden: r.aantal_antwoorden,
+    meldingen: meldingenStatus(r.kanaal_push, toestellenPer.get(r.email) ?? []),
   }));
 
   return json({
@@ -77,6 +113,7 @@ export async function lijst({ env }) {
     // Inactieve laten staan zou seats blijven opeten.
     accessLijst: gebruikers.filter((g) => g.actief).map((g) => g.email).join('\n'),
     aantalActief: gebruikers.filter((g) => g.actief).length,
+    aantalMeldingenAan: gebruikers.filter((g) => g.actief && g.meldingen.status === 'aan').length,
   });
 }
 

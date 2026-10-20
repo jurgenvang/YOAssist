@@ -1,3 +1,5 @@
+DROP TABLE IF EXISTS ploeg_coaches;
+DROP TABLE IF EXISTS ploeg_pv;
 DROP TABLE IF EXISTS vbl_lijsten;
 DROP TABLE IF EXISTS volg_wedstrijden;
 DROP TABLE IF EXISTS volg_clubs;
@@ -226,7 +228,8 @@ CREATE TABLE IF NOT EXISTS volg_wedstrijden (
   cat_code    TEXT,
   vbl_aantal  INTEGER NOT NULL DEFAULT 0,
   vbl_naam    TEXT,
-  laatst_gezien TEXT NOT NULL DEFAULT (datetime('now'))
+  laatst_gezien TEXT NOT NULL DEFAULT (datetime('now')),
+  bond_officials INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_volg_wedstrijden_datum ON volg_wedstrijden (datum, uur);
 CREATE INDEX IF NOT EXISTS idx_volg_wedstrijden_club ON volg_wedstrijden (club_guid);
@@ -309,6 +312,25 @@ CREATE TABLE IF NOT EXISTS vbl_lijsten (
   meldingen    TEXT,
   status       TEXT NOT NULL CHECK (status IN ('ontvangen', 'verwerkt', 'dubbel', 'fout')),
   fout         TEXT,
-  verwerkt_op  TEXT
+  verwerkt_op  TEXT,
+  volg         TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_vbl_lijsten_weekend ON vbl_lijsten (weekend_van, status);
+CREATE TABLE IF NOT EXISTS ploeg_pv (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  team_guid   TEXT NOT NULL,
+  voornaam    TEXT NOT NULL,
+  achternaam  TEXT,
+  email       TEXT NOT NULL,
+  toegevoegd  TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (team_guid, email)
+);
+CREATE TABLE IF NOT EXISTS ploeg_coaches (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  team_guid   TEXT NOT NULL,
+  voornaam    TEXT NOT NULL,
+  achternaam  TEXT,
+  email       TEXT NOT NULL,
+  toegevoegd  TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (team_guid, email)
+);

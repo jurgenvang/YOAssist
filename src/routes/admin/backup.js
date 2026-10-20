@@ -50,6 +50,8 @@ export const TABELLEN = [
   'availability',
   'sync_runs',
   'vbl_lijsten',
+  'ploeg_pv',
+  'ploeg_coaches',
 ];
 
 /** GET /api/admin/backup — het volledige bestand. */

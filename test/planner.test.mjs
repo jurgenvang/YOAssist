@@ -40,7 +40,9 @@ console.log('\n2. Welke taken op welk moment');
   check('zaterdag 14:00 niets', takenVoor({ uur: 14, weekdag: zaterdag }), []);
   check('20:00 avondcontrole', takenVoor({ uur: 20, weekdag: 1 }), ['avondcontrole']);
   check('woensdag 20:00 ook de terugval (V39)', takenVoor({ uur: 20, weekdag: woensdag }),
-    ['woensdag-terugval', 'avondcontrole']);
+    ['woensdag-terugval', 'ploegen-woensdag', 'avondcontrole']);
+  check('donderdag 20:00 de tweede ronde naar PV en coaches (V34)', takenVoor({ uur: 20, weekdag: 4 }),
+    ['ploegen-donderdag', 'avondcontrole']);
   check('19:00 herinnering voor morgen', takenVoor({ uur: 19, weekdag: 1 }), ['herinnering-avond']);
   check('07:00 herinnering voor vandaag', takenVoor({ uur: 7, weekdag: 1 }), ['herinnering-ochtend']);
   check('maandag 08:00 weekoverzicht', takenVoor({ uur: 8, weekdag: 1 }), ['weekoverzicht']);

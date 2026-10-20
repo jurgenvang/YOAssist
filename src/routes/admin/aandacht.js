@@ -76,9 +76,13 @@ export async function aandacht({ env }) {
   const totIso = tot.toISOString().slice(0, 10);
 
   const { results } = await env.DB.prepare(
-    `SELECT guid, club_guid, club_naam, thuis_naam, uit_naam, datum, uur, vbl_aantal, vbl_naam
+    // Het hoogste van API en woensdaglijst (V42), zoals vblOfficials() bij de
+    // eigen wedstrijden: staat een wedstrijd niet in de lijst, dan voorziet de
+    // bond er twee, ook als de API nog niemand toont.
+    `SELECT guid, club_guid, club_naam, thuis_naam, uit_naam, datum, uur, vbl_aantal, vbl_naam,
+            bond_officials
        FROM volg_wedstrijden
-      WHERE datum BETWEEN ? AND ? AND vbl_aantal <= 1
+      WHERE datum BETWEEN ? AND ? AND MAX(vbl_aantal, COALESCE(bond_officials, 0)) <= 1
       ORDER BY datum, uur, club_naam COLLATE NOCASE`,
   )
     .bind(vandaagIso, totIso)
@@ -99,7 +103,11 @@ export async function aandacht({ env }) {
       uit: r.uit_naam,
       datum: r.datum,
       uur: r.uur,
-      aantalRefs: r.vbl_aantal,
+      aantalRefs: Math.max(r.vbl_aantal, r.bond_officials ?? 0),
+      // 'lijst': de woensdaglijst van de bond is al verwerkt voor deze
+      // wedstrijd; 'api': nog niet (meestal het tweede weekend), dus kan ze
+      // woensdag nog verdwijnen.
+      bron: r.bond_officials === null ? 'api' : 'lijst',
       // Enkel gevuld bij precies één ref — zie de uitleg bij de sync.
       naam: r.vbl_naam,
     })),

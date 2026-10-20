@@ -451,7 +451,12 @@ CREATE TABLE IF NOT EXISTS volg_wedstrijden (
   -- info (wie te bereiken om aan te vullen). Bij nul is er niemand om te
   -- noemen; bij twee of meer toont de pagina de wedstrijd toch al niet.
   vbl_naam    TEXT,
-  laatst_gezien TEXT NOT NULL DEFAULT (datetime('now'))
+  laatst_gezien TEXT NOT NULL DEFAULT (datetime('now')),
+  -- Wat de woensdaglijst van de bond zegt (V42): 0 of 1 als de wedstrijd in
+  -- de lijst staat, 2 als ze er niet in staat. NULL = (nog) geen lijst voor
+  -- dit weekend; dan geldt enkel de API. Achteraan, zodat een ALTER TABLE
+  -- dezelfde tabel oplevert.
+  bond_officials INTEGER
 );
 
 CREATE INDEX IF NOT EXISTS idx_volg_wedstrijden_datum ON volg_wedstrijden (datum, uur);
@@ -609,7 +614,41 @@ CREATE TABLE IF NOT EXISTS vbl_lijsten (
   meldingen    TEXT,                    -- JSON: niet te koppelen rijen, afwijkende reeksen
   status       TEXT NOT NULL CHECK (status IN ('ontvangen', 'verwerkt', 'dubbel', 'fout')),
   fout         TEXT,
-  verwerkt_op  TEXT
+  verwerkt_op  TEXT,
+  volg         TEXT                     -- JSON: Regio (V42) — {officials: [{guid, officials}], nietGekoppeld}
 );
 
 CREATE INDEX IF NOT EXISTS idx_vbl_lijsten_weekend ON vbl_lijsten (weekend_van, status);
+
+-- ---------------------------------------------------------------------------
+-- ploeg_pv en ploeg_coaches: ploegverantwoordelijken en coaches per ploeg
+-- (V34). Geen YOAssist-gebruikers: ze loggen niet in en hebben geen rol, dus
+-- geen rij in `users`. Ze krijgen enkel een mail als er voor hun wedstrijd
+-- te weinig scheidsrechters zijn.
+--
+-- Twee tabellen en geen tabel met een type-kolom: het zijn twee lijsten die
+-- apart beheerd en ingelezen worden, en een nieuwe soort zou dan een CHECK
+-- wijzigen — dat kan niet met ALTER.
+--
+-- Geen foreign key naar `teams`: die tabel wordt bij het laden van teams
+-- bijgewerkt, en een reset van de teams mag deze lijsten niet meenemen.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ploeg_pv (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  team_guid   TEXT NOT NULL,
+  voornaam    TEXT NOT NULL,
+  achternaam  TEXT,
+  email       TEXT NOT NULL,
+  toegevoegd  TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (team_guid, email)
+);
+
+CREATE TABLE IF NOT EXISTS ploeg_coaches (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  team_guid   TEXT NOT NULL,
+  voornaam    TEXT NOT NULL,
+  achternaam  TEXT,
+  email       TEXT NOT NULL,
+  toegevoegd  TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (team_guid, email)
+);

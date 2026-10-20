@@ -12,10 +12,12 @@ import { clubWedstrijden, normaliseerWedstrijd, VblError } from './vbl.js';
  * - Faalt één club, dan gaan de andere gewoon door; net als bij de hoofdsync
  *   mag één trage of foutieve club de rest niet blokkeren.
  */
-// Categorieën die YOAssist bewust buiten deze pagina houdt: U10 en U12 worden
-// altijd automatisch aangeduid, dus staan zelden of nooit krap. Enkel vanaf
-// U14 heeft het zin om hier op te letten.
-const ZONDER_U10U12 = new Set(['G10', 'G12', 'M12']);
+// Enkel vanaf U14 heeft het zin om hier op te letten: U10 en U12 worden altijd
+// door de club zelf aangeduid, en voor G08 voorziet niemand een scheidsrechter.
+// Bewust een lijst van wat erin mag en niet van wat eruit moet: met de
+// uitsluitingslijst van vroeger glipte alles door wat er niet op stond — G08,
+// ROL, en elke nieuwe jeugdcategorie die de bond ooit invoert.
+const VANAF_U14 = new Set(['G14', 'M14', 'J16', 'M16', 'J18', 'M19', 'J21', 'HSE', 'DSE']);
 
 /**
  * Haalt de driecijferige categoriecode uit een team-GUID.
@@ -77,8 +79,10 @@ export async function synchroniseerVolgClubs(db) {
       // niet correct is doorgekomen, niet een echte wedstrijd om 00:00.
       if (w.uur === '00:00') continue;
 
+      // Een onbekende of ontbrekende code valt er ook uit: liever een
+      // wedstrijd te weinig op deze pagina dan een die er niet hoort.
       const catCode = categorieUitGuid(w.thuisGuid, club.guid);
-      if (catCode && ZONDER_U10U12.has(catCode)) continue;
+      if (!VANAF_U14.has(catCode)) continue;
 
       // Enkel bij precies één scheidsrechter is een naam bruikbare info: dan
       // weet een beheerder wie hij kan aanspreken om aan te vullen. Bij nul
@@ -97,7 +101,13 @@ export async function synchroniseerVolgClubs(db) {
                club_naam = excluded.club_naam, thuis_naam = excluded.thuis_naam,
                uit_naam = excluded.uit_naam, datum = excluded.datum, uur = excluded.uur,
                cat_code = excluded.cat_code, vbl_aantal = excluded.vbl_aantal,
-               vbl_naam = excluded.vbl_naam, laatst_gezien = excluded.laatst_gezien`,
+               vbl_naam = excluded.vbl_naam, laatst_gezien = excluded.laatst_gezien,
+               -- Wat de woensdaglijst zei, blijft staan: deze synchronisatie
+               -- kent de lijst niet. Behalve als de wedstrijd verschoof — dan
+               -- ging de lijst over een ander moment, en geldt weer de API.
+               bond_officials = CASE
+                 WHEN volg_wedstrijden.datum = excluded.datum AND volg_wedstrijden.uur = excluded.uur
+                 THEN volg_wedstrijden.bond_officials END`,
           )
           .bind(
             w.guid, club.guid, club.naam, w.thuisNaam, w.uitNaam, w.datum, w.uur,

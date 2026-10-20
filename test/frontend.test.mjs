@@ -877,6 +877,63 @@ console.log('\nV40. Forfait in de schermen');
   check('vergoeding: wel weg te halen', verg.includes('data-fact-weg="X"'), true);
 }
 
+console.log('\nV26. Wie krijgt meldingen, bij Gebruikers');
+{
+  const bron = ['tekst', 'meldingenRegel'].map(haalFunctie).join('\n');
+  const { meldingenRegel } = new Function(`${bron}; return { meldingenRegel };`)();
+
+  check('uit: enkel mail', meldingenRegel({ status: 'uit', toestellen: [] }).includes('enkel mail'), true);
+  check('oud antwoord zonder veld: enkel mail', meldingenRegel(undefined).includes('enkel mail'), true);
+
+  const aan = meldingenRegel({ status: 'aan', toestellen: [
+    { toestel: 'iPhone', laatstOk: '2026-10-08 19:00:00', werkt: true },
+    { toestel: null, laatstOk: null, werkt: true },
+    { toestel: 'Chrome Windows', laatstOk: '2026-09-01 08:00:00', werkt: false },
+  ] });
+  check('aan: groen', aan.includes('meld-aan'), true);
+  check('per toestel met datum', aan.includes('iPhone (laatst 8/10)'), true);
+  check('nog nooit iets ontvangen', aan.includes('onbekend toestel (nog niets ontvangen)'), true);
+  check('kapot toestel apart benoemd', aan.includes('Chrome Windows (werkt niet meer)'), true);
+
+  const stuk = meldingenRegel({ status: 'werkt-niet', toestellen: [
+    { toestel: '<b>x</b>', laatstOk: '2026-09-01 08:00:00', werkt: false }] });
+  check('werkt niet: rood', stuk.includes('meld-stuk'), true);
+  check('toestelnaam ontsnapt', stuk.includes('<b>'), false);
+
+  const laad = haalFunctie('laadGebruikers');
+  check('regel staat in de gebruikersrij', laad.includes('meldingenRegel(g.meldingen)'), true);
+  check('teller bovenaan', laad.includes('data.aantalMeldingenAan'), true);
+}
+
+console.log('\nV42. Regio zegt waar de cijfers vandaan komen');
+{
+  const { regioBron } = new Function(`${haalFunctie('regioBron')}; return { regioBron };`)();
+  check('alles uit de lijst', regioBron([{ bron: 'lijst' }, { bron: 'lijst' }]).includes('volgens de lijst van de bond'), true);
+  check('nog geen lijst', regioBron([{ bron: 'api' }]).includes('volgens de API'), true);
+  check('gemengd: voorzichtig, API', regioBron([{ bron: 'lijst' }, { bron: 'api' }]).includes('volgens de API'), true);
+  check('label per dag in Regio', haalFunctie('toonAandacht').includes('regioBron('), true);
+}
+
+console.log('\nV34. Ploegverantwoordelijken en coaches bij Configuratie');
+{
+  const { ploegcontactenHtml } = new Function(
+    `${['tekst', 'ploegcontactenHtml'].map(haalFunctie).join('\n')}; return { ploegcontactenHtml };`)();
+  const html = ploegcontactenHtml({ teams: [
+    { naam: 'Bears J16 A', personen: [{ voornaam: 'Jan', achternaam: 'Peeters', email: 'jan@x.be' }] },
+    { naam: 'Bears <J18>', personen: [] },
+  ] });
+  check('telt de ploegen zonder iemand', html.includes('1 nog zonder iemand'), true);
+  check('lege ploeg valt op', html.includes('nog niemand'), true);
+  check('wie erop staat', html.includes('Jan Peeters') && html.includes('jan@x.be'), true);
+  check('ploegnaam ontsnapt', html.includes('<J18>'), false);
+  check('geen ploegen', ploegcontactenHtml({ teams: [] }).includes('Nog geen gevolgde ploegen'), true);
+
+  const droog = haalFunctie('toonPloegcontactImport');
+  check('droogloop: pas doorvoeren na bevestigen', droog.includes('uitvoeren: true') && droog.includes('pc-bevestig-'), true);
+  check('sectie en knoppen in het beheer', html !== '' && /data-pc-sjabloon=/.test(readFileSync(new URL('../public/index.html', import.meta.url), 'utf8')), true);
+  check('wordt geladen bij het beheer', /bindPloegcontacten\(\);/.test(readFileSync(new URL('../public/index.html', import.meta.url), 'utf8')), true);
+}
+
 console.log('\nV39. De woensdaglijst in de schermen');
 {
   const bron = ['tekst', 'forfaitTekst', 'overzichtKaart'].map(haalFunctie).join('\n');

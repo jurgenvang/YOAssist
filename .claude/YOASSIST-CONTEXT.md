@@ -3,7 +3,7 @@
 Upload dit als **projectkennis**. Het bevat wat een volgend gesprek moet weten om
 verder te kunnen zonder alles opnieuw uit te vragen.
 
-Laatst bijgewerkt: v1.14.0
+Laatst bijgewerkt: v1.17.0
 
 ---
 
@@ -128,6 +128,10 @@ anders liet doorglippen. En: D1's honderd-parametergrens raakt snel bereikt bij
 een lijst GUID's als filter; de opruiming gebruikt daarom een tijdstempel per
 synchronisatieronde in plaats van een lijst sleutels.
 Bij precies één scheidsrechter toont de pagina ook zijn naam.
+De categoriefilter is een toelatingslijst (`VANAF_U14` in `volgsync.js`),
+geen uitsluitingslijst: tot v1.14.1 stonden enkel G10/G12/M12 op een
+zwarte lijst, en glipte G08 erdoor — een categorie waar nooit een
+scheidsrechter voor komt. Een onbekende of ontbrekende code valt er nu uit.
 Een knop bij Configuratie maakt de wedstrijdenlijst leeg zonder de gevolgde
 clubs te raken.
 
@@ -160,6 +164,16 @@ wijzigen, en dat vraagt een DROP van `matches`. Elke onverwachte vorm (afzender,
 onderwerp, link, kolommen, datums) faalt luid naar de beheerders en wordt in
 `vbl_lijsten` bewaard. De mailhandler gooit nooit: een geweigerde mail kaatst
 terug naar de bond.
+**Ook Regio volgt de lijst** (V42), met dezelfde regel: in de lijst = 0 of 1,
+niet in de lijst = 2, het hoogste van API en lijst telt. De koppeling met
+`volg_wedstrijden` gebeurt bij ontvangst en wordt per GUID bewaard in
+`vbl_lijsten.volg`; pas bij het verwerken komt ze in
+`volg_wedstrijden.bond_officials`. Enkel voor rijen die er bij ontvangst al
+waren: een club die later gevolgd wordt, is niet tegen de lijst gelegd en mag
+dus geen '2' krijgen. Een lijst zonder `volg` (van vóór v1.16.0) laat Regio
+ongemoeid. De volgsync van 5 uur raakt `bond_officials` niet, tenzij datum of
+uur veranderde — dan ging de lijst over een ander moment. Regio toont per
+dag de bron ('lijst' of 'api'): de lijst dekt één weekend, Regio twee.
 
 **Forfait is een eigen kolom, geen uitslag** (V40). De bond zet een forfait als
 administratieve score met een code: `' 20-  0  BFOR'` (bezoekers) of
@@ -190,6 +204,11 @@ zegt enkel wat iemand ooit wilde; `pushManager.getSubscription()` zegt of dit
 toestel werkelijk is ingeschreven. Die twee liepen uiteen, met een schakelaar
 op 'aan' zonder manier om het alsnog in te stellen. De schakelaar toont nu het
 echte abonnement en (de-)abonneert bij het omzetten.
+Hetzelfde principe bij Beheer → Gebruikers (V26): 'krijgt meldingen' komt uit
+`push_abonnementen` (`meldingenStatus` in `gebruikers.js`), niet uit
+`kanaal_push` alleen. Een toestel met `mislukt` > 0 telt niet als 'aan' maar
+staat apart als 'werkt niet meer'; een verlopen abonnement is er dan al uit,
+want `verwittigen.js` wist het bij de eerste poging.
 
 **Berichten: een samenvatting voor de lijst, en de volledige tekst om te
 openen.** `berichten` houdt bij wat er naar iemand ging — enkel bij succes;
@@ -202,6 +221,30 @@ wedstrijd wordt bij het opvragen opgehaald, niet meebewaard, zodat een
 verplaatste wedstrijd de wedstrijdregel niet fout maakt; de volledige tekst
 staat er expliciet als 'zoals verstuurd'. Berichten van vóór v1.12.2 hebben
 `volledig = NULL` en krijgen geen 'lees meer'.
+
+**Opruimen, maar nooit wat nog opvolging vraagt** (V33). Om 4 uur Brussel
+wist de `opkuis`-taak berichten ouder dan 120 dagen (`kuisBerichtenOp`),
+afgehandelde logregels ouder dan een jaar en syncrondes ouder dan 60 dagen
+(`opkuis.js`). Geen archief vooraf: de backup is het archief. Een logregel
+met `afgehandeld = 0` blijft altijd staan. De laatste backup-regel en de
+laatste syncronde blijven ook, hoe oud ook: het beheerscherm leest daaruit
+'laatste backup' en 'laatste synchronisatie', en na een lange stilte moet
+daar een datum staan, niet 'nooit'.
+
+**PV's en coaches zijn geen gebruikers** (V34). Twee eigen tabellen,
+`ploeg_pv` en `ploeg_coaches` — geen rij in `users`, geen Access, geen rol; en
+geen tabel met een type-kolom, want een nieuwe soort zou dan een CHECK wijzigen.
+Geen foreign key naar `teams`: een reset van de teams mag deze lijsten niet
+meenemen. Ze krijgen mail via `verwittigExtern` (geen voorkeuren, geen push),
+dus nog altijd via `verwittigen.js`. Woensdag en donderdag 20 uur, na de
+terugval van de woensdagregel. 'Te weinig' is bond + club < 2 — dezelfde
+berekening als *nog nodig* in het cluboverzicht, los van of de wedstrijd in de
+aanduidingslijst staat; forfait, onbekende categorie en `refs_bevestigd` slaan
+over. Eén mail per persoon, ook als hij bij meerdere ploegen staat.
+Het sjabloon is, anders dan dat voor gebruikers, de lijst zelf: elke gevolgde
+ploeg met wie er al op staat. Inlezen vervangt per ploeg in het bestand; een
+ploeg met één foute regel blijft helemaal ongemoeid, zodat een tikfout niemand
+stil van de lijst haalt.
 
 **Eén mededeling tegelijk.** `mededelingen` heeft één actieve rij met een
 `geldig_tot`; wegklikken staat per persoon in `mededeling_gezien`. Verlopen geldt
@@ -307,6 +350,9 @@ src/lib/volgsync.js          aparte synchronisatie voor Regio (V31), vanaf U14
 src/routes/admin/aandacht.js Regio: gevolgde clubs, aandachtslijst, wis-knop
 src/routes/admin/herinnering.js  handmatige herinnering wie nog niet invulde
 src/lib/logboek.js           vorm van een logregel
+src/lib/opkuis.js            dagelijkse opruiming van logboek en sync_runs (V33)
+src/lib/ploegcontacten.js    PV's en coaches: lijsten, inlezen, verwittigen (V34)
+src/routes/admin/ploegcontacten.js  lijst, ingevuld sjabloon, import met droogloop
 src/lib/mailer.js            versturen via Resend, templates, zandbakgrens
 src/lib/push.js              Web Push: VAPID-JWT en aes128gcm met WebCrypto
 src/lib/verwittigen.js       één kanaal per persoon, volgens voorkeuren
@@ -322,7 +368,7 @@ LICENSE                      EUPL v1.2
 schema.sql                   de bron van waarheid voor de databank
 schema-console.sql           opgedeeld in blokken voor de D1-console
 schema-alles-in-een.sql      drops plus schema, in één keer uitvoerbaar
-test/                        1754 tests, draaien zonder netwerk
+test/                        1870 tests, draaien zonder netwerk
 ```
 
 ## Val­kuilen die al eens hebben toegeslagen

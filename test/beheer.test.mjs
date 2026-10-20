@@ -61,6 +61,34 @@ console.log('\n1. Gebruikerslijst');
     (await vraag(env, '/api/admin/users', { alsWie: 'yo@club.be' })).status, 403);
 }
 
+console.log('\n1b. V26: wie krijgt meldingen, gemeten op de toestellen');
+{
+  const env = nieuweEnv();
+  env.DB.exec(`
+    INSERT INTO users (email, voornaam, achternaam, is_admin, profiel, club_guid, kanaal_push, actief) VALUES
+      ('piet@club.be', 'Piet', 'Peeters', 0, 'YO', '${CLUB}', 1, 1),
+      ('oud@club.be',  'Oud',  'Lid',     0, 'YO', '${CLUB}', 1, 0);
+    UPDATE users SET kanaal_push = 1 WHERE email IN ('baas@club.be', 'baas2@club.be');
+    INSERT INTO push_abonnementen (user_email, endpoint, p256dh, auth, toestel, laatst_ok, mislukt) VALUES
+      ('baas@club.be', 'https://p/1', 'k', 'a', 'iPhone', '2026-10-08 19:00:00', 0),
+      ('baas@club.be', 'https://p/2', 'k', 'a', 'Chrome', '2026-09-01 08:00:00', 2),
+      ('piet@club.be', 'https://p/3', 'k', 'a', 'Android', '2026-09-01 08:00:00', 1),
+      ('yo@club.be',   'https://p/4', 'k', 'a', 'Firefox', NULL, 0),
+      ('oud@club.be',  'https://p/5', 'k', 'a', 'iPad', NULL, 0);
+  `);
+  const r = await vraag(env, '/api/admin/users', { alsWie: 'baas@club.be' });
+  const per = Object.fromEntries(r.json.gebruikers.map((g) => [g.email, g.meldingen]));
+
+  check('aan als minstens één toestel werkt', per['baas@club.be'].status, 'aan');
+  check('beide toestellen erbij, het kapotte gemarkeerd',
+    per['baas@club.be'].toestellen.map((t) => [t.toestel, t.werkt]), [['iPhone', true], ['Chrome', false]]);
+  check('laatst ontvangen erbij', per['baas@club.be'].toestellen[0].laatstOk, '2026-10-08 19:00:00');
+  check('alle toestellen mislukt: werkt niet', per['piet@club.be'].status, 'werkt-niet');
+  check('push uitgezet: uit, ook met een toestel', per['yo@club.be'].status, 'uit');
+  check('geen toestel: uit', per['baas2@club.be'].status, 'uit');
+  check('teller enkel over actieve gebruikers', r.json.aantalMeldingenAan, 1);
+}
+
 console.log('\n2. Gebruiker toevoegen');
 {
   const env = nieuweEnv();

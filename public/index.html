@@ -522,6 +522,10 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
   font-size: .72rem; text-transform: uppercase; letter-spacing: .08em;
   color: var(--grijs); font-weight: 700; margin: .9rem 0 .4rem;
 }
+.dag-kop .regio-bron {
+  display: block; text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--groen);
+}
+.dag-kop .regio-bron.api { color: var(--amber-diep); }
 .ov.probleem { border-left-color: var(--rood); }
 .ov.probleem .ov-uur { color: var(--rood); }
 .meer-knop { margin: 1.2rem 0 .5rem; }
@@ -773,6 +777,8 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
 .gebr-groep > h4 .aantal { margin-left: auto; font-variant-numeric: tabular-nums; }
 .gebr-naam small.gsm { color: var(--inkt-zacht); font-variant-numeric: tabular-nums; }
 .gebr-naam small.band { color: #2b3f7a; }
+.gebr-naam small.meld-aan { color: var(--groen); }
+.gebr-naam small.meld-stuk { color: var(--rood); }
 .wa { color: #25d366; vertical-align: -.15em; margin-left: .2rem; }
 .wa:hover { color: #128c3e; }
 .bel { color: var(--inkt-zacht); vertical-align: -.15em; margin-left: .25rem; }
@@ -798,6 +804,10 @@ input[type="text"]:focus { border-color: var(--inkt); outline: none; }
 .knop.gevaarlijk:hover:not(:disabled) { background: #8f1c18; }
 .import-uitslag li { padding: .18rem 0; border-top: 1px solid var(--lijn); }
 .import-uitslag li:first-child { border-top: 0; }
+.pc-lijst { list-style: none; margin: .3rem 0 0; padding: 0; font-size: .85rem; }
+.pc-lijst li { padding: .25rem 0; border-top: 1px solid var(--lijn); }
+.pc-lijst li:first-child { border-top: 0; }
+.pc-leeg { color: var(--rood); }
 .regelnr { color: var(--grijs); font-variant-numeric: tabular-nums; font-size: .76rem; }
 textarea {
   width: 100%; min-height: 4.5rem; padding: .5rem .6rem; font: inherit; font-size: .82rem;
@@ -1771,6 +1781,17 @@ async function laadAandacht() {
   }
 }
 
+/**
+ * Waar de cijfers van een dag vandaan komen (V42). Is de woensdaglijst van de
+ * bond al verwerkt, dan is wat er staat bevestigd; anders kan een wedstrijd
+ * woensdag nog verdwijnen, omdat de bond er toch twee voorziet.
+ */
+function regioBron(wedstrijden) {
+  return wedstrijden.every((w) => w.bron === 'lijst')
+    ? '<small class="regio-bron">volgens de lijst van de bond</small>'
+    : '<small class="regio-bron api">volgens de API — de lijst van de bond volgt woensdag</small>';
+}
+
 function toonAandacht(data) {
   if (data.aantalClubs === 0) {
     $('hoofd').innerHTML = `
@@ -1793,7 +1814,8 @@ function toonAandacht(data) {
   for (const w of data.wedstrijden) {
     if (w.datum !== vorigeDag) {
       const d = ontleedDatum(w.datum);
-      delen.push(`<div class="dag-kop">${DAGEN[d.getUTCDay()]} ${d.getUTCDate()} ${MAANDEN[d.getUTCMonth()]}</div>`);
+      delen.push(`<div class="dag-kop">${DAGEN[d.getUTCDay()]} ${d.getUTCDate()} ${MAANDEN[d.getUTCMonth()]}
+        ${regioBron(data.wedstrijden.filter((x) => x.datum === w.datum))}</div>`);
       vorigeDag = w.datum;
     }
 
@@ -3277,6 +3299,28 @@ function toonPaneel() {
     </section>
 
     <section class="blok" data-groep="configuratie">
+      <h3 data-vouw="beheer-ploegcontacten">Ploegverantwoordelijken en coaches</h3>
+      <p class="hint">Zijn er voor een thuiswedstrijd van het komende weekend te weinig
+        scheidsrechters, dan krijgen de ploegverantwoordelijken en coaches van die ploeg
+        woensdag om 20 uur een mail dat er een oplossing gezocht wordt. Is het donderdag
+        om 20 uur nog niet gelukt, dan volgt een tweede mail met de vraag om mee te zoeken.
+        Ze zijn geen gebruikers van YOAssist en loggen niet in.</p>
+      <p class="hint" style="margin-top:.4rem">Download de lijst — ze bevat elke gevolgde
+        ploeg en wie er al op staat — vul ze aan en lees ze weer in. Een ploeg die in het
+        bestand staat, krijgt precies wie er in het bestand bij staat; een ploeg die er niet
+        in staat, blijft zoals ze is. Je ziet eerst wat er zou veranderen.</p>
+      ${Object.entries(PLOEGCONTACT_SOORTEN).map(([soort, label]) => `
+        <div class="scheiding"><span>${label}</span></div>
+        <div id="pc-lijst-${soort}"><span class="spinner"></span> Laden…</div>
+        <div class="veld-rij" style="margin-top:.5rem">
+          <button class="knop zacht" data-pc-sjabloon="${soort}" style="flex:1">Lijst downloaden</button>
+          <button class="knop zacht" data-pc-import="${soort}" style="flex:1">Bestand inlezen</button>
+        </div>
+        <input type="file" id="pc-bestand-${soort}" accept=".csv,text/csv" hidden>
+        <div id="pc-uitslag-${soort}"></div>`).join('')}
+    </section>
+
+    <section class="blok" data-groep="configuratie">
       <h3 data-vouw="beheer-mail">Mail</h3>
       <p class="hint">Het afzenderadres wijzig je hier. De API-sleutel van de
         maildienst is een secret bij de Worker en staat niet in dit scherm.
@@ -3507,6 +3551,7 @@ function bindPaneel() {
   $('sync-nu').onclick = syncNu;
   $('gebr-nieuw').onclick = toonGebruikerFormulier;
   laadGebruikers();
+  bindPloegcontacten();
 
   $('gebr-sjabloon').onclick = async () => {
     try {
@@ -5025,6 +5070,25 @@ async function laadMailConfig() {
   }
 }
 
+/**
+ * Eén regel per persoon: krijgt hij pushmeldingen, en op welke toestellen
+ * (V26). Een toestel waarvan de laatste melding niet aankwam, staat er apart
+ * bij — die persoon krijgt in de praktijk enkel mail.
+ */
+function meldingenRegel(m) {
+  if (!m || m.status === 'uit') return '<small>enkel mail</small>';
+  const dag = (iso) => {
+    if (!iso) return 'nog niets ontvangen';
+    const [, mnd, d] = iso.slice(0, 10).split('-');
+    return `laatst ${Number(d)}/${Number(mnd)}`;
+  };
+  const toestel = (tst) =>
+    `${tekst(tst.toestel || 'onbekend toestel')} (${tst.werkt ? dag(tst.laatstOk) : 'werkt niet meer'})`;
+  return m.status === 'aan'
+    ? `<small class="meld-aan">meldingen: ${m.toestellen.map(toestel).join(', ')}</small>`
+    : `<small class="meld-stuk">meldingen werken niet meer: ${m.toestellen.map(toestel).join(', ')}</small>`;
+}
+
 async function laadGebruikers() {
   const doel = $('gebruikers-lijst');
   try {
@@ -5048,6 +5112,7 @@ async function laadGebruikers() {
             ? `<small class="band">ingevuld door ${g.ouders.map(tekst).join(', ')}</small>` : ''}
           ${g.kinderen?.length
             ? `<small class="band">vult in voor ${g.kinderen.map(tekst).join(', ')}</small>` : ''}
+          ${meldingenRegel(g.meldingen)}
           ${g.gsmLeesbaar
             ? `<small class="gsm">${tekst(g.gsmLeesbaar)}
                 ${g.bellen ? `<a href="${tekst(g.bellen)}" class="bel" title="Bellen">${BEL_ICOON}</a>` : ''}
@@ -5077,6 +5142,9 @@ async function laadGebruikers() {
           </div>`)
         .join('') +
       `<p class="hint" style="margin:.9rem 0 .3rem">
+        ${data.aantalMeldingenAan} van de ${data.aantalActief} actieve gebruikers krijgen
+        meldingen op een toestel; de rest enkel mail.</p>
+      <p class="hint" style="margin:.3rem 0 .3rem">
         ${data.aantalActief} actieve gebruikers. Deze adressen horen in de Access-policy:</p>
       <textarea readonly id="access-lijst">${tekst(data.accessLijst)}</textarea>
       <button class="knop zacht breed" id="kopieer-access">Adressen kopiëren</button>`;
@@ -5341,6 +5409,121 @@ function toonImportUitslag(r, csv) {
       doel.innerHTML = `<div class="melding ok">${uit.aantalNieuw} gebruiker(s) toegevoegd.
         ${tekst(uit.herinnering || '')}</div>`;
       await laadGebruikers();
+    } catch (err) {
+      doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+    }
+  };
+}
+
+/* --- Ploegverantwoordelijken en coaches (V34) ------------------------------ */
+const PLOEGCONTACT_SOORTEN = { pv: 'Ploegverantwoordelijken', coach: 'Coaches' };
+
+function bindPloegcontacten() {
+  for (const soort of Object.keys(PLOEGCONTACT_SOORTEN)) {
+    laadPloegcontacten(soort);
+    document.querySelector(`[data-pc-sjabloon="${soort}"]`).onclick = async () => {
+      try {
+        await haalBestand(`/api/admin/ploegcontacten/sjabloon?soort=${soort}`,
+          soort === 'pv' ? 'yoassist-pv.csv' : 'yoassist-coaches.csv');
+      } catch (err) {
+        toast(err.message);
+      }
+    };
+    document.querySelector(`[data-pc-import="${soort}"]`).onclick = () => $(`pc-bestand-${soort}`).click();
+    $(`pc-bestand-${soort}`).onchange = async (e) => {
+      const bestand = e.target.files?.[0];
+      if (!bestand) return;
+      const doel = $(`pc-uitslag-${soort}`);
+      doel.innerHTML = '<div class="melding let"><span class="spinner"></span>Bestand lezen…</div>';
+      try {
+        const csv = await bestand.text();
+        const r = await api('/api/admin/ploegcontacten/import', {
+          method: 'POST', body: JSON.stringify({ soort, csv }),
+        });
+        toonPloegcontactImport(soort, r, csv);
+      } catch (err) {
+        doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+      } finally {
+        e.target.value = '';
+      }
+    };
+  }
+}
+
+async function laadPloegcontacten(soort) {
+  const doel = $(`pc-lijst-${soort}`);
+  if (!doel) return;
+  try {
+    doel.innerHTML = ploegcontactenHtml(await api(`/api/admin/ploegcontacten?soort=${soort}`));
+  } catch (err) {
+    doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
+  }
+}
+
+/** Per gevolgde ploeg wie erop staat; een ploeg zonder iemand valt op. */
+function ploegcontactenHtml(data) {
+  if (data.teams.length === 0) return '<p class="hint">Nog geen gevolgde ploegen.</p>';
+  const zonder = data.teams.filter((t) => t.personen.length === 0).length;
+  const persoon = (p) => `${tekst(`${p.voornaam} ${p.achternaam ?? ''}`.trim())}
+    <span class="regelnr">${tekst(p.email)}</span>`;
+  return `
+    <p class="hint">${data.teams.length} ploegen${zonder ? `, <b>${zonder} nog zonder iemand</b>` : ', elk met iemand'}.</p>
+    <ul class="pc-lijst">${data.teams.map((t) => `
+      <li><b>${tekst(t.naam)}</b>
+        ${t.personen.length
+          ? t.personen.map(persoon).join(', ')
+          : '<span class="pc-leeg">nog niemand</span>'}</li>`).join('')}</ul>`;
+}
+
+/** De droogloop van een ingelezen bestand, met de knop om door te zetten. */
+function toonPloegcontactImport(soort, r, csv) {
+  const doel = $(`pc-uitslag-${soort}`);
+  const naam = (p) => tekst(`${p.voornaam} ${p.achternaam ?? ''}`.trim());
+  const blokken = [];
+
+  if (r.fouten.length > 0) {
+    blokken.push(`<div class="melding fout import-uitslag">
+      <b>${r.fouten.length} regel(s) met een probleem</b>
+      <ul>${r.fouten.map((f) => `<li><span class="regelnr">regel ${f.regel}</span>
+        ${tekst(f.email || '')} — ${tekst(f.reden)}</li>`).join('')}</ul>
+    </div>`);
+  }
+  if (r.overgeslagen.length > 0) {
+    blokken.push(`<div class="melding let import-uitslag">
+      <b>${r.overgeslagen.length} ploeg(en) blijven zoals ze zijn</b>
+      <ul>${r.overgeslagen.map((o) => `<li>${tekst(o.team)} — ${tekst(o.reden)}</li>`).join('')}</ul>
+    </div>`);
+  }
+  if (r.wijzigingen.length === 0) {
+    blokken.push(`<div class="melding let">Er verandert niets${
+      r.ongewijzigd ? ` (${r.ongewijzigd} ploeg(en) ongewijzigd)` : ''}.</div>`);
+    doel.innerHTML = blokken.join('');
+    return;
+  }
+
+  blokken.push(`<div class="melding ok import-uitslag">
+    <b>${r.wijzigingen.length} ploeg(en) veranderen</b>
+    <ul>${r.wijzigingen.map((w) => `<li><b>${tekst(w.team)}</b>
+      ${w.nieuw.map((p) => `<br>+ ${naam(p)} <span class="regelnr">${tekst(p.email)}</span>`).join('')}
+      ${w.weg.map((p) => `<br>− ${naam(p)} <span class="regelnr">${tekst(p.email)}</span>`).join('')}
+      ${w.hernoemd.map((p) => `<br>naam aangepast: ${naam(p)}`).join('')}
+      ${w.personen.length === 0 ? '<br><span class="pc-leeg">daarna niemand meer</span>' : ''}</li>`).join('')}</ul>
+  </div>
+  <div class="veld-rij" style="margin-top:.5rem">
+    <button class="knop" id="pc-bevestig-${soort}" style="flex:1">Doorvoeren</button>
+    <button class="knop zacht" id="pc-annuleer-${soort}" style="flex:1">Annuleren</button>
+  </div>`);
+  doel.innerHTML = blokken.join('');
+
+  $(`pc-annuleer-${soort}`).onclick = () => { doel.innerHTML = ''; };
+  $(`pc-bevestig-${soort}`).onclick = async () => {
+    $(`pc-bevestig-${soort}`).disabled = true;
+    try {
+      const uit = await api('/api/admin/ploegcontacten/import', {
+        method: 'POST', body: JSON.stringify({ soort, csv, uitvoeren: true }),
+      });
+      doel.innerHTML = `<div class="melding ok">${uit.wijzigingen.length} ploeg(en) bijgewerkt.</div>`;
+      await laadPloegcontacten(soort);
     } catch (err) {
       doel.innerHTML = `<div class="melding fout">${tekst(err.message)}</div>`;
     }

@@ -238,6 +238,9 @@ export function templateWoensdaglijstBeheer(r) {
       (x) => `- ${x.datum} ${x.uur} ${x.thuis} - ${x.uit}`),
     blok('Gekoppeld, maar de reeks verschilt — even nakijken:', r.reeksAfwijking,
       (x) => `- ${x.datum} ${x.uur} ${x.thuis}: lijst '${x.lijst}', app '${x.app}'`),
+    r.regioInLijst > 0 ? `Regio: ${r.regioInLijst} wedstrijd(en) bij gevolgde clubs staan in de lijst.` : null,
+    blok('Regio: ploeg van een gevolgde club in de lijst, maar geen wedstrijd op die dag en dat uur gevonden:',
+      r.regioNietGekoppeld ?? [], (x) => `- ${x.datum} ${x.uur} ${x.thuis} - ${x.uit}`),
   ].filter(Boolean);
 
   return {
@@ -245,6 +248,67 @@ export function templateWoensdaglijstBeheer(r) {
     kort: `${r.toegevoegd.length} toegevoegd, ${r.afwijkingA.length + r.afwijkingB.length} afwijking(en)`,
     onderwerp: `Woensdaglijst verwerkt: ${r.toegevoegd.length} wedstrijd(en) in de lijst gezet`,
     tekst: `Hallo,\n\n${delen.join('\n\n')}`,
+  };
+}
+
+/* ---- Ploegverantwoordelijken en coaches (V34) — geen YOAssist-gebruikers ---- */
+
+const DAG_KORT = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
+
+/** '2026-10-11' -> 'zo 11/10': wie geen app opent, leest liever een dag dan een datum. */
+function dagLeesbaar(iso) {
+  const d = new Date(`${iso}T00:00:00Z`);
+  return `${DAG_KORT[d.getUTCDay()]} ${d.getUTCDate()}/${d.getUTCMonth() + 1}`;
+}
+
+/**
+ * Bericht aan een PV of coach: voor zijn wedstrijd zijn er nog te weinig
+ * scheidsrechters.
+ *
+ * Woensdag: geruststellen — de club zoekt, er is nu niets te doen. Donderdag:
+ * eerlijk zeggen dat het nog niet gelukt is, en vragen om mee te zoeken. Wie
+ * woensdag een bericht kreeg en donderdag niet meer, weet zo dat het geregeld is.
+ *
+ * @param {object} p
+ * @param {string} p.voornaam
+ * @param {'woensdag'|'donderdag'} p.ronde
+ * @param {{datum: string, uur: string, thuis: string, uit: string, locatie?: string, nogNodig: number}[]} p.wedstrijden
+ * @param {{naam: string, email: string}[]} p.contact  de beheerders
+ */
+export function templatePloegTekort({ voornaam, ronde, wedstrijden, contact }) {
+  const lijst = wedstrijden
+    .map((w) => `- ${dagLeesbaar(w.datum)} ${w.uur} ${w.thuis} - ${w.uit}` +
+      `${w.locatie ? ` (${w.locatie})` : ''}: nog ${w.nogNodig} scheidsrechter${w.nogNodig === 1 ? '' : 's'} nodig`)
+    .join('\n');
+  const wie = contact.map((c) => `${c.naam} (${c.email})`).join(', ');
+  const enkel = wedstrijden.length === 1;
+
+  if (ronde === 'woensdag') {
+    return {
+      onderwerp: enkel
+        ? `Scheidsrechters gezocht: ${wedstrijden[0].thuis} ${dagLeesbaar(wedstrijden[0].datum)}`
+        : `Scheidsrechters gezocht voor ${wedstrijden.length} wedstrijden`,
+      tekst:
+        `Hallo ${voornaam},\n\n` +
+        `Voor ${enkel ? 'deze wedstrijd' : 'deze wedstrijden'} van het komende weekend zijn er nog niet ` +
+        `genoeg scheidsrechters:\n\n${lijst}\n\n` +
+        'We zoeken een oplossing bij onze Youth Officials. Je hoeft nu niets te doen. ' +
+        'Is het tegen donderdagavond nog niet gelukt, dan laten we het je weten.' +
+        (wie ? `\n\nVragen? Neem contact op met ${wie}.` : ''),
+    };
+  }
+
+  return {
+    onderwerp: enkel
+      ? `Nog geen scheidsrechters: ${wedstrijden[0].thuis} ${dagLeesbaar(wedstrijden[0].datum)}`
+      : `Nog geen scheidsrechters voor ${wedstrijden.length} wedstrijden`,
+    tekst:
+      `Hallo ${voornaam},\n\n` +
+      `Het is ons nog niet gelukt om genoeg scheidsrechters te vinden voor ` +
+      `${enkel ? 'deze wedstrijd' : 'deze wedstrijden'}:\n\n${lijst}\n\n` +
+      'Kan iemand van de ploeg inspringen — een ouder, of een speler met een ' +
+      'scheidsrechterscursus? ' +
+      (wie ? `Laat het dan weten aan ${wie}.` : 'Laat het dan weten aan de club.'),
   };
 }
 

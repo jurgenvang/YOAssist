@@ -213,6 +213,27 @@ export function koppel(lijst, eigen) {
   return { gekoppeld, nietGekoppeld, reeksAfwijking };
 }
 
+/**
+ * De lijst koppelen aan de wedstrijden van de gevolgde clubs (Regio, V42).
+ *
+ * Dezelfde regel als bij de eigen wedstrijden: wat in de lijst staat, heeft
+ * 0 of 1 official; wat er niet in staat, heeft er volgens de bond 2 — ook als
+ * de API nog niemand toont. Bewaard per GUID, en enkel voor de rijen die er
+ * bij ontvangst waren: een club die pas later gevolgd wordt, is niet tegen de
+ * lijst gelegd, en mag dan ook geen '2' krijgen.
+ *
+ * @param {object[]} lijst      uit leesLijst
+ * @param {object[]} volgRijen  volg_wedstrijden-rijen (guid, datum, uur, thuis_naam)
+ */
+export function koppelVolg(lijst, volgRijen, van, tot) {
+  const { gekoppeld, nietGekoppeld } = koppel(lijst, volgRijen);
+  const inLijst = new Map(gekoppeld.map((g) => [g.guid, g.officials]));
+  const officials = volgRijen
+    .filter((m) => m.datum >= van && m.datum <= tot)
+    .map((m) => ({ guid: m.guid, officials: inLijst.has(m.guid) ? inLijst.get(m.guid) : 2 }));
+  return { officials, nietGekoppeld };
+}
+
 // ---------------------------------------------------------------------------
 // Tijd: wanneer mag een lijst meteen verwerkt worden?
 // ---------------------------------------------------------------------------
@@ -262,6 +283,12 @@ async function eigenWedstrijden(db) {
     `SELECT guid, datum, uur, thuis_naam, poule_naam
        FROM matches WHERE status = 'actief' AND bron = 'vbl'`,
   ).all();
+  return results;
+}
+
+async function volgWedstrijden(db) {
+  const { results } = await db.prepare('SELECT guid, datum, uur, thuis_naam FROM volg_wedstrijden').all()
+    .catch(() => ({ results: [] }));
   return results;
 }
 
@@ -354,13 +381,15 @@ export async function ontvangMail(env, raw, { naar = '', nu = new Date() } = {})
   }
 
   const { gekoppeld, nietGekoppeld, reeksAfwijking } = koppel(lijst.wedstrijden, await eigenWedstrijden(env.DB));
+  const volg = koppelVolg(lijst.wedstrijden, await volgWedstrijden(env.DB), van, tot);
   const ingevoegd = await env.DB.prepare(
     `INSERT INTO vbl_lijsten (onderwerp, bestand, weekend_van, weekend_tot, aantal_rijen,
-                              eigen, meldingen, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'ontvangen') RETURNING id`,
+                              eigen, meldingen, volg, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ontvangen') RETURNING id`,
   ).bind(
     mail.onderwerp, herkend.link, van, tot, lijst.wedstrijden.length,
     JSON.stringify(gekoppeld), JSON.stringify({ nietGekoppeld, reeksAfwijking, onleesbaar: lijst.onleesbaar }),
+    JSON.stringify(volg),
   ).first();
 
   await logLijst(env, 'lijst ontvangen',
@@ -386,6 +415,9 @@ export async function verwerkLijst(env, lijstId, nu = new Date()) {
   const lijst = await db.prepare('SELECT * FROM vbl_lijsten WHERE id = ?').bind(lijstId).first();
   const bond = new Map(JSON.parse(lijst.eigen ?? '[]').map((g) => [g.guid, g.officials]));
   const meldingen = JSON.parse(lijst.meldingen ?? '{}');
+  // Een lijst van vóór v1.16.0 heeft geen Regio-koppeling: dan blijft Regio
+  // op de API, in plaats van alles op '2' te zetten.
+  const volg = JSON.parse(lijst.volg ?? 'null');
 
   const { results: kandidaten } = await db.prepare(
     `SELECT m.guid, m.datum, m.uur, m.thuis_naam, m.uit_naam, m.locatie, m.off_aantal,
@@ -415,6 +447,8 @@ export async function verwerkLijst(env, lijstId, nu = new Date()) {
     afwijkingB: [],
     nietGekoppeld: meldingen.nietGekoppeld ?? [],
     reeksAfwijking: meldingen.reeksAfwijking ?? [],
+    regioInLijst: (volg?.officials ?? []).filter((v) => v.officials < 2).length,
+    regioNietGekoppeld: volg?.nietGekoppeld ?? [],
   };
 
   const opdrachten = [];
@@ -453,6 +487,11 @@ export async function verwerkLijst(env, lijstId, nu = new Date()) {
         r.uitGehaald.push(w);
       }
     }
+  }
+
+  for (const v of volg?.officials ?? []) {
+    opdrachten.push(db.prepare('UPDATE volg_wedstrijden SET bond_officials = ? WHERE guid = ?')
+      .bind(v.officials, v.guid));
   }
 
   opdrachten.push(db.prepare(
