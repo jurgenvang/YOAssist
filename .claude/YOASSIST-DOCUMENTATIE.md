@@ -1,6 +1,6 @@
 # YOAssist — hoe het werkt
 
-Versie 1.17.0
+Versie 1.17.1
 
 Dit document legt uit wat YOAssist doet, waar het draait en wat er nodig is om
 het draaiende te houden. Bedoeld voor wie de app beheert, en voor wie hem ooit
@@ -76,6 +76,11 @@ wedstrijd te koppelen waren (bijvoorbeeld door een verschoven uur) — ook van
 de clubs die je volgt in Regio (hoofdstuk 9e). Bij Beheer
 → Dagelijks staat onder *Woensdaglijst van de bond* wat er de laatste weken
 binnenkwam.
+
+Zijn alle wedstrijden gedekt, dan stuurt de bond geen Excel maar enkel de
+zin dat alle wedstrijden van officials voorzien zijn. De app leest dat als een
+lege lijst: er komt niets bij, en wat automatisch in de lijst stond zonder
+iemand erop, gaat eruit.
 
 Is de lijst er om 14 uur niet, dan krijgen de beheerders een waarschuwing.
 Komt ze vóór 20 uur, dan wordt ze meteen verwerkt. Om 20 uur valt de app
@@ -504,6 +509,6 @@ Wat er nodig is om verder te kunnen:
 De code staat onder de **EUPL v1.2**: vrij te gebruiken, aan te passen en door te
 geven onder dezelfde voorwaarden. Zie `LICENSE`.
 
-Voor wie eraan verder wil bouwen zijn er 1870 tests die zonder netwerk draaien
+Voor wie eraan verder wil bouwen zijn er 1886 tests die zonder netwerk draaien
 met `cd test && npm test`. Ze zijn er niet voor de vorm: verschillende ervan
 kwamen er nadat iets stil was misgegaan, en houden dat nu tegen.

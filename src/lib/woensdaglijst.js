@@ -41,6 +41,16 @@ const ONDERWERP = /zonder officials/i;
 // mailbox; zonder doorsturen raakt niemand aan die link.
 const BEVESTIGING = /bevestig|confirm|verif/i;
 const LINK = /https:\/\/mcusercontent\.com\/[^\s"'<>)]+\/files\/[^\s"'<>)]+\.xlsx/i;
+// Een lege lijst (V44): zijn alle wedstrijden van het weekend gedekt, dan
+// stuurt de bond de mail zonder Excel-bestand, met deze tekst. Zo op 28
+// oktober 2026: '0 wedstrijden met één of zonder officials' en 'Alle
+// wedstrijden zijn dit weekend van officials voorzien.' Herkend aan de tekst,
+// niet aan het ontbreken van de link alleen: een mail zonder link en zonder
+// deze tekst betekent dat de bond de vorm veranderde, en dat blijft een fout.
+const LEEG = [
+  /alle\s+wedstrijden\s+zijn\s+dit\s+weekend\s+van\s+officials\s+voorzien/i,
+  /\b0\s+wedstrijden\s+met\s+(?:één|een|&eacute;&eacute;n)\s+of\s+zonder\s+officials/i,
+];
 const MAX_BESTAND = 5 * 1024 * 1024;
 
 /** De kolommen die er moeten zijn. De volgorde mag wijzigen, de namen niet. */
@@ -116,7 +126,12 @@ export function herkenMail(mail) {
     const link = d.tekst.replace(/&amp;/g, '&').match(LINK)?.[0];
     if (link) return { soort: 'lijst', link };
   }
-  return { soort: 'lijst', link: null };
+  // Geen link: een lege lijst, als de tekst dat zegt. De HTML-versie zonder
+  // tags en harde spaties, zodat een regelbreuk of <br> de zin niet breekt.
+  const tekst = mail.tekstdelen
+    .map((d) => d.tekst.replace(/<[^>]+>/g, ' ').replace(/&nbsp;|\u00a0/g, ' '))
+    .join(' ');
+  return { soort: 'lijst', link: null, leeg: LEEG.some((r) => r.test(tekst)) };
 }
 
 /**
@@ -342,28 +357,42 @@ export async function ontvangMail(env, raw, { naar = '', nu = new Date() } = {})
     return { soort: 'fout', reden };
   };
 
-  if (!herkend.link) return fout('Geen link naar een Excel-bestand gevonden in de mail.');
-
   let lijst;
-  try {
-    const res = await fetch(herkend.link);
-    if (!res.ok) return fout(`Het Excel-bestand kon niet opgehaald worden (HTTP ${res.status}).`);
-    const buffer = await res.arrayBuffer();
-    if (buffer.byteLength > MAX_BESTAND) return fout('Het Excel-bestand is onverwacht groot.');
-    lijst = leesLijst((await leesXlsx(buffer)).rijen);
-  } catch (err) {
-    return fout(err.message);
+  if (!herkend.link && herkend.leeg) {
+    // Geen enkele wedstrijd zonder officials: een lege lijst, die verder
+    // loopt zoals elke andere — niets erbij, en elke eigen thuiswedstrijd van
+    // het weekend krijgt 'de bond voorziet twee'.
+    lijst = { wedstrijden: [], onleesbaar: [] };
+  } else if (!herkend.link) {
+    return fout('Geen link naar een Excel-bestand gevonden in de mail.');
+  } else {
+    try {
+      const res = await fetch(herkend.link);
+      if (!res.ok) return fout(`Het Excel-bestand kon niet opgehaald worden (HTTP ${res.status}).`);
+      const buffer = await res.arrayBuffer();
+      if (buffer.byteLength > MAX_BESTAND) return fout('Het Excel-bestand is onverwacht groot.');
+      lijst = leesLijst((await leesXlsx(buffer)).rijen);
+    } catch (err) {
+      return fout(err.message);
+    }
   }
 
   // Het weekend is altijd minstens zaterdag en zondag, ook als de lijst
   // toevallig maar over één dag gaat: een wedstrijd op de andere dag staat er
   // dan niet in omdat de bond er twee voorziet, niet omdat ze buiten de lijst valt.
-  const datums = lijst.wedstrijden.map((w) => w.datum).sort();
-  const zaterdag = new Date(`${woensdagVoor(datums[0])}T00:00:00Z`);
-  const za = new Date(zaterdag.getTime() + 3 * 86400000).toISOString().slice(0, 10);
-  const zo = new Date(zaterdag.getTime() + 4 * 86400000).toISOString().slice(0, 10);
-  const van = datums[0] < za ? datums[0] : za;
-  const tot = datums[datums.length - 1] > zo ? datums[datums.length - 1] : zo;
+  // Een lege lijst heeft geen datums: dan het weekend dat op de mail volgt.
+  let van;
+  let tot;
+  if (lijst.wedstrijden.length) {
+    const datums = lijst.wedstrijden.map((w) => w.datum).sort();
+    const woensdag = new Date(`${woensdagVoor(datums[0])}T00:00:00Z`);
+    const za = new Date(woensdag.getTime() + 3 * 86400000).toISOString().slice(0, 10);
+    const zo = new Date(woensdag.getTime() + 4 * 86400000).toISOString().slice(0, 10);
+    van = datums[0] < za ? datums[0] : za;
+    tot = datums[datums.length - 1] > zo ? datums[datums.length - 1] : zo;
+  } else {
+    [van, tot] = komendWeekend(nu);
+  }
   const vandaag = nu.toISOString().slice(0, 10);
   if (tot < vandaag) return fout(`De lijst gaat over ${van} tot ${tot}, en dat is voorbij.`);
 

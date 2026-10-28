@@ -117,9 +117,9 @@ function qp(tekst) {
 }
 function bouwMail({ van = 'Basketbal Vlaanderen <info@basketbal.vlaanderen>',
   onderwerp = '=?utf-8?Q?Wedstrijden=20zonder=20officials=20komend=20weekend=20&=20nieuws?=',
-  link = LINK } = {}) {
-  const tekst = `** Beste official\n\nOverzicht wedstrijden zonder officials (${link ?? 'geen link'})\n\nTot volgende week.`;
-  const html = `<p><a href="https://vlaanderen.us3.list-manage.com/track/click?u=1&amp;id=2">Overzicht</a></p>`;
+  link = LINK, inhoud = null, htmlInhoud = null } = {}) {
+  const tekst = inhoud ?? `** Beste official\n\nOverzicht wedstrijden zonder officials (${link ?? 'geen link'})\n\nTot volgende week.`;
+  const html = htmlInhoud ?? `<p><a href="https://vlaanderen.us3.list-manage.com/track/click?u=1&amp;id=2">Overzicht</a></p>`;
   return [
     `From: ${van}`, 'To: vbl@yoassist.org', `Subject: ${onderwerp}`, 'MIME-Version: 1.0',
     'Content-Type: multipart/alternative; boundary="_----------=_MCPart_1"', '',
@@ -589,6 +589,60 @@ console.log('\n15. V42: een lijst van vóór Regio-koppeling laat Regio ongemoei
   check('verwerkt', om14.soort, 'verwerkt');
   check('Regio ongemoeid',
     (await env.DB.prepare("SELECT bond_officials AS b FROM volg_wedstrijden WHERE guid = 'V_OUD'").first()).b, null);
+}
+
+console.log('\n16. V44: alle wedstrijden gedekt — een mail zonder link is een lege lijst');
+{
+  // De tekst zoals de bond hem op 28 oktober 2026 stuurde, met de dubbele
+  // spatie en de regelbreuk erin.
+  const LEEG_TEKST = '** Beste official\n\n0 wedstrijden met één of zonder officials\n\n\n' +
+    'Alle wedstrijden zijn  dit weekend van officials voorzien. Bij eventuele wijzigingen zal rechtstreeks  ' +
+    'contact opgenomen worden met de thuisploeg.\n';
+  check('herkend als lege lijst', herkenMail(leesMail(bouwMail({ link: null, inhoud: LEEG_TEKST }))),
+    { soort: 'lijst', link: null, leeg: true });
+  check('ook enkel in de HTML, met een <br> in de zin',
+    herkenMail(leesMail(bouwMail({ link: null, inhoud: 'Beste official', htmlInhoud:
+      '<p>Alle wedstrijden zijn&nbsp;dit weekend<br>van officials voorzien.</p>' }))).leeg, true);
+  check('zonder link en zonder die tekst: geen lege lijst',
+    herkenMail(leesMail(bouwMail({ link: null }))).leeg, false);
+
+  const env = nieuweEnv();
+  const B = 'AB InBev Leuven Bears';
+  wed(env, 'API0', ZA, '09:00', `${B} J16 A`);
+  wed(env, 'AUTO', ZO, '11:00', `${B} J18 B`, { scope: 1, reden: 'woensdag' });
+  wed(env, 'BEZET', ZO, '13:00', `${B} J18 C`, { scope: 1, reden: 'woensdag', officials: ['plus@club.be'] });
+  env.DB.exec(`
+    INSERT INTO volg_clubs (guid, naam, toegevoegd_door) VALUES ('BVBL9999', 'Andere Club', 'baas@club.be');
+    INSERT INTO volg_wedstrijden (guid, club_guid, club_naam, thuis_naam, uit_naam, datum, uur, cat_code, vbl_aantal)
+      VALUES ('V_ZA', 'BVBL9999', 'Andere Club', 'Andere Club U16 A', 'Gast', '${ZA}', '10:00', 'J16', 0);
+  `);
+  let mails = zetFetch(null);
+  const r = await ontvangMail(env, bouwMail({ link: null, inhoud: LEEG_TEKST }), { nu: VOOR_14 });
+  check('bewaard als ontvangen, geen fout', r.soort, 'ontvangen');
+  check('geen foutmail aan de beheerders', mails.length, 0);
+  const l = await env.DB.prepare('SELECT weekend_van, weekend_tot, aantal_rijen, status FROM vbl_lijsten').first();
+  check('het weekend dat op de mail volgt', [l.weekend_van, l.weekend_tot, l.aantal_rijen, l.status], [ZA, ZO, 0, 'ontvangen']);
+
+  mails = zetFetch(null);
+  const om14 = await woensdagOm14(env, new Date(`${isoDag(WOENSDAG)}T12:00:00Z`));
+  check('om 14 uur verwerkt, geen "nog niet binnen"', om14.soort, 'verwerkt');
+  check('niets in de lijst gezet', om14.resultaat.toegevoegd.length, 0);
+  check('wat automatisch erin kwam en niemand heeft: eruit', (await rij(env, 'AUTO')).scope, 0);
+  check('met een aanduiding: blijft staan', (await rij(env, 'BEZET')).scope, 1);
+  check('de bond voorziet twee', (await rij(env, 'API0')).bond_officials, 2);
+  check('ook in Regio',
+    (await env.DB.prepare("SELECT bond_officials AS b FROM volg_wedstrijden WHERE guid = 'V_ZA'").first()).b, 2);
+  check('YO+ krijgt niets', mails.some((m) => m.to === 'plus@club.be'), false);
+
+  const om20 = await woensdagTerugval(env, new Date(`${isoDag(WOENSDAG)}T18:00:00Z`));
+  check('om 20 uur geen terugval op de API', om20.soort, 'niet-nodig');
+  check('de wedstrijd zonder refs in de API blijft eruit', (await rij(env, 'API0')).scope, 0);
+
+  // Zonder de tekst blijft het een fout: dan veranderde de bond de vorm.
+  const env2 = nieuweEnv();
+  zetFetch(null);
+  check('zonder link en zonder tekst: fout zoals vroeger',
+    (await ontvangMail(env2, bouwMail({ link: null }), { nu: VOOR_14 })).soort, 'fout');
 }
 
 console.log(f === 0 ? '\n=== ALLE WOENSDAGLIJSTTESTS GESLAAGD ===' : `\n=== ${f} GEFAALD ===`);

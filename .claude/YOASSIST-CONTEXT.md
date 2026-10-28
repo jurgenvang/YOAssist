@@ -3,7 +3,7 @@
 Upload dit als **projectkennis**. Het bevat wat een volgend gesprek moet weten om
 verder te kunnen zonder alles opnieuw uit te vragen.
 
-Laatst bijgewerkt: v1.17.0
+Laatst bijgewerkt: v1.17.1
 
 ---
 
@@ -164,6 +164,16 @@ wijzigen, en dat vraagt een DROP van `matches`. Elke onverwachte vorm (afzender,
 onderwerp, link, kolommen, datums) faalt luid naar de beheerders en wordt in
 `vbl_lijsten` bewaard. De mailhandler gooit nooit: een geweigerde mail kaatst
 terug naar de bond.
+**Een lijst zonder wedstrijden komt zonder link** (V44, v1.17.1). Is alles
+gedekt, dan stuurt de bond geen Excel maar enkel de tekst '0 wedstrijden met
+één of zonder officials … Alle wedstrijden zijn dit weekend van officials
+voorzien'. Die tekst (`LEEG` in `woensdaglijst.js`) maakt er een lege lijst
+van voor het komende weekend, verwerkt zoals elke andere: niets erbij, de
+automatisch toegevoegde zonder official eruit, elke eigen thuiswedstrijd
+vanaf U14 en Regio krijgen 'twee volgens de bond'. Zonder link én zonder die
+tekst blijft het een fout: dan veranderde de bond de vorm. Tot v1.17.1 gaf
+zo'n mail een vals alarm en om 20 uur een terugval op de API die wedstrijden
+in de lijst zette die de bond al gedekt had (28 oktober 2026).
 **Ook Regio volgt de lijst** (V42), met dezelfde regel: in de lijst = 0 of 1,
 niet in de lijst = 2, het hoogste van API en lijst telt. De koppeling met
 `volg_wedstrijden` gebeurt bij ontvangst en wordt per GUID bewaard in
@@ -368,7 +378,7 @@ LICENSE                      EUPL v1.2
 schema.sql                   de bron van waarheid voor de databank
 schema-console.sql           opgedeeld in blokken voor de D1-console
 schema-alles-in-een.sql      drops plus schema, in één keer uitvoerbaar
-test/                        1870 tests, draaien zonder netwerk
+test/                        1886 tests, draaien zonder netwerk
 ```
 
 ## Val­kuilen die al eens hebben toegeslagen
